@@ -24,12 +24,26 @@ import {
 import { charts, sectionMeta, isAdvancedLike } from "./chartModel";
 import type { Opt, SectionId } from "./chartModel";
 import ChartPreview from "./ChartPreview";
+import ChartDataQueryPreview from "./ChartDataQueryPreview";
+import StaticVisualPreview from "./StaticVisualPreview";
 import ColorPalette from "./ColorPalette";
 import Dropdown from "./Dropdown";
 import DataSourceStep from "./DataSourceStep";
+import FiltersStep from "./FiltersStep";
+import DeepDiveStep from "./DeepDiveStep";
+import AccessStep from "./AccessStep";
+import GeneralInfoStep, { type GeneralInfo } from "./GeneralInfoStep";
 import ApiResponsePreview from "./ApiResponsePreview";
+import VisualTypePicker from "./VisualTypePicker";
+import SelectedVisualBar from "./SelectedVisualBar";
+import { visualTypeByChartId, visualTypeById } from "./visualCatalog";
+import type { VisualCategoryId, VisualType } from "./visualCatalog";
+
+type VizPhase = "picker" | "settings";
 
 type PreviewSize = "small" | "medium" | "large";
+
+type PreviewMode = "visualization" | "data-query";
 
 const SECTION_ICONS: Record<SectionId, typeof MapIcon> = {
   data: MapIcon,
@@ -643,15 +657,39 @@ function GroupCard({
 }
 
 /* ---------- modal ---------- */
-export default function EditComponentModal({ onClose }: { onClose?: () => void }) {
+export default function EditComponentModal({
+  onClose,
+  componentName,
+  componentCategory,
+  startAtVisualPicker = false,
+}: {
+  onClose?: () => void;
+  componentName?: string;
+  componentCategory?: string;
+  startAtVisualPicker?: boolean;
+}) {
   const [activeChart, setActiveChart] = useState("bar");
+  const [selectedVisualId, setSelectedVisualId] = useState<string | null>(
+    startAtVisualPicker ? null : "vertical-bar",
+  );
+  const [vizSectionsExpanded, setVizSectionsExpanded] = useState<Record<VisualCategoryId, boolean>>({
+    chart: true,
+    "map-layer": true,
+  });
+  const [vizPhase, setVizPhase] = useState<VizPhase>(startAtVisualPicker ? "picker" : "settings");
   const [activeSection, setActiveSection] = useState<SectionId>("data");
-  const [currentStep, setCurrentStep] = useState(1);
-  const [maxUnlockedStep, setMaxUnlockedStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(startAtVisualPicker ? 0 : 1);
+  const [maxUnlockedStep, setMaxUnlockedStep] = useState(startAtVisualPicker ? 0 : 1);
   const [query, setQuery] = useState("");
   const [groupAdv, setGroupAdv] = useState<Record<string, boolean>>({});
   const [size, setSize] = useState<PreviewSize>("medium");
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
   const [config, setConfig] = useState<Config>({});
+  const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
+    name: componentName ?? "",
+    description: "",
+    category: componentCategory ?? "",
+  });
 
   const chart = charts[activeChart];
 
@@ -704,6 +742,47 @@ export default function EditComponentModal({ onClose }: { onClose?: () => void }
     setCurrentStep(currentStep - 1);
   };
 
+  const handlePrev = () => {
+    if (isVizStep && vizPhase === "settings") {
+      setVizPhase("picker");
+      return;
+    }
+    goPrev();
+  };
+
+  const handleNext = () => {
+    if (WIZARD_STEPS[currentStep]?.id === "general-info") {
+      if (
+        !generalInfo.name.trim() ||
+        !generalInfo.description.trim() ||
+        !generalInfo.category.trim()
+      ) {
+        return;
+      }
+      onClose?.();
+      return;
+    }
+    if (isVizStep && vizPhase === "picker") {
+      return;
+    }
+    if (isVizStep && vizPhase === "settings" && sectionHasErrors("data", chart, getVal)) {
+      return;
+    }
+    goNext();
+  };
+
+  const selectVisual = (visual: VisualType) => {
+    setSelectedVisualId(visual.id);
+    setActiveChart(visual.chartId);
+  };
+
+  const returnToVisualPicker = () => setVizPhase("picker");
+
+  const confirmVisualSelection = () => {
+    if (!selectedVisualId) return;
+    setVizPhase("settings");
+  };
+
   const selectStep = (index: number) => {
     if (index > maxUnlockedStep) return;
     setCurrentStep(index);
@@ -712,6 +791,25 @@ export default function EditComponentModal({ onClose }: { onClose?: () => void }
   const wizardStepId = WIZARD_STEPS[currentStep]?.id ?? "viz-mapping";
   const isDataSourceStep = wizardStepId === "data-source";
   const isVizStep = wizardStepId === "viz-mapping";
+  const isFiltersStep = wizardStepId === "filters";
+  const isDeepDiveStep = wizardStepId === "deep-dive";
+  const isAccessStep = wizardStepId === "access";
+  const isGeneralInfoStep = wizardStepId === "general-info";
+  const isPreviewVizOnly = isAccessStep || isGeneralInfoStep;
+  const isVizPicker = isVizStep && vizPhase === "picker";
+  const isVizSettings = isVizStep && vizPhase === "settings";
+  const mappingIncomplete = sectionHasErrors("data", chart, getVal);
+  const selectedVisual = selectedVisualId ? visualTypeById(selectedVisualId) : null;
+  const displayVisual = selectedVisual ?? visualTypeByChartId(activeChart);
+  const displayVisualId = displayVisual?.id ?? "vertical-bar";
+  const displayVisualLabel = displayVisual?.label ?? chart.name;
+  const displayVisualCategory = displayVisual?.category ?? "chart";
+  const selectedCategoryExpanded =
+    !selectedVisual || vizSectionsExpanded[selectedVisual.category];
+  const showChartPreview =
+    !isDataSourceStep &&
+    !isDeepDiveStep &&
+    (!isVizPicker || (!!selectedVisualId && selectedCategoryExpanded));
 
   const stepperRef = useRef<HTMLElement>(null);
   const stepRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -747,7 +845,14 @@ export default function EditComponentModal({ onClose }: { onClose?: () => void }
       <div className="modal">
         {/* Header */}
         <header className="modal__header">
-          <h2 className="modal__title">Edit Component</h2>
+          <div className="modal__heading">
+            <h2 className="modal__title">Edit Component</h2>
+            {(generalInfo.name || generalInfo.category) && (
+              <p className="modal__subtitle">
+                {[generalInfo.name, generalInfo.category].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </div>
           <button className="icon-btn" aria-label="Close" onClick={onClose}>
             <CloseIcon width={18} height={18} />
           </button>
@@ -791,28 +896,64 @@ export default function EditComponentModal({ onClose }: { onClose?: () => void }
           })}
         </nav>
 
-        <div className="modal__body">
-          {/* LEFT — settings */}
-          <section className="settings">
-            {isVizStep && (
-              <div className="settings__topbar">
-                <div className="settings__heading">
-                  <span className="settings__step">Selected Visual</span>
-                  <h3 className="settings__title">{chart.name}</h3>
-                </div>
-                <Dropdown
-                  className="settings__chart-select"
-                  compact
-                  ariaLabel="Chart type"
-                  value={activeChart}
-                  onChange={setActiveChart}
-                  options={Object.entries(charts).map(([id, c]) => ({ value: id, label: c.name }))}
+        <div
+          className={
+            "modal__body" +
+            (isDeepDiveStep ? " modal__body--deep-dive" : "")
+          }
+        >
+          <section className={"settings" + (isVizPicker ? " settings--viz-picker" : "")}>
+            {isVizPicker ? (
+              <div className="settings__content settings__content--viz-picker">
+                <VisualTypePicker
+                  selectedId={selectedVisualId}
+                  onSelect={selectVisual}
+                  onConfirmSelection={confirmVisualSelection}
+                  onExpandedChange={setVizSectionsExpanded}
                 />
               </div>
+            ) : (
+              <>
+            {isVizStep && (
+              <SelectedVisualBar
+                label={displayVisualLabel}
+                visualId={displayVisualId}
+                category={displayVisualCategory}
+                onChange={returnToVisualPicker}
+              />
             )}
 
-            <div className={"settings__content" + (isDataSourceStep ? " settings__content--data-source" : "")}>
+            <div
+              className={
+                "settings__content" +
+                (isDataSourceStep ? " settings__content--data-source" : "") +
+                (isFiltersStep ? " settings__content--filters" : "") +
+                (isDeepDiveStep ? " settings__content--deep-dive" : "") +
+                (isAccessStep ? " settings__content--access" : "") +
+                (isGeneralInfoStep ? " settings__content--general-info" : "")
+              }
+            >
               {isDataSourceStep && <DataSourceStep />}
+
+              {isFiltersStep && <FiltersStep />}
+
+              {isDeepDiveStep && <DeepDiveStep />}
+
+              {isAccessStep && <AccessStep />}
+
+              {isGeneralInfoStep && (
+                <GeneralInfoStep
+                  value={generalInfo}
+                  onChange={setGeneralInfo}
+                  onFillWithAI={() =>
+                    setGeneralInfo({
+                      name: chart.name,
+                      description: `Shows ${chart.name.toLowerCase()} using the configured data source and visualization settings.`,
+                      category: generalInfo.category || componentCategory || "Operations",
+                    })
+                  }
+                />
+              )}
 
               {isVizStep && (
                 <>
@@ -879,60 +1020,131 @@ export default function EditComponentModal({ onClose }: { onClose?: () => void }
                 </>
               )}
 
-              {!isDataSourceStep && !isVizStep && (
+              {!isDataSourceStep &&
+                !isVizStep &&
+                !isFiltersStep &&
+                !isDeepDiveStep &&
+                !isAccessStep &&
+                !isGeneralInfoStep && (
                 <div className="ia-empty">{WIZARD_STEPS[currentStep]?.label} — coming soon.</div>
               )}
             </div>
-          </section>
-
-          {/* RIGHT — preview */}
-          <section className="preview">
-            {isDataSourceStep ? (
-              <ApiResponsePreview />
-            ) : (
-              <>
-                <div className="preview__head">
-                  <h3 className="preview__title">Chart Preview</h3>
-                  <div className="seg-toggle">
-                    {(["small", "medium", "large"] as PreviewSize[]).map((s) => (
-                      <button
-                        key={s}
-                        className={"seg-toggle__btn" + (size === s ? " is-active" : "")}
-                        onClick={() => setSize(s)}
-                      >
-                        {s[0].toUpperCase() + s.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="preview__stage">
-                  <div className={"chart-card chart-card--" + size}>
-                    <ChartPreview type={chart.preview} chartId={activeChart} cfg={cfg} />
-                  </div>
-                </div>
               </>
             )}
           </section>
+
+          {!isDeepDiveStep && (
+          <section className="preview">
+            {isDataSourceStep ? (
+              <ApiResponsePreview />
+            ) : showChartPreview ? (
+              <>
+                <div className="preview__head">
+                  <div className="preview__head-row">
+                    <h3 className="preview__title">
+                      {isVizPicker && selectedVisual ? selectedVisual.label : "Chart Preview"}
+                    </h3>
+                    {!isPreviewVizOnly && (
+                    <div
+                      className="seg-toggle preview__mode-toggle"
+                      role="group"
+                      aria-label="Preview mode"
+                    >
+                      <button
+                        type="button"
+                        className={
+                          "seg-toggle__btn" + (previewMode === "visualization" ? " is-active" : "")
+                        }
+                        onClick={() => setPreviewMode("visualization")}
+                      >
+                        Visualization
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          "seg-toggle__btn" + (previewMode === "data-query" ? " is-active" : "")
+                        }
+                        onClick={() => setPreviewMode("data-query")}
+                      >
+                        Data query
+                      </button>
+                    </div>
+                    )}
+                  </div>
+                </div>
+
+                {previewMode === "visualization" || isPreviewVizOnly ? (
+                  <div className="preview__stage preview__stage--viz">
+                    <div className="preview__size-toggle">
+                      <div className="seg-toggle" role="group" aria-label="Preview size">
+                        {(["small", "medium", "large"] as PreviewSize[]).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={"seg-toggle__btn" + (size === s ? " is-active" : "")}
+                            onClick={() => setSize(s)}
+                          >
+                            {s[0].toUpperCase() + s.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="preview__chart-slot">
+                      <div className={"chart-card chart-card--" + size}>
+                        {isVizPicker && selectedVisual ? (
+                          <StaticVisualPreview visual={selectedVisual} />
+                        ) : (
+                          <ChartPreview type={chart.preview} chartId={activeChart} cfg={cfg} />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="preview__stage preview__stage--table">
+                    <ChartDataQueryPreview chartId={activeChart} />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="preview__empty">
+                <p className="preview__empty-title">Chart Preview</p>
+                <p className="preview__empty-copy">Select a visualization to see a live preview.</p>
+              </div>
+            )}
+          </section>
+          )}
 
           <footer className="settings__footer">
             <button
               type="button"
               className="pg-btn pg-btn--secondary pg-btn--icon-left"
-              disabled={currentStep === 0}
-              onClick={goPrev}
+              disabled={currentStep === 0 && !(isVizStep && vizPhase === "settings")}
+              onClick={handlePrev}
             >
               <ArrowLeftIcon className="pg-btn__icon" width={16} height={16} aria-hidden="true" />
               <span>Previous</span>
             </button>
             <button
               type="button"
-              className="pg-btn pg-btn--primary pg-btn--icon-right"
-              disabled={currentStep >= WIZARD_STEPS.length - 1}
-              onClick={goNext}
+              className={
+                "pg-btn pg-btn--primary" +
+                (isGeneralInfoStep ? " pg-btn--create" : " pg-btn--icon-right")
+              }
+              disabled={
+                isVizPicker
+                  ? true
+                  : isVizSettings
+                    ? mappingIncomplete
+                    : isGeneralInfoStep
+                      ? false
+                      : currentStep >= WIZARD_STEPS.length - 1
+              }
+              onClick={handleNext}
             >
-              <span>Next</span>
-              <ArrowRightIcon className="pg-btn__icon" width={16} height={16} aria-hidden="true" />
+              <span>{isGeneralInfoStep ? "Create component" : "Next"}</span>
+              {!isGeneralInfoStep && (
+                <ArrowRightIcon className="pg-btn__icon" width={16} height={16} aria-hidden="true" />
+              )}
             </button>
           </footer>
         </div>

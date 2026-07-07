@@ -1,5 +1,7 @@
 import { useState } from "react";
+import CreateComponentPopup from "./CreateComponentPopup";
 import EditComponentModal from "./EditComponentModal";
+import { COMPONENT_LIST_ROWS } from "./componentCatalog";
 import {
   SearchIcon,
   PlusIcon,
@@ -24,26 +26,7 @@ const NAV: { label: string; d: string }[] = [
   { label: "Theme", d: "M12 3a9 9 0 1 0 9 9c0-.5-2-.2-3-1-1.2-1-.5-3-2-4-1.2-.8-2 .5-3.5 0C11 6 12.5 4 12 3z" },
 ];
 
-type Row = {
-  name: string;
-  category: string;
-  type: string;
-  date: string;
-};
-
-const ROWS: Row[] = [
-  { name: "Annual New Hires Trend Line Chart", category: "Operations", type: "Data_chart", date: "5/10/2026" },
-  { name: "Annual Revenue Bar Chart", category: "Finance", type: "Data_chart", date: "4/21/2026" },
-  { name: "Average Dispatch Time", category: "Operations", type: "Data_chart", date: "5/3/2026" },
-  { name: "Average Handling Cost", category: "Finance", type: "Data_chart", date: "4/25/2026" },
-  { name: "Average Order Value", category: "Sales", type: "Data_chart", date: "4/6/2026" },
-  { name: "Average Resolution Time", category: "Support", type: "Data_chart", date: "4/20/2026" },
-  { name: "Average Response Latency", category: "Engineering", type: "Data_chart", date: "4/30/2026" },
-  { name: "Average Session Duration", category: "Product", type: "Data_chart", date: "4/28/2026" },
-  { name: "Average Ticket Volume", category: "Support", type: "Data_chart", date: "4/6/2026" },
-  { name: "Average Time To Hire", category: "People", type: "Data_chart", date: "4/26/2026" },
-  { name: "Average Traffic Speed By Road Type", category: "Traffic", type: "Data_chart", date: "4/27/2026" },
-];
+const ROWS = COMPONENT_LIST_ROWS;
 
 function Sparkline() {
   return (
@@ -61,7 +44,14 @@ function Sparkline() {
 }
 
 export default function App() {
-  const [modalOpen, setModalOpen] = useState(true);
+  const [createPopupOpen, setCreatePopupOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [draftComponent, setDraftComponent] = useState<{ name: string } | null>(null);
+
+  const openEditModal = (draft?: { name: string } | null) => {
+    setDraftComponent(draft ?? null);
+    setEditModalOpen(true);
+  };
 
   return (
     <div className="app">
@@ -78,7 +68,11 @@ export default function App() {
           <input placeholder="Search" />
         </div>
         <div className="topbar__actions">
-          <button className="btn btn--primary btn--sm">
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            onClick={() => setCreatePopupOpen(true)}
+          >
             <PlusIcon width={15} height={15} />
             <span>Create</span>
           </button>
@@ -115,9 +109,9 @@ export default function App() {
             <div className="table__body">
               {ROWS.map((r) => (
                 <button
-                  key={r.name}
+                  key={r.id}
                   className="row"
-                  onClick={() => setModalOpen(true)}
+                  onClick={() => openEditModal()}
                 >
                   <span className="row__icon">
                     <Sparkline />
@@ -155,7 +149,26 @@ export default function App() {
         </main>
       </div>
 
-      {modalOpen && <EditComponentModal onClose={() => setModalOpen(false)} />}
+      {createPopupOpen && (
+        <CreateComponentPopup
+          onClose={() => setCreatePopupOpen(false)}
+          onEditComponent={(name) => {
+            setCreatePopupOpen(false);
+            openEditModal({ name });
+          }}
+        />
+      )}
+
+      {editModalOpen && (
+        <EditComponentModal
+          componentName={draftComponent?.name}
+          startAtVisualPicker={draftComponent !== null}
+          onClose={() => {
+            setEditModalOpen(false);
+            setDraftComponent(null);
+          }}
+        />
+      )}
     </div>
   );
 }
