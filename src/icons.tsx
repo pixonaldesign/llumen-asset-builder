@@ -86,6 +86,20 @@ export const PaletteIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Corner resize grip — stepped arc hugging bottom-right corner */
+export const ResizeCornerIcon = (p: IconProps) => (
+  <svg {...base({ width: 18, height: 18, ...p })} viewBox="0 0 18 18">
+    <path
+      d="M 3.5 15.5 H 9 L 14.5 10 V 3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 /** 3 — Scaling: focus / resize frame */
 export const ScaleIcon = (p: IconProps) => (
   <svg {...tabIcon(p)}>

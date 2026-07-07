@@ -4,11 +4,14 @@
  * through the `cfg(group, name, fallback)` accessor.
  */
 
+import type { PreviewSeries } from "./componentPreviewProfiles";
+
 type Cfg = (group: string, name: string, fallback: unknown) => unknown;
 
 const W = 240;
 const H = 150;
 const P = 16;
+const BRAND = "#73adf5";
 
 const num = (v: unknown, d: number) => {
   const n = Number(v);
@@ -18,6 +21,8 @@ const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 const str = (v: unknown, d: string) => (typeof v === "string" && v ? v : d);
 
 const PALETTE = (base: string) => [base, "#c6a7ff", "#ffd58a", "#7ee0c0", "#f0888c", "#9bd1ff"];
+
+const pickerCfg: Cfg = (_group, _name, fallback) => fallback;
 
 /* polar point — 0° points up, clockwise positive */
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
@@ -74,18 +79,27 @@ function buildPath(pts: [number, number][], curve: string) {
   return smoothPath(pts);
 }
 
+type RenderProps = { cfg: Cfg; chartId: string; minimal?: boolean; compact?: boolean; series?: PreviewSeries };
+
+function normalizeSeries(values: number[], maxHint?: number) {
+  const max = maxHint ?? Math.max(...values, 1);
+  return values.map((value) => value / max);
+}
+
 /* ---- per-type renderers ---- */
-function Bars({ cfg }: { cfg: Cfg }) {
-  const color = str(cfg("Colors", "Single color", "#73adf5"), "#73adf5");
-  const sort = bool(cfg("Bar Styling", "Sort by value", true), true);
+function Bars({ cfg, minimal, compact, series }: RenderProps) {
+  const color = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
+  const sort = minimal && !series ? false : bool(cfg("Bar Styling", "Sort by value", true), true);
   const showLabels =
+    !minimal &&
+    !compact &&
     bool(cfg("Bar Styling", "Show values on bars", true), true) &&
     bool(cfg("Layout & Visibility", "Show data labels", true), true);
   const radiusPct = num(cfg("Bar Styling", "Corner radius", 30), 30);
   const widthPct = num(cfg("Bar Styling", "Bar width", 60), 60);
-  const legend = bool(cfg("Legend", "Show legend", false), false);
+  const legend = !minimal && !compact && bool(cfg("Legend", "Show legend", false), false);
 
-  let data = [40, 72, 30, 58, 90, 64];
+  let data = series?.values ?? [40, 72, 30, 58, 90, 64];
   if (sort) data = [...data].sort((a, b) => b - a);
   const n = data.length;
   const max = Math.max(...data);
@@ -125,18 +139,18 @@ function Bars({ cfg }: { cfg: Cfg }) {
   );
 }
 
-function LineArea({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
-  const color = str(cfg("Colors", "Single color", "#73adf5"), "#73adf5");
+function LineArea({ cfg, chartId, minimal, compact, series }: RenderProps) {
+  const color = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
   const grp = chartId === "area" ? "Line/Area Styling" : "Line Styling";
   const style = str(cfg(grp, "Chart style", chartId === "area" ? "Area" : "Line"), "Line");
   const isArea = chartId === "area" || style === "Area";
   const strokePct = num(cfg(grp, "Stroke width", 50), 50);
-  const sw = 1.5 + (strokePct / 100) * 5;
-  const showPoints = bool(cfg(grp, "Show data points", true), true);
+  const sw = minimal && !series ? 2.5 : 1.5 + (strokePct / 100) * 5;
+  const showPoints = !minimal && !compact && bool(cfg(grp, "Show data points", true), true);
   const curve = str(cfg(grp, "Curve interpolation", "Smooth"), "Smooth");
   const fillPct = num(cfg("Line/Area Styling", "Fill opacity", 35), 35);
 
-  const ys = [0.5, 0.28, 0.42, 0.12, 0.34, 0.05, 0.2];
+  const ys = series?.values ? normalizeSeries(series.values) : [0.5, 0.28, 0.42, 0.12, 0.34, 0.05, 0.2];
   const plotW = W - 2 * P;
   const plotH = H - 2 * P;
   const pts: [number, number][] = ys.map((v, i) => [P + (i / (ys.length - 1)) * plotW, P + v * plotH]);
@@ -146,7 +160,7 @@ function LineArea({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
 
   return (
     <>
-      {isArea && <path d={area} fill={color} opacity={0.1 + (fillPct / 100) * 0.5} />}
+      {isArea && <path d={area} fill={color} opacity={minimal ? 0.35 : 0.1 + (fillPct / 100) * 0.5} />}
       <path d={line} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
       {showPoints &&
         pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={sw * 0.9 + 1} fill={color} stroke="#0c0f15" strokeWidth="1.5" />)}
@@ -154,15 +168,15 @@ function LineArea({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
   );
 }
 
-function PieDonut({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
-  const base = str(cfg("Colors", "Single color", "#73adf5"), "#73adf5");
-  const palette = PALETTE(base);
+function PieDonut({ cfg, chartId, minimal, compact, series }: RenderProps) {
+  const base = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
+  const palette = minimal && !series ? PALETTE(BRAND) : PALETTE(base);
   const style = str(cfg("Pie Styling", "Chart style", "Donut"), "Donut");
   const isDonut = chartId === "polar" ? true : style === "Donut";
   const innerPct = num(cfg("Pie Styling", "Inner radius", 55), 55);
   const startPct = num(cfg("Pie Styling", "Start angle", 0), 0);
   const padPct = num(cfg("Pie Styling", "Pad angle (slice gap)", 8), 8);
-  const showCenter = bool(cfg("Pie Styling", "Show center value", true), true);
+  const showCenter = !minimal && !compact && bool(cfg("Pie Styling", "Show center value", true), true);
 
   const cx = W / 2;
   const cy = H / 2;
@@ -170,9 +184,13 @@ function PieDonut({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
   const rI = isDonut ? rO * (0.3 + (innerPct / 100) * 0.55) : 0;
   const start = (startPct / 100) * 360;
   const pad = (padPct / 100) * 12;
-  const data = [34, 24, 18, 14, 10];
+  const data =
+    series?.values ?? (chartId === "polar" ? [22, 18, 16, 14, 12, 10, 8] : [34, 24, 18, 14, 10]);
   const total = data.reduce((a, b) => a + b, 0);
   let cursor = start;
+  const centerValue = series?.values
+    ? `${Math.round((Math.max(...series.values) / total) * 100)}%`
+    : "72%";
 
   return (
     <>
@@ -185,29 +203,29 @@ function PieDonut({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
       })}
       {isDonut && showCenter && (
         <text x={cx} y={cy + 5} fill="#fff" fontSize="18" fontWeight="500" textAnchor="middle">
-          72%
+          {centerValue}
         </text>
       )}
     </>
   );
 }
 
-function Gauge({ cfg }: { cfg: Cfg }) {
-  const zonesOn = bool(cfg("Gauge — zone colors", "Color zones on dial", true), true);
+function Gauge({ cfg, minimal, compact, series }: RenderProps) {
+  const zonesOn = minimal && !series ? true : bool(cfg("Gauge — zone colors", "Color zones on dial", true), true);
   const startPct = num(cfg("Gauge — zone colors", "Arc start angle", 17), 17);
   const endPct = num(cfg("Gauge — zone colors", "Arc end angle", 83), 83);
-  const showCenter = bool(cfg("Gauge — meter & labels", "Show center value", true), true);
-  const base = str(cfg("Colors", "Single color", "#73adf5"), "#73adf5");
+  const showCenter = !minimal && !compact && bool(cfg("Gauge — meter & labels", "Show center value", true), true);
+  const base = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
 
   const a0 = -180 + (startPct / 100) * 360;
   const a1 = -180 + (endPct / 100) * 360;
   const cx = W / 2;
   const cy = H / 2 + 18;
   const r = 60;
-  const value = 72;
+  const value = series?.gaugeValue ?? 72;
   const va = a0 + ((a1 - a0) * value) / 100;
   const [nx, ny] = polar(cx, cy, r - 12, va);
-  const zones = ["#34d399", "#fbbf24", "#f87171"];
+  const zones = minimal ? [BRAND, "#9bd1ff", "#c6a7ff"] : ["#34d399", "#fbbf24", "#f87171"];
 
   return (
     <>
@@ -232,20 +250,20 @@ function Gauge({ cfg }: { cfg: Cfg }) {
   );
 }
 
-function Scatter({ cfg }: { cfg: Cfg }) {
-  const color = str(cfg("Colors", "Single color", "#73adf5"), "#73adf5");
+function Scatter({ cfg, minimal }: RenderProps) {
+  const color = minimal ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
   const radiusPct = num(cfg("Point Styling", "Radius", 40), 40);
   const shape = str(cfg("Point Styling", "Point shape", "Circle"), "Circle");
   const opacityPct = num(cfg("Point Styling", "Point opacity", 70), 70);
-  const baseR = 2 + (radiusPct / 100) * 5;
-  const op = 0.3 + (opacityPct / 100) * 0.7;
+  const baseR = minimal ? 4 : 2 + (radiusPct / 100) * 5;
+  const op = minimal ? 0.85 : 0.3 + (opacityPct / 100) * 0.7;
 
   return (
     <>
       {Array.from({ length: 22 }).map((_, i) => {
         const x = P + ((i * 53) % (W - 2 * P));
         const y = P + ((i * i * 19) % (H - 2 * P));
-        const r = baseR + (i % 3);
+        const r = baseR + (i % 3) * (minimal ? 0.5 : 1);
         if (shape === "Square") return <rect key={i} x={x - r} y={y - r} width={r * 2} height={r * 2} rx={1} fill={color} opacity={op} />;
         if (shape === "Triangle")
           return <polygon key={i} points={`${x},${y - r} ${x - r},${y + r} ${x + r},${y + r}`} fill={color} opacity={op} />;
@@ -255,19 +273,17 @@ function Scatter({ cfg }: { cfg: Cfg }) {
   );
 }
 
-function HBars({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
-  const color = str(
-    cfg("Progress Styling", "Fill color", cfg("Colors", "Single color", "#73adf5")),
-    "#73adf5"
-  );
-  const showLabels = bool(cfg("Layout & Visibility", "Show data labels", true), true);
+function HBars({ cfg, chartId, minimal, compact, series }: RenderProps) {
+  const color = minimal && !series ? BRAND : str(cfg("Progress Styling", "Fill color", cfg("Colors", "Single color", BRAND)), BRAND);
+  const showLabels = !minimal && !compact && bool(cfg("Layout & Visibility", "Show data labels", true), true);
   const corner = str(cfg("Progress Styling", "Corner radius", "Pill"), "Pill");
   const rad = corner === "Square" ? 2 : corner === "Rounded" ? 5 : 999;
-  const data = chartId === "progress" ? [68] : [84, 72, 61, 44];
+  const data = series?.values ?? (chartId === "progress" ? [68] : [84, 72, 61, 44]);
   const n = data.length;
   const plotW = W - 2 * P;
   const gap = 12;
   const bh = Math.min(20, (H - 2 * P - gap * (n - 1)) / n);
+  const max = Math.max(...data, 1);
 
   return (
     <>
@@ -276,10 +292,10 @@ function HBars({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
         return (
           <g key={i}>
             <rect x={P} y={y} width={plotW} height={bh} rx={Math.min(rad, bh / 2)} fill="rgba(255,255,255,.1)" />
-            <rect x={P} y={y} width={(v / 100) * plotW} height={bh} rx={Math.min(rad, bh / 2)} fill={color} />
+            <rect x={P} y={y} width={(v / max) * plotW} height={bh} rx={Math.min(rad, bh / 2)} fill={color} />
             {showLabels && (
               <text x={P + plotW - 4} y={y + bh / 2 + 3} fill="rgba(255,255,255,.7)" fontSize="8" textAnchor="end">
-                {v}%
+                {max <= 100 ? `${v}%` : v}
               </text>
             )}
           </g>
@@ -289,22 +305,64 @@ function HBars({ cfg, chartId }: { cfg: Cfg; chartId: string }) {
   );
 }
 
-function Kpi({ cfg }: { cfg: Cfg }) {
+function Kpi({ cfg, minimal, series }: RenderProps) {
+  if (minimal && !series) {
+    return (
+      <>
+        <rect x={P + 20} y={P + 18} width={W - 2 * P - 40} height={28} rx={6} fill="rgba(255,255,255,.08)" />
+        <rect x={P + 20} y={P + 18} width={(W - 2 * P - 40) * 0.55} height={28} rx={6} fill={BRAND} opacity={0.9} />
+        <path
+          d={`M ${P + 24} ${H - P - 20} L ${P + 56} ${H - P - 36} L ${P + 92} ${H - P - 28} L ${P + 128} ${H - P - 44} L ${W - P - 24} ${H - P - 24}`}
+          fill="none"
+          stroke={BRAND}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </>
+    );
+  }
+
   const showComparison = bool(cfg("KPI Card Display", "Show comparison vs last period", true), true);
   const showUnit = bool(cfg("KPI Card Display", "Show unit", true), true);
+  const primary = series?.kpiPrimary ?? "84";
+  const unit = showUnit ? (series?.kpiUnit ?? "%") : "";
+  const comparison = series?.kpiComparison ?? "+6.2%";
   return (
     <>
       <text x={W / 2} y={H / 2 + 2} fill="#fff" fontSize="40" fontWeight="500" textAnchor="middle">
-        84{showUnit ? "%" : ""}
+        {primary}
+        {unit}
       </text>
-      <text x={W / 2} y={H / 2 + 24} fill="rgba(255,255,255,.5)" fontSize="9" textAnchor="middle">
-        Service reliability{showComparison ? "  ·  +6.2%" : ""}
-      </text>
+      {showComparison && (
+        <text x={W / 2} y={H / 2 + 24} fill="rgba(255,255,255,.5)" fontSize="9" textAnchor="middle">
+          {comparison}
+        </text>
+      )}
     </>
   );
 }
 
-function Table() {
+function Table({ minimal }: { minimal?: boolean }) {
+  if (minimal) {
+    const rowH = (H - 2 * P) / 5;
+    return (
+      <>
+        <rect x={P} y={P} width={W - 2 * P} height={rowH} rx={4} fill="rgba(255,255,255,.08)" />
+        {Array.from({ length: 4 }).map((_, i) => {
+          const y = P + rowH + 4 + i * (rowH + 4);
+          return (
+            <g key={i}>
+              <rect x={P} y={y} width={W - 2 * P} height={rowH - 2} rx={3} fill="rgba(255,255,255,.05)" />
+              <rect x={P + 8} y={y + rowH / 2 - 3} width={(W - 2 * P) * 0.35} height={6} rx={3} fill="rgba(255,255,255,.12)" />
+              <rect x={P + (W - 2 * P) * 0.55} y={y + rowH / 2 - 3} width={(W - 2 * P) * 0.28} height={6} rx={3} fill={BRAND} opacity={0.75} />
+            </g>
+          );
+        })}
+      </>
+    );
+  }
+
   const rows = [
     ["Metric", "Value", "Status"],
     ["Permits", "1,240", "Healthy"],
@@ -334,24 +392,248 @@ function Table() {
   );
 }
 
-export default function ChartPreview({ type, chartId, cfg }: { type: string; chartId: string; cfg: Cfg }) {
-  const showTitle = bool(cfg("Layout & Visibility", "Show title", true), true);
+function RangeMinimal() {
+  const y = H / 2;
+  const x0 = P + 20;
+  const x1 = W - P - 20;
+  return (
+    <>
+      <line x1={x0} y1={y} x2={x1} y2={y} stroke="rgba(255,255,255,.15)" strokeWidth="8" strokeLinecap="round" />
+      <line x1={x0 + 36} y1={y} x2={x1 - 48} y2={y} stroke={BRAND} strokeWidth="8" strokeLinecap="round" />
+      <circle cx={x0 + 36} cy={y} r="7" fill="#fff" />
+      <circle cx={x1 - 48} cy={y} r="7" fill="#fff" />
+    </>
+  );
+}
 
-  let body: React.ReactNode;
-  if (type === "line") body = <LineArea cfg={cfg} chartId={chartId} />;
-  else if (type === "donut") body = <PieDonut cfg={cfg} chartId={chartId} />;
-  else if (type === "gauge") body = <Gauge cfg={cfg} />;
-  else if (type === "scatter") body = <Scatter cfg={cfg} />;
-  else if (type === "horizontalBar") body = <HBars cfg={cfg} chartId={chartId} />;
-  else if (type === "kpi") body = <Kpi cfg={cfg} />;
-  else if (type === "table") body = <Table />;
-  else body = <Bars cfg={cfg} />;
-
-  const showChartTitle = showTitle && type !== "kpi" && type !== "table";
+function AvailabilityMinimal() {
+  const cols = 10;
+  const rows = 6;
+  const gap = 4;
+  const cellW = (W - 2 * P - gap * (cols - 1)) / cols;
+  const cellH = (H - 2 * P - gap * (rows - 1)) / rows;
+  const on = new Set([2, 5, 8, 11, 14, 17, 21, 24, 28, 31, 35, 38, 42, 45, 49, 52]);
 
   return (
-    <div className="cp-preview">
-      {showChartTitle && <p className="cp-preview__chart-title">Average Response Time</p>}
+    <>
+      {Array.from({ length: rows * cols }).map((_, i) => {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const x = P + col * (cellW + gap);
+        const y = P + row * (cellH + gap);
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={y}
+            width={cellW}
+            height={cellH}
+            rx={2}
+            fill={on.has(i) ? BRAND : "rgba(255,255,255,.08)"}
+            opacity={on.has(i) ? 0.55 + (i % 3) * 0.15 : 1}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function KpiGridMinimal() {
+  const gap = 10;
+  const cardW = (W - 2 * P - gap) / 2;
+  const cardH = (H - 2 * P - gap) / 2;
+  return (
+    <>
+      {Array.from({ length: 4 }).map((_, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = P + col * (cardW + gap);
+        const y = P + row * (cardH + gap);
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={cardW} height={cardH} rx={6} fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.08)" />
+            <rect x={x + 10} y={y + 12} width={cardW * 0.45} height={6} rx={3} fill="rgba(255,255,255,.12)" />
+            <rect x={x + 10} y={y + cardH - 18} width={cardW - 20} height={6} rx={3} fill={BRAND} opacity={0.65 + (i % 2) * 0.2} />
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
+function LinearGaugeMinimal() {
+  const y = H / 2 + 8;
+  const x0 = P + 16;
+  const x1 = W - P - 16;
+  const mid = x0 + (x1 - x0) * 0.62;
+  return (
+    <>
+      <rect x={x0} y={y - 8} width={x1 - x0} height={16} rx={8} fill="rgba(255,255,255,.1)" />
+      <rect x={x0} y={y - 8} width={mid - x0} height={16} rx={8} fill={BRAND} />
+      <circle cx={mid} cy={y} r="9" fill="#fff" stroke={BRAND} strokeWidth="2" />
+    </>
+  );
+}
+
+function MapArcsMinimal() {
+  return (
+    <>
+      <ellipse cx={72} cy={H - 26} rx={20} ry={6} fill="rgba(255,255,255,.1)" />
+      <ellipse cx={168} cy={H - 26} rx={20} ry={6} fill="rgba(255,255,255,.1)" />
+      <path d={`M 72 94 Q 120 30 168 94`} fill="none" stroke={BRAND} strokeWidth="3.5" strokeLinecap="round" />
+      <circle cx={72} cy={94} r="11" fill={BRAND} opacity={0.85} />
+      <circle cx={168} cy={94} r="11" fill={BRAND} opacity={0.85} />
+    </>
+  );
+}
+
+function MapFencesMinimal() {
+  const d = `M ${P + 8} ${H - 42} Q 68 ${H - 98} 108 ${H - 58} T 188 ${H - 104} T ${W - P - 8} ${H - 46}`;
+  return (
+    <>
+      <ellipse cx={W / 2} cy={H - 22} rx={92} ry={10} fill="rgba(255,255,255,.08)" />
+      <path d={d} fill="none" stroke={BRAND} strokeWidth="16" strokeLinecap="round" opacity={0.82} />
+    </>
+  );
+}
+
+function MapPillarsMinimal() {
+  const specs = [
+    [14, 38],
+    [22, 62],
+    [18, 48],
+    [28, 78],
+    [16, 44],
+    [20, 56],
+  ];
+  const base = H - 30;
+  let x = 46;
+  return (
+    <>
+      <ellipse cx={W / 2} cy={base + 8} rx={90} ry={10} fill="rgba(255,255,255,.08)" />
+      {specs.map(([w, h], i) => {
+        const el = <rect key={i} x={x} y={base - h} width={w} height={h} rx={3} fill={BRAND} opacity={0.68 + (i % 3) * 0.1} />;
+        x += w + 8;
+        return el;
+      })}
+    </>
+  );
+}
+
+function MapDiscsMinimal() {
+  const discs: [number, number, number][] = [
+    [78, 90, 24],
+    [118, 98, 15],
+    [154, 86, 19],
+    [102, 76, 11],
+  ];
+  return (
+    <>
+      <ellipse cx={W / 2} cy={H - 26} rx={86} ry={10} fill="rgba(255,255,255,.08)" />
+      {discs.map(([cx, cy, r], i) => (
+        <ellipse key={i} cx={cx} cy={cy} rx={r} ry={r * 0.34} fill={BRAND} opacity={0.62 + i * 0.09} />
+      ))}
+    </>
+  );
+}
+
+function MapAreaMinimal() {
+  return (
+    <>
+      <polygon points={`${P + 28},${H - 48} ${P + 88},${H - 68} ${P + 148},${H - 48} ${P + 88},${H - 28}`} fill={BRAND} opacity={0.48} />
+      <polygon points={`${P + 58},${H - 54} ${P + 118},${H - 74} ${P + 178},${H - 54} ${P + 118},${H - 34}`} fill={BRAND} opacity={0.68} />
+      <polygon points={`${P + 88},${H - 60} ${P + 148},${H - 80} ${P + 208},${H - 60} ${P + 148},${H - 40}`} fill={BRAND} opacity={0.88} />
+    </>
+  );
+}
+
+function MapHeatmapMinimal() {
+  const cols = 16;
+  const rows = 10;
+  const gap = 3;
+  const cellW = (W - 2 * P - gap * (cols - 1)) / cols;
+  const cellH = (H - 2 * P - gap * (rows - 1)) / rows;
+  return (
+    <>
+      {Array.from({ length: rows * cols }).map((_, i) => {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const x = P + col * (cellW + gap);
+        const y = P + row * (cellH + gap);
+        const intensity = 0.25 + ((row * 3 + col * 5) % 7) * 0.1;
+        return (
+          <rect
+            key={i}
+            x={x}
+            y={y}
+            width={cellW}
+            height={cellH}
+            rx={1}
+            fill={BRAND}
+            opacity={intensity}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+type Props = {
+  type: string;
+  chartId: string;
+  cfg?: Cfg;
+  visualId?: string;
+  minimal?: boolean;
+  compact?: boolean;
+  series?: PreviewSeries;
+  chartTitle?: string;
+};
+
+export default function ChartPreview({
+  type,
+  chartId,
+  cfg = pickerCfg,
+  visualId,
+  minimal = false,
+  compact = false,
+  series,
+  chartTitle,
+}: Props) {
+  const showTitle = !minimal && !compact && bool(cfg("Layout & Visibility", "Show title", true), true);
+  const renderProps = { cfg, chartId, minimal, compact, series };
+
+  let body: React.ReactNode;
+  if (minimal && visualId === "availability") body = <AvailabilityMinimal />;
+  else if (minimal && visualId === "range") body = <RangeMinimal />;
+  else if (minimal && visualId === "kpi-grid") body = <KpiGridMinimal />;
+  else if (minimal && visualId === "gauge-linear") body = <LinearGaugeMinimal />;
+  else if (minimal && visualId === "arcs") body = <MapArcsMinimal />;
+  else if (minimal && visualId === "fences") body = <MapFencesMinimal />;
+  else if (minimal && visualId === "pillars") body = <MapPillarsMinimal />;
+  else if (minimal && visualId === "discs") body = <MapDiscsMinimal />;
+  else if (minimal && visualId === "map-area") body = <MapAreaMinimal />;
+  else if (minimal && visualId === "heatmap") body = <MapHeatmapMinimal />;
+  else if (type === "line") body = <LineArea {...renderProps} />;
+  else if (type === "donut") body = <PieDonut {...renderProps} />;
+  else if (type === "gauge") body = <Gauge {...renderProps} />;
+  else if (type === "scatter") body = <Scatter {...renderProps} />;
+  else if (type === "horizontalBar") body = <HBars {...renderProps} />;
+  else if (type === "kpi") body = <Kpi {...renderProps} />;
+  else if (type === "table") body = <Table minimal={minimal} />;
+  else body = <Bars {...renderProps} />;
+
+  const showChartTitle = showTitle && type !== "kpi" && type !== "table";
+  const title = chartTitle ?? "Average Response Time";
+
+  return (
+    <div
+      className={
+        "cp-preview" +
+        (minimal ? " cp-preview--minimal" : "") +
+        (compact ? " cp-preview--compact" : "")
+      }
+    >
+      {showChartTitle && <p className="cp-preview__chart-title">{title}</p>}
       <svg className="cp-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
         {body}
       </svg>
