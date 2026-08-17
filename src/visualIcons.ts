@@ -13,6 +13,7 @@ import {
   Fire,
   Gauge,
   GridNine,
+  MapPin,
   MapTrifold,
   NumberSquareOne,
   Polygon,
@@ -20,6 +21,7 @@ import {
   SlidersHorizontal,
   SquaresFour,
   Table,
+  Wind,
 } from "@phosphor-icons/react";
 
 /** Phosphor icons for visualization types (picker cards, deep-dive headers, etc.). */
@@ -40,6 +42,7 @@ export const VISUAL_ICONS: Record<string, Icon> = {
   "kpi-grid": GridNine,
   table: Table,
   kpi: NumberSquareOne,
+  "score-indicator": SlidersHorizontal,
 
   arcs: ShareNetwork,
   fences: SquaresFour,
@@ -47,6 +50,8 @@ export const VISUAL_ICONS: Record<string, Icon> = {
   discs: Circle,
   "map-area": Polygon,
   heatmap: Fire,
+  points: MapPin,
+  wind: Wind,
   "map-layer": MapTrifold,
 };
 

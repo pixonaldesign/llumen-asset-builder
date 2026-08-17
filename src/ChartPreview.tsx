@@ -88,13 +88,13 @@ function normalizeSeries(values: number[], maxHint?: number) {
 
 /* ---- per-type renderers ---- */
 function Bars({ cfg, minimal, compact, series }: RenderProps) {
-  const color = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
-  const sort = minimal && !series ? false : bool(cfg("Bar Styling", "Sort by value", true), true);
+  const color = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
+  const sort = minimal && !series ? false : bool(cfg("Bar", "Sort by value", true), true);
   const showLabels =
     !minimal &&
     !compact &&
-    bool(cfg("Bar Styling", "Show values on bars", true), true) &&
-    bool(cfg("Layout & Visibility", "Show data labels", true), true);
+    bool(cfg("Bar", "Show values on bars", true), true) &&
+    bool(cfg("Layout & visibility", "Show data labels", true), true);
   const radiusPct = num(cfg("Bar Styling", "Corner radius", 30), 30);
   const widthPct = num(cfg("Bar Styling", "Bar width", 60), 60);
   const legend = !minimal && !compact && bool(cfg("Legend", "Show legend", false), false);
@@ -140,15 +140,15 @@ function Bars({ cfg, minimal, compact, series }: RenderProps) {
 }
 
 function LineArea({ cfg, chartId, minimal, compact, series }: RenderProps) {
-  const color = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
-  const grp = chartId === "area" ? "Line/Area Styling" : "Line Styling";
+  const color = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
+  const grp = "Line";
   const style = str(cfg(grp, "Chart style", chartId === "area" ? "Area" : "Line"), "Line");
   const isArea = chartId === "area" || style === "Area";
   const strokePct = num(cfg(grp, "Stroke width", 50), 50);
   const sw = minimal && !series ? 2.5 : 1.5 + (strokePct / 100) * 5;
   const showPoints = !minimal && !compact && bool(cfg(grp, "Show data points", true), true);
   const curve = str(cfg(grp, "Curve interpolation", "Smooth"), "Smooth");
-  const fillPct = num(cfg("Line/Area Styling", "Fill opacity", 35), 35);
+  const fillPct = num(cfg("Area styling", "Fill opacity", 35), 35);
 
   const ys = series?.values ? normalizeSeries(series.values) : [0.5, 0.28, 0.42, 0.12, 0.34, 0.05, 0.2];
   const plotW = W - 2 * P;
@@ -169,7 +169,7 @@ function LineArea({ cfg, chartId, minimal, compact, series }: RenderProps) {
 }
 
 function PieDonut({ cfg, chartId, minimal, compact, series }: RenderProps) {
-  const base = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
+  const base = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
   const palette = minimal && !series ? PALETTE(BRAND) : PALETTE(base);
   const style = str(cfg("Pie Styling", "Chart style", "Donut"), "Donut");
   const isDonut = chartId === "polar" ? true : style === "Donut";
@@ -215,7 +215,7 @@ function Gauge({ cfg, minimal, compact, series }: RenderProps) {
   const startPct = num(cfg("Gauge — zone colors", "Arc start angle", 17), 17);
   const endPct = num(cfg("Gauge — zone colors", "Arc end angle", 83), 83);
   const showCenter = !minimal && !compact && bool(cfg("Gauge — meter & labels", "Show center value", true), true);
-  const base = minimal && !series ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
+  const base = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
 
   const a0 = -180 + (startPct / 100) * 360;
   const a1 = -180 + (endPct / 100) * 360;
@@ -251,7 +251,7 @@ function Gauge({ cfg, minimal, compact, series }: RenderProps) {
 }
 
 function Scatter({ cfg, minimal }: RenderProps) {
-  const color = minimal ? BRAND : str(cfg("Colors", "Single color", BRAND), BRAND);
+  const color = minimal ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
   const radiusPct = num(cfg("Point Styling", "Radius", 40), 40);
   const shape = str(cfg("Point Styling", "Point shape", "Circle"), "Circle");
   const opacityPct = num(cfg("Point Styling", "Point opacity", 70), 70);
@@ -274,8 +274,8 @@ function Scatter({ cfg, minimal }: RenderProps) {
 }
 
 function HBars({ cfg, chartId, minimal, compact, series }: RenderProps) {
-  const color = minimal && !series ? BRAND : str(cfg("Progress Styling", "Fill color", cfg("Colors", "Single color", BRAND)), BRAND);
-  const showLabels = !minimal && !compact && bool(cfg("Layout & Visibility", "Show data labels", true), true);
+  const color = minimal && !series ? BRAND : str(cfg("Progress Styling", "Fill color", cfg("Color mode", "Single color", BRAND)), BRAND);
+  const showLabels = !minimal && !compact && bool(cfg("Layout & visibility", "Show data labels", true), true);
   const corner = str(cfg("Progress Styling", "Corner radius", "Pill"), "Pill");
   const rad = corner === "Square" ? 2 : corner === "Rounded" ? 5 : 999;
   const data = series?.values ?? (chartId === "progress" ? [68] : [84, 72, 61, 44]);
@@ -323,8 +323,8 @@ function Kpi({ cfg, minimal, series }: RenderProps) {
     );
   }
 
-  const showComparison = bool(cfg("KPI Card Display", "Show comparison vs last period", true), true);
-  const showUnit = bool(cfg("KPI Card Display", "Show unit", true), true);
+  const showComparison = bool(cfg("KPI card", "Show comparison vs last period", true), true);
+  const showUnit = bool(cfg("KPI card", "Show unit", true), true);
   const primary = series?.kpiPrimary ?? "84";
   const unit = showUnit ? (series?.kpiUnit ?? "%") : "";
   const comparison = series?.kpiComparison ?? "+6.2%";
@@ -599,7 +599,7 @@ export default function ChartPreview({
   series,
   chartTitle,
 }: Props) {
-  const showTitle = !minimal && !compact && bool(cfg("Layout & Visibility", "Show title", true), true);
+  const showTitle = !minimal && !compact && bool(cfg("Layout & visibility", "Show title", true), true);
   const renderProps = { cfg, chartId, minimal, compact, series };
 
   let body: React.ReactNode;

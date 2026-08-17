@@ -1,20 +1,19 @@
 import { useState } from "react";
 import { CloseIcon } from "./icons";
 
+const UNTITLED_ASSET_LABEL = "Untitled Asset";
+
 type Props = {
   onClose: () => void;
   onEditComponent: (name: string) => void;
 };
 
 export default function CreateComponentPopup({ onClose, onEditComponent }: Props) {
-  const [name, setName] = useState("");
-
-  const canContinue = name.trim().length > 0;
+  const [name, setName] = useState(UNTITLED_ASSET_LABEL);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canContinue) return;
-    onEditComponent(name.trim());
+    onEditComponent(name.trim() || UNTITLED_ASSET_LABEL);
   };
 
   return (
@@ -38,15 +37,16 @@ export default function CreateComponentPopup({ onClose, onEditComponent }: Props
               id="component-name"
               className="input"
               type="text"
-              placeholder="e.g. Average Response Time"
+              placeholder={UNTITLED_ASSET_LABEL}
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onFocus={(e) => e.target.select()}
               autoFocus
             />
           </div>
 
           <div className="create-popup__footer">
-            <button type="submit" className="btn btn--primary" disabled={!canContinue}>
+            <button type="submit" className="btn btn--primary">
               Edit Component
             </button>
           </div>

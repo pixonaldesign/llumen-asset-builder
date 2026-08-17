@@ -9,7 +9,7 @@
  * `Colors::Single color` so the live chart preview stays in sync.
  */
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type Ref } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import Dropdown from "./Dropdown";
 import {
@@ -53,6 +53,51 @@ const PRESETS: PalettePreset[] = [
 ];
 
 const toHex = (c: string) => (c.startsWith("#") ? c : "#2b61f5");
+
+function sameHex(a: string, b: string) {
+  return toHex(a).toLowerCase() === toHex(b).toLowerCase();
+}
+
+type PaletteSelection = {
+  name: string;
+  type: PaletteType;
+  colors: string[];
+};
+
+const DEFAULT_PRESET = PRESETS[0];
+const DEFAULT_SELECTION: PaletteSelection = {
+  name: DEFAULT_PRESET.name,
+  type: DEFAULT_PRESET.type,
+  colors: DEFAULT_PRESET.colors,
+};
+
+const PaletteContext = createContext<{
+  selection: PaletteSelection;
+  setSelection: (next: PaletteSelection) => void;
+} | null>(null);
+
+export function ColorPaletteProvider({ children }: { children: ReactNode }) {
+  const [selection, setSelection] = useState<PaletteSelection>(DEFAULT_SELECTION);
+  const value = useMemo(() => ({ selection, setSelection }), [selection]);
+  return <PaletteContext.Provider value={value}>{children}</PaletteContext.Provider>;
+}
+
+function usePaletteSelection(): [PaletteSelection, (preset: PalettePreset) => void] {
+  const ctx = useContext(PaletteContext);
+  const [local, setLocal] = useState<PaletteSelection>(DEFAULT_SELECTION);
+
+  if (ctx) {
+    return [
+      ctx.selection,
+      (preset) => ctx.setSelection({ name: preset.name, type: preset.type, colors: preset.colors }),
+    ];
+  }
+
+  return [
+    local,
+    (preset) => setLocal({ name: preset.name, type: preset.type, colors: preset.colors }),
+  ];
+}
 
 let uid = 0;
 const nextId = () => ++uid;
@@ -168,6 +213,132 @@ function PalettePickerMenu({
         ))}
         {!list.length && <div className="cp-picker-empty">No palettes found</div>}
       </div>
+    </div>
+  );
+}
+
+function SwatchPicker({
+  colors,
+  color,
+  onSelect,
+}: {
+  colors: string[];
+  color: string;
+  onSelect: (c: string) => void;
+}) {
+  return (
+    <div className="cp-swatch-grid" role="listbox" aria-label="Palette colors">
+      {colors.map((c) => {
+        const selected = sameHex(c, color);
+        return (
+          <button
+            key={c}
+            type="button"
+            role="option"
+            aria-selected={selected}
+            aria-label={c}
+            className={"cp-swatch-btn" + (selected ? " is-selected" : "")}
+            style={{ background: c }}
+            onClick={() => onSelect(c)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function OverrideButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className={"pg-btn pg-btn--ghost pg-btn--sm cp-override" + (on ? " is-on" : "")}
+      aria-pressed={on}
+      onClick={onToggle}
+    >
+      {on ? "Use palette" : "Override"}
+    </button>
+  );
+}
+
+export function PaletteSelector() {
+  const [selection, applyPreset] = usePaletteSelection();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<PaletteType>(selection.type);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const syncMenuPosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 8, left: rect.left, width: rect.width });
+  }, []);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    syncMenuPosition();
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setPickerOpen(false);
+    };
+    const onLayout = () => syncMenuPosition();
+    document.addEventListener("mousedown", onPointer);
+    window.addEventListener("resize", onLayout);
+    window.addEventListener("scroll", onLayout, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("resize", onLayout);
+      window.removeEventListener("scroll", onLayout, true);
+    };
+  }, [pickerOpen, syncMenuPosition]);
+
+  return (
+    <div className="cp-picker-wrap">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={"cp-picker-trigger" + (pickerOpen ? " is-open" : "")}
+        aria-expanded={pickerOpen}
+        onClick={() => {
+          if (pickerOpen) {
+            setPickerOpen(false);
+            return;
+          }
+          setPickerTab(selection.type);
+          syncMenuPosition();
+          setPickerOpen(true);
+        }}
+      >
+        <span className="cp-picker-trigger-name">{selection.name}</span>
+        <span className="cp-picker-trigger-end">
+          <PaletteSwatches colors={selection.colors} />
+          <ChevronDownIcon className="cp-caret" width={16} height={16} aria-hidden="true" />
+        </span>
+      </button>
+      {pickerOpen &&
+        createPortal(
+          <PalettePickerMenu
+            open={pickerOpen}
+            tab={pickerTab}
+            search={pickerSearch}
+            selectedName={selection.name}
+            selectedType={selection.type}
+            onTab={setPickerTab}
+            onSearch={setPickerSearch}
+            onSelect={(preset) => {
+              applyPreset(preset);
+              setPickerSearch("");
+              setPickerOpen(false);
+            }}
+            menuRef={menuRef}
+            style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+          />,
+          document.body,
+        )}
     </div>
   );
 }
@@ -340,68 +511,26 @@ export default function ColorPalette({
 }: {
   color: string;
   setColor: (c: string) => void;
-  variant?: "full" | "simple";
+  variant?: "full" | "simple" | "swatch";
 }) {
   const isSimple = variant === "simple";
-  const defaultPreset = PRESETS[0];
-  const [paletteType, setPaletteType] = useState<PaletteType>(defaultPreset.type);
-  const [palette, setPalette] = useState(defaultPreset.name);
-  const [paletteColors, setPaletteColors] = useState(defaultPreset.colors);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerTab, setPickerTab] = useState<PaletteType>(defaultPreset.type);
-  const [pickerSearch, setPickerSearch] = useState("");
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
+  const isSwatch = variant === "swatch";
+  const [selection] = usePaletteSelection();
+  const [override, setOverride] = useState(false);
   const [style, setStyle] = useState<Style>("Single");
   const [distribution, setDistribution] = useState("Linear");
   const [opacity, setOpacity] = useState(100);
-  const [gStops, setGStops] = useState<Stop[]>(() => gradientStops(defaultPreset.colors));
-  const [sStops, setSStops] = useState<Stop[]>(() => stepStops(defaultPreset.colors));
+  const [gStops, setGStops] = useState<Stop[]>(() => gradientStops(selection.colors));
+  const [sStops, setSStops] = useState<Stop[]>(() => stepStops(selection.colors));
 
-  const syncMenuPosition = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setMenuPos({
-      top: rect.bottom + 8,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, []);
+  const paletteColors = selection.colors;
+  const showSwatches = !override && (isSimple || isSwatch || style === "Single");
+  const showPicker = override && (isSimple || isSwatch || style === "Single");
 
   useEffect(() => {
-    if (!pickerOpen) return;
-    syncMenuPosition();
-    const onPointer = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (menuRef.current?.contains(target)) return;
-      setPickerOpen(false);
-    };
-    const onLayout = () => syncMenuPosition();
-    document.addEventListener("mousedown", onPointer);
-    window.addEventListener("resize", onLayout);
-    window.addEventListener("scroll", onLayout, true);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("resize", onLayout);
-      window.removeEventListener("scroll", onLayout, true);
-    };
-  }, [pickerOpen, syncMenuPosition]);
-
-  const applyPreset = (preset: PalettePreset) => {
-    setPaletteType(preset.type);
-    setPalette(preset.name);
-    setPaletteColors(preset.colors);
-    setPickerTab(preset.type);
-    setPickerSearch("");
-    setPickerOpen(false);
-    setGStops(gradientStops(preset.colors));
-    setSStops(stepStops(preset.colors));
-    setColor(preset.colors[preset.colors.length - 1] ?? "#2b61f5");
-  };
+    setGStops(gradientStops(selection.colors));
+    setSStops(stepStops(selection.colors));
+  }, [selection.colors]);
 
   const stops = style === "Gradient" ? gStops : sStops;
   const setStops = style === "Gradient" ? setGStops : setSStops;
@@ -435,54 +564,39 @@ export default function ColorPalette({
   };
 
   return (
-    <div className="cp">
-      <Field label="Color palette">
-        <div className="cp-picker-wrap">
-          <button
-            ref={triggerRef}
-            type="button"
-            className={"cp-picker-trigger" + (pickerOpen ? " is-open" : "")}
-            aria-expanded={pickerOpen}
-            onClick={() => {
-              if (pickerOpen) {
-                setPickerOpen(false);
-                return;
-              }
-              setPickerTab(paletteType);
-              syncMenuPosition();
-              setPickerOpen(true);
-            }}
-          >
-            <span className="cp-picker-trigger-name">{palette}</span>
-            <span className="cp-picker-trigger-end">
-              <span className="cp-picker-trigger-badge">{paletteType}</span>
-              <ChevronDownIcon className="cp-caret" width={16} height={16} aria-hidden="true" />
-            </span>
-          </button>
-          {pickerOpen &&
-            createPortal(
-              <PalettePickerMenu
-                open={pickerOpen}
-                tab={pickerTab}
-                search={pickerSearch}
-                selectedName={palette}
-                selectedType={paletteType}
-                onTab={setPickerTab}
-                onSearch={setPickerSearch}
-                onSelect={applyPreset}
-                menuRef={menuRef}
-                style={{
-                  top: menuPos.top,
-                  left: menuPos.left,
-                  width: menuPos.width,
-                }}
-              />,
-              document.body,
+    <div className={"cp" + (isSimple || isSwatch ? " cp--simple" : "") + (isSwatch ? " cp--swatch" : "")}>
+      {!isSwatch && (
+        <div className="cp-field">
+          <div className="cp-field-head">
+            <span className="cp-label">Color palette</span>
+            {(isSimple || style === "Single") && (
+              <OverrideButton on={override} onToggle={() => setOverride((v) => !v)} />
             )}
+          </div>
+          <PaletteSelector />
         </div>
-      </Field>
+      )}
 
-      {!isSimple && (
+      {isSwatch && (
+        <div className="cp-swatch-line">
+          {showSwatches && <SwatchPicker colors={paletteColors} color={color} onSelect={setColor} />}
+          {showPicker && (
+            <StopRow
+              stop={{ id: 0, value: min, color, opacity }}
+              showValue={false}
+              removable={false}
+              onChange={(s) => {
+                setColor(s.color);
+                setOpacity(s.opacity);
+              }}
+              onRemove={() => {}}
+            />
+          )}
+          <OverrideButton on={override} onToggle={() => setOverride((v) => !v)} />
+        </div>
+      )}
+
+      {!isSimple && !isSwatch && (
         <Field label="Palette type">
           <div className="cp-segmented">
             {(["Single", "Gradient", "Steps"] as Style[]).map((s) => {
@@ -507,7 +621,11 @@ export default function ColorPalette({
         </Field>
       )}
 
-      {(isSimple || style === "Single") && (
+      {!isSwatch && showSwatches && (
+        <SwatchPicker colors={paletteColors} color={color} onSelect={setColor} />
+      )}
+
+      {!isSwatch && showPicker && (
         <StopRow
           stop={{ id: 0, value: min, color, opacity }}
           showValue={false}
@@ -520,7 +638,7 @@ export default function ColorPalette({
         />
       )}
 
-      {!isSimple && style === "Gradient" && (
+      {!isSimple && !isSwatch && style === "Gradient" && (
         <>
           <Field label="Distribution">
             <Dropdown
@@ -546,7 +664,7 @@ export default function ColorPalette({
         </>
       )}
 
-      {!isSimple && style === "Steps" && (
+      {!isSimple && !isSwatch && style === "Steps" && (
         <>
           <DataRangeEditor
             sorted={sorted}

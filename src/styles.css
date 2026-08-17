@@ -1301,8 +1301,10 @@ button {
 .vs-tab__label {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
   font: inherit;
 }
 .vs-tab__alert {
@@ -2454,6 +2456,34 @@ button {
   gap: 14px;
 }
 
+.ia-color-list {
+  display: grid;
+  gap: var(--space-sm);
+}
+.ia-color-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.ia-color-list__row .cp {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ia-color-pair {
+  display: grid;
+  gap: var(--space-md);
+}
+.ia-color-list__label,
+.ia-color-pair__item span {
+  font: var(--lc-font-small);
+  color: var(--lc-text-secondary);
+}
+.ia-color-pair__item {
+  display: grid;
+  gap: var(--space-xs);
+}
+
 /* segmented (self-contained track, no outer surface) */
 .ia-segmented {
   display: grid;
@@ -2792,6 +2822,12 @@ button {
   display: grid;
   gap: var(--space-sm);
 }
+.cp-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
 .cp-label {
   font: var(--lc-font-unit);
   letter-spacing: 0.4px;
@@ -3019,6 +3055,57 @@ button {
   color: var(--lc-text-tertiary);
   font: var(--lc-font-small);
   text-align: center;
+}
+
+.cp-swatch-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.cp-swatch-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.cp-swatch-btn:hover {
+  transform: scale(1.08);
+}
+.cp-swatch-btn.is-selected {
+  border-color: var(--lc-text-on-brand);
+  box-shadow: 0 0 0 2px var(--lc-bg-brand);
+}
+.cp-swatch-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.cp-swatch-line .cp-swatch-grid {
+  flex: 1 1 auto;
+}
+.cp-swatch-line .cp-stop-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cp-override {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 var(--space-sm);
+}
+.cp--simple {
+  gap: var(--space-md);
+}
+.cp--swatch {
+  gap: 0;
+}
+.ia-color-list__palette {
+  display: grid;
+  gap: var(--space-sm);
 }
 
 .cp-segmented {

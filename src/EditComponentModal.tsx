@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useLayoutEffect } from "react";
+import { useState, useRef, useCallback, useLayoutEffect, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   AlignBottomSimple,
@@ -12,21 +12,22 @@ import {
   CloseIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
-  MapIcon,
-  PaletteIcon,
-  InsightsIcon,
-  ReadoutIcon,
   SearchIcon,
   RequiredIcon,
   FieldAlertIcon,
   InfoIcon,
 } from "./icons";
-import { charts, sectionMeta, isAdvancedLike } from "./chartModel";
-import type { Opt, SectionId } from "./chartModel";
+import { charts } from "./chartModel";
+import type { Opt } from "./chartModel";
+import {
+  fieldsForVisual,
+  isFieldVisible,
+  subCategoriesForVisual,
+} from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
 import ChartDataQueryPreview from "./ChartDataQueryPreview";
 import StaticVisualPreview from "./StaticVisualPreview";
-import ColorPalette from "./ColorPalette";
+import ColorPalette, { ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
 import Dropdown from "./Dropdown";
 import DataSourceStep from "./DataSourceStep";
 import FiltersStep from "./FiltersStep";
@@ -44,13 +45,6 @@ type VizPhase = "picker" | "settings";
 type PreviewSize = "small" | "medium" | "large";
 
 type PreviewMode = "visualization" | "data-query";
-
-const SECTION_ICONS: Record<SectionId, typeof MapIcon> = {
-  data: MapIcon,
-  design: PaletteIcon,
-  insights: InsightsIcon,
-  advanced: ReadoutIcon,
-};
 
 type WizardStepId =
   | "data-source"
@@ -81,8 +75,8 @@ function isOptSatisfied(o: Opt, getVal: (o: Opt) => unknown): boolean {
   return isValueFilled(o, getVal(o));
 }
 
-function sectionHasErrors(sectionId: SectionId, chart: (typeof charts)[string], getVal: (o: Opt) => unknown): boolean {
-  return (chart.sections[sectionId] ?? []).some((o) => o.level === "required" && !isOptSatisfied(o, getVal));
+function sectionHasErrors(fields: Opt[], getVal: (o: Opt) => unknown): boolean {
+  return fields.some((o) => o.level === "required" && !isOptSatisfied(o, getVal));
 }
 
 type WizardStepState = "disabled" | "active" | "selected";
@@ -131,6 +125,7 @@ function parseMargins(v: unknown): MarginsValue {
 }
 
 function defaultFor(o: Opt): unknown {
+  if (o.defaultValue !== undefined) return o.defaultValue;
   switch (o.type) {
     case "toggle":
       return o.def !== false;
@@ -146,6 +141,10 @@ function defaultFor(o: Opt): unknown {
       return "24";
     case "color":
       return "#73adf5";
+    case "colorList":
+      return { Alpha: "#2F4F6E", Beta: "#4A7C59", Gamma: "#C18A3A" };
+    case "colorPair":
+      return { stroke: "#2de8c8", fill: "#2de8c8" };
     case "dropdown":
       return o.values[0] ?? "";
     case "field":
@@ -182,10 +181,6 @@ function Switch({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 function LocalSwitch({ defaultOn }: { defaultOn?: boolean }) {
   const [on, setOn] = useState(!!defaultOn);
   return <Switch value={on} onChange={setOn} />;
-}
-
-function MiniSwitch({ on }: { on: boolean }) {
-  return <span className={"ia-mini-switch" + (on ? " on" : "")} />;
 }
 
 function Segmented({ values, value, onChange }: { values: string[]; value: string; onChange: (v: string) => void }) {
@@ -426,6 +421,57 @@ function Control({
     case "color":
       return <ColorPalette color={String(getVal(o))} setColor={(c) => setVal(o, c)} variant="simple" />;
 
+    case "colorPair": {
+      const pair = (getVal(o) as { stroke?: string; fill?: string }) ?? {};
+      return (
+        <div className="ia-color-pair">
+          <div className="ia-color-list__palette">
+            <span className="cp-label">Color palette</span>
+            <PaletteSelector />
+          </div>
+          <label className="ia-color-pair__item">
+            <span>Stroke</span>
+            <ColorPalette
+              color={pair.stroke || "#2de8c8"}
+              setColor={(c) => setVal(o, { ...pair, stroke: c })}
+              variant="swatch"
+            />
+          </label>
+          <label className="ia-color-pair__item">
+            <span>Fill</span>
+            <ColorPalette
+              color={pair.fill || "#2de8c8"}
+              setColor={(c) => setVal(o, { ...pair, fill: c })}
+              variant="swatch"
+            />
+          </label>
+        </div>
+      );
+    }
+
+    case "colorList": {
+      const map = (getVal(o) as Record<string, string>) ?? {};
+      const entries = Object.keys(map).length ? Object.entries(map) : [["Alpha", "#2F4F6E"], ["Beta", "#4A7C59"]];
+      return (
+        <div className="ia-surface ia-color-list">
+          <div className="ia-color-list__palette">
+            <span className="cp-label">Color palette</span>
+            <PaletteSelector />
+          </div>
+          {entries.map(([label, color]) => (
+            <div key={label} className="ia-color-list__row">
+              <span className="ia-color-list__label">{label}</span>
+              <ColorPalette
+                color={color}
+                setColor={(c) => setVal(o, { ...map, [label]: c })}
+                variant="swatch"
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     case "multi": {
       const values = o.values.length ? o.values : ["Field A", "Field B", "Field C"];
       const asToggles =
@@ -588,68 +634,19 @@ function renderFieldRows(
 
 /* ---------- group card ---------- */
 function GroupCard({
-  title,
   items,
-  showToggle,
-  on,
-  onToggle,
   getVal,
   setVal,
 }: {
-  title: string;
   items: Opt[];
-  showToggle: boolean;
-  on: boolean;
-  onToggle: () => void;
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
 }) {
-  const isColors = title === "Colors";
-  const colorOpt = isColors ? items.find((o) => o.name === "Single color") : undefined;
-  const coreItems = items.filter((o) => !isAdvancedLike(o));
-  const advancedItems = items.filter(isAdvancedLike);
-  const hasAdvancedFields = advancedItems.length > 0;
-
   return (
     <section className="ia-group">
-      <div className="ia-group-head">
-        <div className="ia-group-title">{title}</div>
-        {showToggle && !isColors && (
-          <div className={"ia-grp-adv" + (on ? " on" : "")} onClick={onToggle}>
-            <span>Advanced</span>
-            <MiniSwitch on={on} />
-          </div>
-        )}
-      </div>
       <div className="ia-card">
         <div className="ia-card-body">
-          {isColors ? (
-            <ColorPalette
-              color={colorOpt ? String(getVal(colorOpt)) : "#73adf5"}
-              setColor={(c) => colorOpt && setVal(colorOpt, c)}
-              variant="full"
-            />
-          ) : (
-            <>
-              {coreItems.length > 0 && (
-                <div className="ia-card-fields">{renderFieldRows(pairAxes(coreItems), getVal, setVal)}</div>
-              )}
-              {hasAdvancedFields && (
-                <div
-                  className={
-                    "ia-adv-panel" +
-                    (on ? " is-open" : "") +
-                    (coreItems.length > 0 ? " ia-adv-panel--offset" : "")
-                  }
-                  aria-hidden={!on}
-                >
-                  <div className="ia-adv-panel__inner">
-                    {renderFieldRows(pairAxes(advancedItems), getVal, setVal)}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+          <div className="ia-card-fields">{renderFieldRows(pairAxes(items), getVal, setVal)}</div>
         </div>
       </div>
     </section>
@@ -677,11 +674,10 @@ export default function EditComponentModal({
     "map-layer": true,
   });
   const [vizPhase, setVizPhase] = useState<VizPhase>(startAtVisualPicker ? "picker" : "settings");
-  const [activeSection, setActiveSection] = useState<SectionId>("data");
+  const [activeSubCategory, setActiveSubCategory] = useState("Mapping");
   const [currentStep, setCurrentStep] = useState(startAtVisualPicker ? 0 : 1);
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(startAtVisualPicker ? 0 : 1);
   const [query, setQuery] = useState("");
-  const [groupAdv, setGroupAdv] = useState<Record<string, boolean>>({});
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
   const [config, setConfig] = useState<Config>({});
@@ -692,6 +688,18 @@ export default function EditComponentModal({
   });
 
   const chart = charts[activeChart];
+  const selectedVisual = selectedVisualId ? visualTypeById(selectedVisualId) : null;
+  const displayVisual = selectedVisual ?? visualTypeByChartId(activeChart);
+  const displayVisualId = displayVisual?.id ?? "vertical-bar";
+
+  const visualFields = useMemo(() => fieldsForVisual(displayVisualId), [displayVisualId]);
+  const subCategories = useMemo(() => subCategoriesForVisual(displayVisualId), [displayVisualId]);
+
+  useEffect(() => {
+    if (!subCategories.includes(activeSubCategory)) {
+      setActiveSubCategory(subCategories[0] ?? "Mapping");
+    }
+  }, [displayVisualId, subCategories, activeSubCategory]);
 
   const getVal = (o: Opt) => {
     const v = config[keyOf(o)];
@@ -700,35 +708,25 @@ export default function EditComponentModal({
   const setVal = (o: Opt, v: unknown) => setConfig((c) => ({ ...c, [keyOf(o)]: v }));
 
   const cfg = (group: string, name: string, fallback: unknown) => {
+    const field = visualFields.find((o) => o.group === group && o.name === name);
+    if (field) return getVal(field);
     const v = config[`${group}::${name}`];
     return v === undefined ? fallback : v;
   };
 
-  const all = chart.sections[activeSection].filter(
-    (o) => !query || `${o.name} ${o.desc}`.toLowerCase().includes(query.toLowerCase())
-  );
+  const getValByKey = (group: string, name: string) => {
+    const field = visualFields.find((o) => o.group === group && o.name === name);
+    if (!field) return "";
+    return getVal(field);
+  };
 
-  // group, preserving insertion order
-  const groups: { title: string; items: Opt[] }[] = [];
-  for (const o of all) {
-    let g = groups.find((x) => x.title === o.group);
-    if (!g) {
-      g = { title: o.group, items: [] };
-      groups.push(g);
-    }
-    g.items.push(o);
-  }
+  const visibleFields = visualFields.filter((o) => {
+    if (o.group !== activeSubCategory) return false;
+    if (query && !`${o.name} ${o.desc}`.toLowerCase().includes(query.toLowerCase())) return false;
+    return isFieldVisible(o, getValByKey);
+  });
 
-  const visibleGroups = groups
-    .map((g) => {
-      const key = `${activeChart}:${activeSection}:${g.title}`;
-      const hasAdvanced = g.items.some(isAdvancedLike);
-      const groupAdvanced = !!groupAdv[key];
-      return { title: g.title, key, items: g.items, hasAdvanced, groupAdvanced };
-    })
-    .filter((g) => g.items.length > 0);
-
-  const toggleGroup = (key: string) => setGroupAdv((s) => ({ ...s, [key]: !s[key] }));
+  const mappingFields = visualFields.filter((o) => o.group === "Mapping");
 
   const goNext = () => {
     if (currentStep >= WIZARD_STEPS.length - 1) return;
@@ -765,7 +763,7 @@ export default function EditComponentModal({
     if (isVizStep && vizPhase === "picker") {
       return;
     }
-    if (isVizStep && vizPhase === "settings" && sectionHasErrors("data", chart, getVal)) {
+    if (isVizStep && vizPhase === "settings" && sectionHasErrors(mappingFields, getVal)) {
       return;
     }
     goNext();
@@ -798,10 +796,7 @@ export default function EditComponentModal({
   const isPreviewVizOnly = isAccessStep || isGeneralInfoStep;
   const isVizPicker = isVizStep && vizPhase === "picker";
   const isVizSettings = isVizStep && vizPhase === "settings";
-  const mappingIncomplete = sectionHasErrors("data", chart, getVal);
-  const selectedVisual = selectedVisualId ? visualTypeById(selectedVisualId) : null;
-  const displayVisual = selectedVisual ?? visualTypeByChartId(activeChart);
-  const displayVisualId = displayVisual?.id ?? "vertical-bar";
+  const mappingIncomplete = sectionHasErrors(mappingFields, getVal);
   const displayVisualLabel = displayVisual?.label ?? chart.name;
   const displayVisualCategory = displayVisual?.category ?? "chart";
   const selectedCategoryExpanded =
@@ -842,6 +837,7 @@ export default function EditComponentModal({
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
+      <ColorPaletteProvider>
       <div className="modal">
         {/* Header */}
         <header className="modal__header">
@@ -973,21 +969,20 @@ export default function EditComponentModal({
 
                   <div className="vs-panel">
                     <nav className="vs-panel__nav" aria-label="Visual settings">
-                      {sectionMeta.map((s) => {
-                        const Icon = SECTION_ICONS[s.id];
-                        const selected = activeSection === s.id;
-                        const hasErrors = sectionHasErrors(s.id, chart, getVal);
+                      {subCategories.map((label) => {
+                        const selected = activeSubCategory === label;
+                        const catFields = visualFields.filter((o) => o.group === label);
+                        const hasErrors = sectionHasErrors(catFields, getVal);
                         return (
                           <button
-                            key={s.id}
+                            key={label}
                             type="button"
                             className={"vs-tab" + (selected ? " is-selected" : "")}
                             aria-current={selected ? "true" : undefined}
-                            onClick={() => setActiveSection(s.id)}
+                            onClick={() => setActiveSubCategory(label)}
                           >
                             <span className="vs-tab__main">
-                              <Icon className="vs-tab__icon" width={20} height={20} aria-hidden="true" />
-                              <span className="vs-tab__label">{s.label}</span>
+                              <span className="vs-tab__label">{label}</span>
                             </span>
                             {hasErrors && (
                               <FieldAlertIcon className="vs-tab__alert" aria-label="Required fields incomplete" />
@@ -997,22 +992,11 @@ export default function EditComponentModal({
                       })}
                     </nav>
                     <div className="vs-panel__content">
-                      {visibleGroups.length === 0 ? (
+                      {visibleFields.length === 0 ? (
                         <div className="ia-empty">No options for this visual in this section.</div>
                       ) : (
                         <div className="ia-stack">
-                          {visibleGroups.map((g) => (
-                            <GroupCard
-                              key={g.key}
-                              title={g.title}
-                              items={g.items}
-                              showToggle={g.hasAdvanced}
-                              on={g.groupAdvanced}
-                              onToggle={() => toggleGroup(g.key)}
-                              getVal={getVal}
-                              setVal={setVal}
-                            />
-                          ))}
+                          <GroupCard items={visibleFields} getVal={getVal} setVal={setVal} />
                         </div>
                       )}
                     </div>
@@ -1149,6 +1133,7 @@ export default function EditComponentModal({
           </footer>
         </div>
       </div>
+      </ColorPaletteProvider>
     </div>
   );
 }

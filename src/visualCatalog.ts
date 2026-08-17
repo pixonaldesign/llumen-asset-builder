@@ -27,6 +27,7 @@ export const VISUAL_TYPES: VisualType[] = [
   { id: "progress-bar", label: "Progress Bar", chartId: "progress", category: "chart" },
   { id: "gauge-linear", label: "Gauge / Meter", chartId: "gauge", category: "chart" },
   { id: "gauge-circular", label: "Gauge / Meter", chartId: "gauge", category: "chart" },
+  { id: "score-indicator", label: "Score Indicator", chartId: "score", category: "chart" },
   { id: "polar-wind-rose", label: "Polar / Wind Rose", chartId: "polar", category: "chart" },
   { id: "range", label: "Range", chartId: "range", category: "chart" },
   { id: "availability", label: "Availability", chartId: "availability", category: "chart" },
@@ -40,6 +41,8 @@ export const VISUAL_TYPES: VisualType[] = [
   { id: "discs", label: "Discs", chartId: "pie", category: "map-layer" },
   { id: "map-area", label: "Area", chartId: "area", category: "map-layer" },
   { id: "heatmap", label: "Heatmap", chartId: "bar", category: "map-layer" },
+  { id: "points", label: "Points", chartId: "scatter", category: "map-layer" },
+  { id: "wind", label: "Wind", chartId: "line", category: "map-layer" },
 ];
 
 export function visualTypesForCategory(categoryId: VisualCategoryId): VisualType[] {
