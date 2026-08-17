@@ -1,6 +1,8 @@
-# Llumen Component Builder
+# Llumen Asset Builder
 
-A React prototype for editing data visualization components inside the Llumen platform. The experience centers on a full-screen **Edit Component** modal with a six-step wizard, a live chart preview, and a schema-driven configuration panel built on the **Llumen design system**.
+A React prototype for creating and editing data visualization **assets** in the Llumen platform. The experience centers on a full-screen **Edit Asset** modal: a six-step wizard, a schema-driven settings panel, and a live preview that actually responds to mapping, color, layout, and tooltip settings.
+
+Click **Create** (or any row in the Assets table) to open the flow.
 
 ## Quick start
 
@@ -9,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open the local Vite URL (default `http://localhost:5173`). Click any row in the components table to open the modal.
+Open the local Vite URL (default `http://localhost:5173`).
 
 ```bash
 npm run build   # production build
@@ -28,18 +30,68 @@ npm run preview # preview the production build
 
 ---
 
+## What it does now
+
+### Assets, not components
+
+User-facing copy uses **asset**: Assets nav, Create Asset, Edit Asset, Add Asset, empty states, and the page title (`Lumen — Asset Builder`). Internal file and type names still say `component` in places; that is code, not product language.
+
+### Visualization & Mapping
+
+The viz step has two phases:
+
+1. **Picker** — Charts vs Maps (`VisualTypePicker`). Types live in `visualCatalog.ts` (bars, line, area, scatter, donut, gauges, KPIs, table, and map layers such as points, heatmap, discs, wind).
+2. **Settings** — Left rail + right form + live preview. A compact `SelectedVisualBar` lets you change type without leaving settings.
+
+### Schema-driven settings
+
+Configurable fields come from `visualSettingsCatalog.ts` (Notion “Visualization Configuration Fields”, Configurable = Yes). Each field has a **subcategory** (nav tab), control type, defaults, and optional `visibleWhen` rules.
+
+The rail is grouped, not a flat list:
+
+| Section | Tabs |
+|---------|------|
+| **Core** | Mapping, Story card KPI, Color mode |
+| **Extra** | Layout, legend, status badge, chart-specific styling, scaling / axes, tooltips, annotations, map options, and the rest — filtered to the current visual |
+
+Tabs that do not apply to the selected visual stay hidden. Incomplete required fields show an alert on the tab. Phosphor icons are mapped in `visualIcons.ts`.
+
+Dependent fields stay mounted and **reveal** (`Show legend` → Position / Content, `Sort by value` → Sort order, `Show label` → Axis label, `Manual override` → KPI Value / Min / Max / Unit). Toggles sit on the same row as their label.
+
+### Live preview
+
+Settings are not decorative. A mock dataset (`mockDataset.ts`) is mapped through `derivePreviewSeries.ts` into a `PreviewSeries`. `previewTheme.ts` is the shared interpreter for palettes, gradients, number formats, and min/max.
+
+| Preview | Renderer |
+|---------|----------|
+| Charts / KPIs / tables | `ChartPreview` (SVG) |
+| Map layers | `MapPreview` |
+| Data query | `ChartDataQueryPreview` |
+| Data Source step | `ApiResponsePreview` |
+
+Hover uses a **floating overlay** (portaled, not clipped by the chart card). Tooltip content comes from selected fields (`value`, `category`, `timestamp`, `unit`, `status` on charts; `name`, `value`, `type`, `status` on maps) with a D3-style format (default `.0f`).
+
+### Color mode
+
+`ColorPalette` is the color control:
+
+- Palette type: **Solid**, **Gradient**, or **Steps**
+- Gradient: distribution (Linear / Quantile / Quantize), **gradient axis** (X / Y), **reverse direction**
+- Bars are **masks** over a plot-space `linearGradient` (`userSpaceOnUse`) — a short bar shows only the lower part of the ramp, not a stretched copy
+- Stop knobs stay fully inside the track; **DATA RANGE** label and values share 12px IBM Plex Mono
+- Chip lists (e.g. Tooltip content fields) sit directly under the label — no extra boxed surface
+
+### Story card KPI
+
+Default KPI calculation is **Sum**. **Manual override** replaces mapped value / range / unit with static Value, Min, Max, and Unit fields.
+
+---
+
 ## Design decisions
 
-### 1. Schema-driven configuration (not hand-built forms)
+### 1. Schema-first, visual-type filtered
 
-Chart options are declared in `chartModel.ts` as typed `Opt` objects with:
-
-- **Section** — Mapping, Customization, Insights, Readout (intent-based IA, not chart-type tabs)
-- **Group** — card title inside a section (e.g. "Field Mapping", "Colors")
-- **Level** — `required` · `core` · `advanced` · `conditional` (drives disclosure and validation)
-- **Control type** — `field`, `dropdown`, `toggle`, `segmented`, `slider`, `color`, `margins`, etc.
-
-`EditComponentModal` maps this schema to controls at runtime. Adding a new chart type or option is a data change first; UI follows automatically.
+`EditComponentModal` renders `fieldsForVisual(visualId)` at runtime. Adding a field is a catalog change; the nav, cards, and preview bindings follow. `chartModel.ts` still holds chart type metadata and the `Opt` shape.
 
 ### 2. Llumen design system as the single source of truth
 
@@ -49,114 +101,102 @@ Chart options are declared in `chartModel.ts` as typed `Opt` objects with:
 - **Data visualization colors** — refract + categorical palettes (charts only)
 - **Semantic aliases** — `--lc-bg-brand`, `--lc-text-primary`, `--lc-border-control`, `--lc-surface-*`
 - **Spacing** — `--space-xxs` through `--space-11xl`
-- **Radius** — `--radius-md`, `--radius-lg`, etc.
-- **Typography** — `--lc-font-body`, `--lc-font-heading-md`, `--lc-font-mono`, etc.
+- **Radius** — `--radius-md`, `--lc-ui-radius` (12px for UI chrome)
+- **Typography** — `--lc-font-body` (Innovator Grotesk), `--lc-font-small` + `--lc-font-mono` for section labels
 
-`styles.css` aliases legacy app variables (`--bg`, `--text`, `--muted`) onto Llumen tokens so the app and playground share one vocabulary.
+`styles.css` aliases legacy app variables (`--bg`, `--text`, `--muted`) onto Llumen tokens.
 
 **Practice:** prefer `var(--lc-*)` and `var(--space-*)` over hardcoded hex or pixel values.
 
 ### 3. Surface hierarchy
-
-The modal uses a deliberate depth stack:
 
 | Layer | Token | Usage |
 |-------|-------|-------|
 | Shell base | `--lc-surface-base` | Header, wizard stepper, settings column, footer |
 | Raised panel | `--lc-surface-1` | Visual-settings tab rail + content area |
 | Group card | `--lc-surface-2` | Option groups, data-source cards, param tables |
-| Tooltip / flyout | `--lc-surface-3` | Dropdown menus, tooltips |
+| Tooltip / flyout | `--lc-surface-3` | Dropdown menus, in-app tooltips |
 
-The **preview panel** stays transparent so the chart reads on the modal backdrop, not a competing surface.
+The **preview panel** stays transparent so the chart reads on the modal backdrop. Chart hover tooltips render on `document.body` above the modal.
 
-Backdrop blur (`--lc-backdrop-blur-ui`) is applied consistently on chrome surfaces for a glass-like stack.
+Backdrop blur (`--lc-backdrop-blur-ui`) is applied on chrome surfaces.
 
 ### 4. Modal layout
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Header                                                  │
+│ Header (Edit Asset + name · category)                   │
 ├─────────────────────────────────────────────────────────┤
 │ Wizard stepper (6 steps)                                │
 ├──────────────────────┬──────────────────────────────────┤
-│ Settings (scroll)    │ Preview (chart / API response)   │
+│ Settings (scroll)    │ Preview (chart / map / query)    │
 │                      │                                  │
 ├──────────────────────┴──────────────────────────────────┤
-│ Footer (Previous / Next) — settings column only         │
+│ Footer (Previous / Next · Create asset)                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **Size:** `min(95vw, 3648px) × 95vh` — scales to large displays without arbitrary breakpoint steps
-- **Column split (responsive):** settings **40% / preview 60%** on wide modals; **50 / 50** below 1360px modal width. Animated via `@property --modal-settings-col` and container queries on `.modal`
-- **Footer** lives in the settings column grid row, not full modal width — keeps navigation adjacent to the form
+- **Size:** `min(95vw, 3648px) × 95vh`
+- **Column split:** settings **40% / preview 60%** on wide modals; **50 / 50** below 1360px. Animated via `@property --modal-settings-col` and container queries on `.modal`
+- **Footer** lives in the settings column, not full modal width
 
 ### 5. Wizard stepper
 
 Six linear steps: Data Source → Visualization & Mapping → Filters → Deep Dive → Access → General Info.
 
 - **States:** `disabled` (locked), `active` (unlocked), `selected` (current)
-- **Default entry:** step 2 (Visualization & Mapping); step 1 (Data Source) is unlocked
-- **Indicator:** a blue bloom anchored to the bottom edge of the stepper, positioned under the selected tab with `ResizeObserver`. Uses a vertical mask so the glow does not bleed into the settings panel below
-- **No pill/bar** on individual steps — selection is communicated by the moving light only
+- **Default entry:** Visualization & Mapping (picker first); Data Source is unlocked
+- **Indicator:** a blue bloom under the selected step (`ResizeObserver` + vertical mask)
+- Final step primary action is **Create asset**
 
 ### 6. Visual settings panel (`vs-panel`)
 
-Inside the Visualization & Mapping step:
-
-- **Left rail** — section tabs (Mapping, Customization, Insights, Readout) with Phosphor icons and inline error markers for incomplete required fields
+- **Left rail** — Core / Extra section labels with hairlines, then icon + label tabs
 - **Right content** — grouped option cards with search
-
-**Tab split (responsive):**
-
-- Wide settings column: rail **30%** / content **70%**
-- Narrow settings column (≤680px): rail **40%** / content **60%**
-- Animated via `@property --vs-nav-col` and a container query on `.settings`
+- **Tab split:** rail **30%** / content **70%** (wide); **40 / 60** when the settings column is ≤680px (`@property --vs-nav-col`)
 
 **Group cards:**
 
-- Title + Advanced toggle sit **outside** the card; the card holds fields only
-- Advanced fields collapse with a CSS grid `0fr → 1fr` transition (`.ia-adv-panel`) — no layout jump from empty grid gaps
-- Uniform vertical rhythm: `--ia-block-gap` (`--space-4xl`) between major blocks; tighter `--space-xl` between subbar and panel
+- Title sits outside the card; the card holds fields
+- Advanced fields collapse with a CSS grid `0fr → 1fr` transition
+- Conditional fields use the same reveal pattern (`.ia-reveal`)
+- Vertical rhythm: `--ia-block-gap` (`--space-4xl`) between major blocks
 
 ### 7. Control patterns
 
 | Pattern | Implementation |
 |---------|----------------|
-| Dropdowns | Custom `Dropdown` / `cp-picker-trigger` flyout (not native `<select>`) — matches color-palette picker styling |
-| Buttons (primary actions) | `pg-btn pg-btn--primary` from the design-system playground |
-| Buttons (secondary) | `pg-btn pg-btn--secondary` |
-| Inline controls | `--lc-control-height: 36px` — shared height for URL bar method picker, input, and Send button |
-| Color palette | `ColorPalette` with `variant="full"` (palette type + stops) vs `variant="simple"` (single swatch) |
-| Margins | 2×2 grid + lock toggle (`Lock` / `LockOpen`) — locked syncs all sides; vertically centered in the grid |
-| Toggles | Custom switch + checkbox patterns using brand tokens |
+| Dropdowns | Custom `Dropdown` flyout (not native `<select>`) |
+| Buttons | `pg-btn pg-btn--primary` / `--secondary` from the design-system playground |
+| Inline controls | `--lc-control-height: 36px` |
+| Color | `ColorPalette` — full (palette + gradient/steps) or simple swatch |
+| Manual range | Split Min / Max inputs, stored as `"min / max"` for `parseMinMax` |
+| Toggles | Mini switch opposite the setting name |
+| Multi (chips) | Pill chips, no extra surface wrapper |
+| Margins | 2×2 grid + lock toggle |
 
-**Radius:** form controls and dropdowns use `--radius-md`; modal shell uses `--radius-2xl`.
+Form controls use `--lc-ui-radius`; the modal shell uses `--radius-2xl`.
 
-### 8. Data Source step
+### 8. Other wizard steps
 
-Postman-inspired API configuration UI:
+| Step | Role |
+|------|------|
+| **Data Source** | Postman-style API config (method, URL, params, auth, headers, body). Preview shows `ApiResponsePreview`. |
+| **Filters** | Filter mapping UI (`FiltersStep`) |
+| **Deep Dive** | Tabbed layout of existing assets (`AddComponentModal` + `DeepDiveStep`) |
+| **Access** | Who can see the asset |
+| **General Info** | Asset name, description, category |
 
-- Source type cards, URL bar (method dropdown + URL input + Send)
-- Request tabs (Parameters, Authentication, Headers, Body, Scripts)
-- Query params table with enable toggles
-- Preview panel shows `ApiResponsePreview` (JSON + status/time/size meta) instead of the chart
+### 9. Accessibility & motion
 
-### 9. Preview panel
-
-- **Viz step:** `ChartPreview` with Small / Medium / Large size toggle
-- **Data Source step:** live API response mock
-- Background intentionally **transparent** — preview content floats on the modal layer
-
-### 10. Accessibility & motion
-
-- Wizard uses `aria-current="step"`, `role="tablist"` / `role="tab"` where appropriate
+- Wizard uses `aria-current="step"`; settings nav is `aria-label="Visual settings"`
 - Icon-only buttons have `aria-label`
 - `prefers-reduced-motion` disables layout and glow transitions
 - Focus rings use `--lc-ring-brand` / `--lc-shadow-control-focus`
 
-### 11. Theming
+### 10. Theming
 
-`html[data-theme="dark"]` (default in `index.html`) and `html[data-theme="light"]` are supported via Llumen semantic tokens. The mesh gradient background (`#mesh-gradient-bg`) swaps per theme.
+`html[data-theme="dark"]` (default) and `html[data-theme="light"]` via Llumen semantic tokens. The mesh gradient (`#mesh-gradient-bg`) swaps per theme.
 
 ---
 
@@ -164,23 +204,31 @@ Postman-inspired API configuration UI:
 
 ```
 src/
-├── App.tsx                 # Shell: sidebar, components table, modal trigger
-├── EditComponentModal.tsx  # Modal, wizard, schema renderer, preview
-├── chartModel.ts           # Chart types, sections, options schema
-├── DataSourceStep.tsx      # Wizard step 1 — API source UI
-├── ApiResponsePreview.tsx  # JSON response preview panel
-├── ChartPreview.tsx        # SVG chart preview
-├── ColorPalette.tsx        # Palette picker + gradient stops
-├── Dropdown.tsx            # Custom select flyout
-├── icons.tsx               # App SVG icons
-├── fonts.css               # Innovator Grotesk @font-face
+├── App.tsx                      # Shell: Assets nav, table, create/edit
+├── CreateComponentPopup.tsx     # Create Asset name prompt
+├── EditComponentModal.tsx       # Modal, wizard, settings renderer, preview
+├── visualSettingsCatalog.ts     # Notion field catalog + Core/Extra nav
+├── visualCatalog.ts             # Chart and map type list
+├── visualIcons.ts               # Visual + settings-tab Phosphor icons
+├── chartModel.ts                # Chart metadata and Opt type
+├── mockDataset.ts               # Preview rows and columns
+├── derivePreviewSeries.ts       # Config → PreviewSeries
+├── previewTheme.ts              # Palettes, gradients, formats, min/max
+├── ChartPreview.tsx             # SVG chart / KPI / table preview
+├── MapPreview.tsx               # Map-layer preview
+├── ChartDataQueryPreview.tsx    # Data-query preview
+├── ColorPalette.tsx             # Palette, gradient, steps editor
+├── VisualTypePicker.tsx         # Charts vs Maps picker
+├── SelectedVisualBar.tsx        # Compact type switcher in settings
+├── DataSourceStep.tsx
+├── FiltersStep.tsx
+├── DeepDiveStep.tsx
+├── AddComponentModal.tsx        # Add Asset picker for deep dive
+├── AccessStep.tsx
+├── GeneralInfoStep.tsx
+├── Dropdown.tsx
 ├── llumen-design-system.css
-└── styles.css              # App layout + component styles
-
-public/
-├── fonts/innovator-grotesk/
-├── bg-dark.png
-└── bg-light.png
+└── styles.css
 ```
 
 ---
@@ -188,14 +236,14 @@ public/
 ## Core design practices (summary)
 
 1. **Tokens over literals** — spacing, color, type, and radius come from the design system
-2. **Intent-based IA** — group controls by what the user is trying to do, not by widget type
-3. **Progressive disclosure** — required/core fields visible; advanced behind per-group toggles
-4. **Container-query responsiveness** — splits react to actual column width, not just viewport
-5. **Animated layout with `@property`** — column ratios interpolate smoothly; respect reduced motion
-6. **One picker language** — dropdowns, palette triggers, and flyouts share `cp-picker-*` patterns
-7. **Schema-first extensibility** — new charts and options are data, not one-off JSX
-8. **Preview is first-class** — settings and preview are peers at 40–60% split, not an afterthought
-9. **Surface discipline** — three elevation levels + transparent preview; blur for chrome only
+2. **Catalog-first settings** — fields and nav groups are data, filtered by visual type
+3. **Preview is bound to settings** — mock data + derivation + theme helpers, not a static mockup
+4. **Progressive disclosure** — Core vs Extra, `visibleWhen` reveals, advanced per group
+5. **Container-query responsiveness** — splits react to column width, not just viewport
+6. **Animated layout with `@property`** — column ratios interpolate; respect reduced motion
+7. **One picker language** — dropdowns, palette triggers, and flyouts share the same patterns
+8. **Surface discipline** — three elevation levels + transparent preview; hover tooltips float above chrome
+9. **Asset language** — product copy says asset; keep wind U/V *Component* fields as vector terms
 10. **Platform consistency** — playground button classes (`pg-btn`) and Llumen tokens everywhere
 
 ---
