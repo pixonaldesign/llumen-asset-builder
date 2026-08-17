@@ -1,30 +1,128 @@
 /**
- * Live SVG chart preview.
- * Renders the active chart type and reflects the current control values
- * through the `cfg(group, name, fallback)` accessor.
+ * Live SVG chart preview. Reads every catalog setting through `cfg`
+ * and the derived mock-data `series` so controls change the visual.
  */
 
-import type { PreviewSeries } from "./componentPreviewProfiles";
+import { createContext, useContext, useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import type { MarkTip, PreviewSeries } from "./componentPreviewProfiles";
+import MapPreview from "./MapPreview";
+import { columnLabel } from "./mockDataset";
+import {
+  BRAND,
+  asColorMode,
+  asColorPair,
+  asGradient,
+  asRecord,
+  asRepeatable,
+  asStringArray,
+  formatBySpec,
+  listHas,
+  parseMinMax,
+  resolveColorMode,
+  sliderMapped,
+  withOpacity,
+  type ColorModeConfig,
+} from "./previewTheme";
 
 type Cfg = (group: string, name: string, fallback: unknown) => unknown;
 
-const W = 240;
-const H = 150;
-const P = 16;
-const BRAND = "#73adf5";
+export type ChartPreviewSize = "small" | "medium" | "large";
 
-const num = (v: unknown, d: number) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : d;
+type PlotMetrics = { W: number; H: number; P: number };
+
+const SIZE_PLOT: Record<ChartPreviewSize, PlotMetrics> = {
+  small: { W: 152, H: 132, P: 12 },
+  medium: { W: 348, H: 148, P: 18 },
+  large: { W: 348, H: 340, P: 22 },
 };
+
+const PlotContext = createContext<PlotMetrics>(SIZE_PLOT.medium);
+const usePlot = () => useContext(PlotContext);
+
+const INK = "var(--lc-text-secondary)";
+const INK_STRONG = "var(--lc-text-primary)";
+const FS_TICK = 11;
+const FS_CAPTION = 11;
+
 const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 const str = (v: unknown, d: string) => (typeof v === "string" && v ? v : d);
 
-const PALETTE = (base: string) => [base, "#c6a7ff", "#ffd58a", "#7ee0c0", "#f0888c", "#9bd1ff"];
+const TOOLTIP_FIELDS = ["value", "category", "timestamp", "unit", "status"] as const;
+
+function tipValue(tip: MarkTip, field: string, numberFormat: string): string {
+  if (field === "value") return formatBySpec(tip.value, numberFormat);
+  if (field === "category") return tip.category || tip.label;
+  if (field === "timestamp") return tip.timestamp;
+  if (field === "unit") return tip.unit;
+  if (field === "status") return tip.status;
+  if (field === "label" || field === "x") return tip.label;
+  if (field === "y") return formatBySpec(tip.value, numberFormat);
+  return "";
+}
+
+function markTooltip(cfg: Cfg, tip: MarkTip | undefined, fallbackLabel = "", fallbackValue?: number) {
+  if (!bool(cfg("Tooltips", "Enable tooltip", true), true)) return "";
+  const data: MarkTip = tip ?? {
+    label: fallbackLabel,
+    value: fallbackValue ?? 0,
+    category: fallbackLabel,
+    timestamp: "",
+    unit: "",
+    status: "",
+  };
+  const rawFormat = str(cfg("Tooltips", "Tooltip format", ".0f"), ".0f");
+  const axisFormat = str(cfg("Scaling / axes", "Format", ""), "");
+  const numberFormat = rawFormat.includes("{") ? axisFormat : rawFormat || axisFormat || ".0f";
+  const selected = asStringArray(cfg("Tooltips", "Tooltip content fields", ["value", "category", "timestamp"])).filter((f) =>
+    (TOOLTIP_FIELDS as readonly string[]).includes(f),
+  );
+  const fields = selected.length ? selected : ["value", "category"];
+
+  if (rawFormat.includes("{")) {
+    return rawFormat.replace(/\{(\w+)\}/g, (_m, key: string) => tipValue(data, key, numberFormat));
+  }
+
+  return fields
+    .map((field) => {
+      const v = tipValue(data, field, numberFormat);
+      if (!v) return "";
+      return `${columnLabel(field)}: ${v}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+const MAP_TIP_FIELDS = ["name", "value", "type", "status"] as const;
+
+function mapTooltip(cfg: Cfg, tip: MarkTip | undefined) {
+  if (!tip) return "";
+  const selected = asStringArray(cfg("Tooltip Fields", "Tooltip fields", ["name", "value", "type"])).filter((f) =>
+    (MAP_TIP_FIELDS as readonly string[]).includes(f),
+  );
+  const fields = selected.length ? selected : ["name", "value"];
+  const numberFormat = str(cfg("Tooltips", "Tooltip format", ".0f"), ".0f");
+  return fields
+    .map((field) => {
+      const v =
+        field === "name"
+          ? tip.label
+          : field === "value"
+            ? formatBySpec(tip.value, numberFormat)
+            : field === "type"
+              ? tip.category
+              : tip.status;
+      if (!v) return "";
+      return `${columnLabel(field)}: ${v}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
 
 const pickerCfg: Cfg = (_group, _name, fallback) => fallback;
 
-/* polar point — 0° points up, clockwise positive */
+const MAP_IDS = new Set(["arcs", "fences", "pillars", "discs", "map-area", "heatmap", "points", "wind"]);
+
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
   const a = ((deg - 90) * Math.PI) / 180;
   return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -65,170 +163,670 @@ function smoothPath(pts: [number, number][]) {
   }
   return d;
 }
-function stepPath(pts: [number, number][]) {
+function stepPath(pts: [number, number][], kind: string) {
   let d = `M ${pt(pts[0])}`;
   for (let i = 1; i < pts.length; i++) {
-    d += ` L ${pts[i][0].toFixed(1)} ${pts[i - 1][1].toFixed(1)} L ${pt(pts[i])}`;
+    if (kind.includes("before")) d += ` L ${pts[i - 1][0].toFixed(1)} ${pts[i][1].toFixed(1)} L ${pt(pts[i])}`;
+    else if (kind.includes("after") || kind === "step") d += ` L ${pts[i][0].toFixed(1)} ${pts[i - 1][1].toFixed(1)} L ${pt(pts[i])}`;
+    else d += ` L ${pts[i][0].toFixed(1)} ${pts[i - 1][1].toFixed(1)} L ${pt(pts[i])}`;
   }
   return d;
 }
 function buildPath(pts: [number, number][], curve: string) {
   const c = curve.toLowerCase();
-  if (c.includes("step")) return stepPath(pts);
+  if (c.includes("step")) return stepPath(pts, c);
   if (c.includes("linear")) return linearPath(pts);
   return smoothPath(pts);
 }
 
-type RenderProps = { cfg: Cfg; chartId: string; minimal?: boolean; compact?: boolean; series?: PreviewSeries };
-
-function normalizeSeries(values: number[], maxHint?: number) {
-  const max = maxHint ?? Math.max(...values, 1);
-  return values.map((value) => value / max);
+function colorFromCfg(cfg: Cfg) {
+  return asColorMode(cfg("Color mode", "Palette", cfg("Color mode", "Single color", BRAND)));
 }
 
-/* ---- per-type renderers ---- */
-function Bars({ cfg, minimal, compact, series }: RenderProps) {
-  const color = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
-  const sort = minimal && !series ? false : bool(cfg("Bar", "Sort by value", true), true);
+function colorMode(
+  cfg: Cfg,
+  index: number,
+  value: number,
+  max: number,
+  _category?: string,
+  n?: number,
+  along?: { x: number; y: number },
+): string {
+  const mode = colorFromCfg(cfg);
+  const unit = along ?? {
+    x: index / Math.max((n ?? 1) - 1, 1),
+    y: value / Math.max(max, 1),
+  };
+  const t = mode.style === "Gradient" && (mode.gradientAxis || "Y") === "X" ? unit.x : unit.y;
+  return resolveColorMode(mode, t, index);
+}
+
+function axisAlong(index: number, n: number, value: number, min: number, max: number) {
+  return {
+    x: index / Math.max(n - 1, 1),
+    y: (value - min) / (max - min || 1),
+  };
+}
+
+function GradientPaint({
+  id,
+  mode,
+  box,
+  min = 0,
+  max = 1,
+}: {
+  id: string;
+  mode: ColorModeConfig;
+  box?: { left: number; right: number; top: number; bottom: number };
+  min?: number;
+  max?: number;
+}) {
+  if (mode.style !== "Gradient") return null;
+  const stops = [...mode.stops].sort((a, b) => a.value - b.value);
+  if (!stops.length) return null;
+  const reverse = Boolean(mode.gradientReverse);
+  const axis = mode.gradientAxis || "Y";
+  const span = max - min || 1;
+  const stopEls = stops.map((s, i) => (
+    <stop key={i} offset={`${((s.value - min) / span) * 100}%`} stopColor={withOpacity(s.color, s.opacity)} />
+  ));
+
+  if (box) {
+    if (axis === "Y") {
+      return (
+        <linearGradient
+          id={id}
+          gradientUnits="userSpaceOnUse"
+          x1={box.left}
+          y1={reverse ? box.top : box.bottom}
+          x2={box.left}
+          y2={reverse ? box.bottom : box.top}
+        >
+          {stopEls}
+        </linearGradient>
+      );
+    }
+    return (
+      <linearGradient
+        id={id}
+        gradientUnits="userSpaceOnUse"
+        x1={reverse ? box.right : box.left}
+        y1={box.bottom}
+        x2={reverse ? box.left : box.right}
+        y2={box.bottom}
+      >
+        {stopEls}
+      </linearGradient>
+    );
+  }
+  const x1 = axis === "X" ? (reverse ? "1" : "0") : "0";
+  const x2 = axis === "X" ? (reverse ? "0" : "1") : "0";
+  const y1 = axis === "Y" ? (reverse ? "0" : "1") : "0";
+  const y2 = axis === "Y" ? (reverse ? "1" : "0") : "0";
+  return (
+    <linearGradient id={id} x1={x1} y1={y1} x2={x2} y2={y2}>
+      {stopEls}
+    </linearGradient>
+  );
+}
+
+type RenderProps = {
+  cfg: Cfg;
+  chartId: string;
+  visualId?: string;
+  minimal?: boolean;
+  compact?: boolean;
+  series?: PreviewSeries;
+  decorate?: boolean;
+  hover?: number | null;
+  setHover?: (i: number | null) => void;
+  onMarkEnter?: (index: number, e: ReactMouseEvent) => void;
+  onMarkLeave?: () => void;
+};
+
+function markHover(props: Pick<RenderProps, "setHover" | "onMarkEnter" | "onMarkLeave">, index: number) {
+  return {
+    style: { cursor: "pointer" as const },
+    onMouseEnter: (e: ReactMouseEvent) => {
+      props.setHover?.(index);
+      props.onMarkEnter?.(index, e);
+    },
+    onMouseMove: (e: ReactMouseEvent) => props.onMarkEnter?.(index, e),
+    onMouseLeave: () => {
+      props.setHover?.(null);
+      props.onMarkLeave?.();
+    },
+  };
+}
+
+function plotBox(cfg: Cfg, decorate: boolean, extraBottom = 0, extraTop = 0, { W, H, P }: PlotMetrics) {
+  const axisOn = decorate && bool(cfg("Scaling / axes", "Show label", false), false);
+  const ticks = asStringArray(cfg("Scaling / axes", "Show ticks / tick labels / gridlines", []));
+  const showTickLabels = decorate && listHas(ticks, "Show Tick Labels");
+  const legend = decorate && bool(cfg("Legend", "Show legend", false), false);
+  const legendPos = str(cfg("Legend", "Position", "Top"), "Top");
+  const left = P + (showTickLabels ? 28 : 0);
+  const right = W - P;
+  const top = P + extraTop + (legend && (legendPos === "Top" || legendPos === "Left") ? 16 : 0) + (axisOn ? 4 : 0);
+  const bottom = H - P - extraBottom - (legend && (legendPos === "Bottom" || legendPos === "Right") ? 16 : 0) - (showTickLabels ? 16 : 0);
+  return { left, right, top, bottom, width: right - left, height: Math.max(20, bottom - top), showTickLabels, ticks, legend, legendPos, axisOn };
+}
+
+function AxisChrome({
+  cfg,
+  box,
+  labels,
+  max,
+  min = 0,
+}: {
+  cfg: Cfg;
+  box: ReturnType<typeof plotBox>;
+  labels: string[];
+  max: number;
+  min?: number;
+}) {
+  const format = str(cfg("Scaling / axes", "Format", ""), "");
+  const tickMode = str(cfg("Scaling / axes", "Tick mode", "Standard"), "Standard");
+  const showTicks = listHas(box.ticks, "Show Ticks");
+  const showGrid = listHas(box.ticks, "Show Grid Lines");
+  const yTicks = tickMode.includes("Endpoint") ? [min, max] : [min, min + (max - min) / 2, max];
+  const axisLabel = str(cfg("Scaling / axes", "Axis label", ""), "");
+  return (
+    <g>
+      {showGrid &&
+        yTicks.map((t, i) => {
+          const y = box.bottom - ((t - min) / (max - min || 1)) * box.height;
+          return <line key={i} x1={box.left} y1={y} x2={box.right} y2={y} stroke="rgba(255,255,255,.08)" />;
+        })}
+      {showTicks &&
+        yTicks.map((t, i) => {
+          const y = box.bottom - ((t - min) / (max - min || 1)) * box.height;
+          return <line key={`t${i}`} x1={box.left - 3} y1={y} x2={box.left} y2={y} stroke="rgba(255,255,255,.28)" />;
+        })}
+      {box.showTickLabels &&
+        yTicks.map((t, i) => {
+          const y = box.bottom - ((t - min) / (max - min || 1)) * box.height;
+          return (
+            <text key={`l${i}`} x={box.left - 6} y={y + 4} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="end">
+              {formatBySpec(t, format)}
+            </text>
+          );
+        })}
+      {box.showTickLabels &&
+        labels.map((lab, i) => {
+          const x = box.left + ((i + 0.5) / Math.max(labels.length, 1)) * box.width;
+          return (
+            <text key={`x${i}`} x={x} y={box.bottom + 13} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="middle">
+              {lab.length > 12 ? `${lab.slice(0, 11)}…` : lab}
+            </text>
+          );
+        })}
+      {box.axisOn && axisLabel && (
+        <text x={box.left} y={box.top - 6} fill={INK} fontSize={FS_CAPTION} fontWeight="500">
+          {axisLabel}
+        </text>
+      )}
+    </g>
+  );
+}
+
+function Legend({
+  cfg,
+  series,
+  items,
+  box,
+}: {
+  cfg: Cfg;
+  series?: PreviewSeries;
+  items: { label: string; color: string; value?: number }[];
+  box: ReturnType<typeof plotBox>;
+}) {
+  if (!box.legend || !items.length) return null;
+  const content = asStringArray(cfg("Legend", "Content", []));
+  const showLabels = !content.length || listHas(content, "Show labels");
+  const showValues = listHas(content, "Show values");
+  const showPct = listHas(content, "Show percentages");
+  const total = items.reduce((a, b) => a + (b.value ?? 0), 0) || 1;
+  const { W, H, P } = usePlot();
+  const pos = box.legendPos;
+  const y = pos === "Bottom" || pos === "Right" ? H - 14 : 12;
+  const x0 = pos === "Left" ? P : pos === "Right" ? W - 110 : P;
+  return (
+    <g>
+      {items.slice(0, 4).map((it, i) => {
+        const x = x0 + i * 56;
+        const bits = [
+          showLabels ? it.label : "",
+          showValues && it.value != null ? formatBySpec(it.value, "") : "",
+          showPct && it.value != null ? `${Math.round((it.value / total) * 100)}%` : "",
+        ].filter(Boolean);
+        return (
+          <g key={i}>
+            <rect x={x} y={y - 7} width={8} height={8} rx={2} fill={it.color} />
+            <text x={x + 11} y={y} fill={INK} fontSize={FS_TICK} fontWeight="500">
+              {bits.join(" ") || series?.legend || "Series"}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function Annotation({ cfg, series, box, max, min = 0 }: { cfg: Cfg; series?: PreviewSeries; box: ReturnType<typeof plotBox>; max: number; min?: number }) {
+  const source = str(cfg("Annotations / guidelines", "Source", "Average"), "Average");
+  const values = series?.values ?? [];
+  if (!values.length) return null;
+  let yVal = values.reduce((a, b) => a + b, 0) / values.length;
+  if (source.startsWith("Maximum")) yVal = Math.max(...values);
+  if (source.startsWith("Minimum")) yVal = Math.min(...values);
+  if (source.startsWith("Linear")) {
+    const n = values.length;
+    const xMean = (n - 1) / 2;
+    const yMean = yVal;
+    const nume = values.reduce((a, y, i) => a + (i - xMean) * (y - yMean), 0);
+    const deno = values.reduce((a, _, i) => a + (i - xMean) ** 2, 0) || 1;
+    const slope = nume / deno;
+    const intercept = yMean - slope * xMean;
+    const y0 = intercept;
+    const y1 = intercept + slope * (n - 1);
+    const py0 = box.bottom - ((y0 - min) / (max - min || 1)) * box.height;
+    const py1 = box.bottom - ((y1 - min) / (max - min || 1)) * box.height;
+    const caption = bool(cfg("Annotations / guidelines", "Show caption on chart", true), true);
+    const label = str(cfg("Annotations / guidelines", "Label", ""), "Trend");
+    return (
+      <g>
+        <line x1={box.left} y1={py0} x2={box.right} y2={py1} stroke="rgba(255,255,255,.45)" strokeDasharray="4 3" />
+        {caption && (
+          <text x={box.left + 4} y={py1 - 4} fill={INK} fontSize={FS_CAPTION} fontWeight="500">
+            {label}
+          </text>
+        )}
+      </g>
+    );
+  }
+  if (source.startsWith("Manual")) {
+    const raw = str(cfg("Annotations / guidelines", "X position / Y value (manual)", ""), "");
+    const axis = str(cfg("Annotations / guidelines", "Axis (manual only)", "Y only (horizontal)"), "Y only (horizontal)");
+    const parts = raw.split(/[/,]/).map((s) => s.trim());
+    const yManual = Number(parts[1] ?? parts[0]);
+    if (Number.isFinite(yManual)) yVal = yManual;
+    const y = box.bottom - ((yVal - min) / (max - min || 1)) * box.height;
+    const xKey = parts[0];
+    const xi = labelsIndex(series?.labels, xKey);
+    const x = box.left + ((xi + 0.5) / Math.max(series?.labels?.length ?? 1, 1)) * box.width;
+    return (
+      <g>
+        {(axis.includes("Y") || axis.includes("cross") || axis.includes("horizontal")) && (
+          <line x1={box.left} y1={y} x2={box.right} y2={y} stroke="rgba(255,213,138,.7)" strokeDasharray="3 3" />
+        )}
+        {(axis.includes("X") || axis.includes("cross") || axis.includes("vertical")) && (
+          <line x1={x} y1={box.top} x2={x} y2={box.bottom} stroke="rgba(255,213,138,.7)" strokeDasharray="3 3" />
+        )}
+      </g>
+    );
+  }
+  const y = box.bottom - ((yVal - min) / (max - min || 1)) * box.height;
+  const shape = str(cfg("Annotations / guidelines", "Line shape (avg/max/min)", "Straight (full width)"), "Straight");
+  const unit = str(cfg("Annotations / guidelines", "Unit", ""), "");
+  const label = str(cfg("Annotations / guidelines", "Label", ""), source);
+  const caption = bool(cfg("Annotations / guidelines", "Show caption on chart", true), true);
+  if (shape.toLowerCase().includes("follow") && series?.values) {
+    const pts: [number, number][] = series.values.map((v, i) => [
+      box.left + (i / Math.max(series.values!.length - 1, 1)) * box.width,
+      box.bottom - ((v - min) / (max - min || 1)) * box.height,
+    ]);
+    return <path d={linearPath(pts)} fill="none" stroke="rgba(255,255,255,.35)" strokeDasharray="3 3" />;
+  }
+  return (
+    <g>
+      <line x1={box.left} y1={y} x2={box.right} y2={y} stroke="rgba(255,255,255,.4)" strokeDasharray="4 3" />
+      {caption && (
+        <text x={box.left + 4} y={y - 5} fill={INK} fontSize={FS_CAPTION} fontWeight="500">
+          {label} {formatBySpec(yVal, "")}
+          {unit}
+        </text>
+      )}
+    </g>
+  );
+}
+
+function labelsIndex(labels: string[] | undefined, key: string) {
+  if (!labels?.length) return 0;
+  const i = labels.findIndex((l) => l.toLowerCase() === key.toLowerCase());
+  return i >= 0 ? i : 0;
+}
+
+function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const gradId = useId().replace(/:/g, "");
+  const sort = minimal && !series ? false : bool(cfg("Bar", "Sort by value", false), false);
+  const sortOrder = str(cfg("Bar", "Sort order", "Descending"), "Descending");
   const showLabels =
     !minimal &&
     !compact &&
-    bool(cfg("Bar", "Show values on bars", true), true) &&
-    bool(cfg("Layout & visibility", "Show data labels", true), true);
-  const radiusPct = num(cfg("Bar Styling", "Corner radius", 30), 30);
-  const widthPct = num(cfg("Bar Styling", "Bar width", 60), 60);
-  const legend = !minimal && !compact && bool(cfg("Legend", "Show legend", false), false);
+    (bool(cfg("Bar", "Show values on bars", false), false) || bool(cfg("Layout & visibility", "Show data labels", false), false));
+  const track = str(cfg("Bar", "Background track style", "None"), "None");
+  const stack = bool(cfg("Bar", "Stack series", false), false);
+  const source = series?.values ?? [40, 72, 30, 58, 90, 64];
+  const sourceLabels = series?.labels ?? source.map((_, i) => String(i + 1));
+  const groups = series?.groups;
+  const paired = source.map((value, i) => ({ value, label: sourceLabels[i] ?? "", i }));
+  if (sort) paired.sort((a, b) => (sortOrder === "Ascending" ? a.value - b.value : b.value - a.value));
+  const data = paired.map((p) => p.value);
+  const labels = paired.map((p) => p.label);
+  const n = Math.max(data.length, 1);
+  const metrics = usePlot();
+  const domain = parseMinMax(cfg("Scaling / axes", "Manual range (min/max)", ""), [0, Math.max(...data, 1)]);
+  const min = String(cfg("Scaling / axes", "Manual range (min/max)", "")).trim() ? domain[0] : 0;
+  const max = String(cfg("Scaling / axes", "Manual range (min/max)", "")).trim() ? domain[1] : Math.max(...data, 1);
+  const box = plotBox(cfg, !!decorate, 0, showLabels ? 16 : 0, metrics);
+  const slot = box.width / n;
+  const bw = slot * 0.62;
+  const r = Math.min(bw / 2, 4);
+  const mode = colorFromCfg(cfg);
+  const yMax = groups?.length && stack
+    ? Math.max(
+        ...labels.map((_, li) => groups.reduce((a, g) => a + (g.values[paired[li]?.i ?? li] ?? 0), 0)),
+        1,
+      )
+    : max;
+  const gradFill = mode.style === "Gradient" ? `url(#${gradId})` : "";
 
-  let data = series?.values ?? [40, 72, 30, 58, 90, 64];
-  if (sort) data = [...data].sort((a, b) => b - a);
-  const n = data.length;
-  const max = Math.max(...data);
-  const legendH = legend ? 16 : 0;
-  const plotW = W - 2 * P;
-  const plotH = H - 2 * P - legendH;
-  const slot = plotW / n;
-  const bw = slot * (0.32 + 0.6 * (widthPct / 100));
-  const r = Math.min(bw / 2, (radiusPct / 100) * (bw / 2));
+  const stackedMax = yMax;
+
+  const markColor = (index: number, value: number, seriesN: number, category?: string) =>
+    gradFill || colorMode(cfg, index, value, stackedMax, category, seriesN, axisAlong(index, n, value, min, stackedMax));
 
   return (
     <>
+      {gradFill && (
+        <defs>
+          <GradientPaint id={gradId} mode={mode} box={box} min={min} max={stackedMax} />
+        </defs>
+      )}
+      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={stack && groups ? stackedMax : max} min={min} />}
       {data.map((d, i) => {
-        const bh = (d / max) * plotH;
-        const x = P + i * slot + (slot - bw) / 2;
-        const y = P + plotH - bh;
+        const x = box.left + i * slot + (slot - bw) / 2;
+        const srcIndex = paired[i]?.i ?? i;
+        if (stack && groups?.length) {
+          let y = box.bottom;
+          return (
+            <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, srcIndex)}>
+              {track !== "None" && (
+                <rect x={x} y={box.top} width={bw} height={box.height} rx={r} fill="rgba(255,255,255,.06)" />
+              )}
+              {groups.map((g, gi) => {
+                const v = g.values[srcIndex] ?? 0;
+                const bh = ((v - min) / (stackedMax - min || 1)) * box.height;
+                y -= bh;
+                const color = markColor(gi, v, groups.length, g.name);
+                return <rect key={g.name} x={x} y={y} width={bw} height={Math.max(0, bh)} fill={color} />;
+              })}
+              {showLabels && (
+                <text x={x + bw / 2} y={y - 4} fill={INK_STRONG} fontSize="10" textAnchor="middle">
+                  {formatBySpec(d, str(cfg("Scaling / axes", "Format", ""), ""))}
+                </text>
+              )}
+            </g>
+          );
+        }
+        if (groups?.length && !stack) {
+          const gw = bw / groups.length;
+          return (
+            <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, srcIndex)}>
+              {groups.map((g, gi) => {
+                const v = g.values[srcIndex] ?? 0;
+                const bh = ((v - min) / (max - min || 1)) * box.height;
+                const color = markColor(gi, v, groups.length, g.name);
+                return <rect key={g.name} x={x + gi * gw} y={box.bottom - bh} width={Math.max(1, gw - 1)} height={bh} rx={2} fill={color} />;
+              })}
+            </g>
+          );
+        }
+        const bh = ((d - min) / (max - min || 1)) * box.height;
+        const y = box.bottom - bh;
+        const color = markColor(i, d, n, labels[i]);
         return (
-          <g key={i}>
-            <rect x={x} y={y} width={bw} height={bh} rx={r} fill={color} />
+          <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, srcIndex)}>
+            {track === "Full" && <rect x={x} y={box.top} width={bw} height={box.height} rx={r} fill="rgba(255,255,255,.06)" />}
+            {track === "Segmented" &&
+              [0.25, 0.5, 0.75].map((t) => (
+                <line
+                  key={t}
+                  x1={x}
+                  x2={x + bw}
+                  y1={box.bottom - t * box.height}
+                  y2={box.bottom - t * box.height}
+                  stroke="rgba(255,255,255,.12)"
+                />
+              ))}
+            <rect x={x} y={y} width={bw} height={Math.max(0, bh)} rx={r} fill={color} opacity={hover === srcIndex ? 1 : 0.92} />
             {showLabels && (
-              <text x={x + bw / 2} y={y - 4} fill="rgba(255,255,255,.7)" fontSize="8" textAnchor="middle">
-                {d}
+              <text x={x + bw / 2} y={y - 4} fill={INK_STRONG} fontSize="10" textAnchor="middle">
+                {formatBySpec(d, str(cfg("Scaling / axes", "Format", ""), ""))}
               </text>
             )}
           </g>
         );
       })}
-      {legend && (
-        <g>
-          <rect x={P} y={H - 12} width={9} height={9} rx={2} fill={color} />
-          <text x={P + 13} y={H - 4} fill="rgba(255,255,255,.55)" fontSize="8">
-            Series A
-          </text>
-        </g>
+      {decorate && <Annotation cfg={cfg} series={series} box={box} max={max} min={min} />}
+      {decorate && (
+        <Legend
+          cfg={cfg}
+          series={series}
+          items={
+            groups?.length
+              ? groups.map((g, i) => ({ label: g.name, color: colorMode(cfg, i, 1, 1, g.name, groups.length), value: g.values[0] }))
+              : [{ label: series?.legend ?? "Series", color: colorMode(cfg, 0, data[0] ?? 1, max, labels[0] ?? "", n), value: data[0] }]
+          }
+          box={box}
+        />
       )}
     </>
   );
 }
 
-function LineArea({ cfg, chartId, minimal, compact, series }: RenderProps) {
-  const color = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
+function LineArea({ cfg, chartId, minimal, compact, series, decorate, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const gradId = useId().replace(/:/g, "");
   const grp = "Line";
   const style = str(cfg(grp, "Chart style", chartId === "area" ? "Area" : "Line"), "Line");
   const isArea = chartId === "area" || style === "Area";
-  const strokePct = num(cfg(grp, "Stroke width", 50), 50);
-  const sw = minimal && !series ? 2.5 : 1.5 + (strokePct / 100) * 5;
-  const showPoints = !minimal && !compact && bool(cfg(grp, "Show data points", true), true);
+  const showPoints = !minimal && !compact && bool(cfg(grp, "Show data points", false), false);
   const curve = str(cfg(grp, "Curve interpolation", "Smooth"), "Smooth");
-  const fillPct = num(cfg("Area styling", "Fill opacity", 35), 35);
+  const fillOp = sliderMapped(cfg("Area styling", "Fill opacity", 40), 0, 1, 0.35);
+  const pair = asColorPair(cfg("Area styling", "Line + Area colors", undefined));
+  const values = series?.values ?? [52, 48, 55, 42, 58, 61, 54];
+  const labels = series?.labels ?? values.map((_, i) => String(i + 1));
+  const groups = series?.groups;
+  const domain = parseMinMax(cfg("Scaling / axes", "Manual range (min/max)", ""), [0, Math.max(...values, 1)]);
+  const hasManual = String(cfg("Scaling / axes", "Manual range (min/max)", "")).trim();
+  const min = hasManual ? domain[0] : Math.min(0, ...values);
+  const max = hasManual ? domain[1] : Math.max(...values, 1);
+  const box = plotBox(cfg, !!decorate, 0, 0, usePlot());
+  const mode = colorFromCfg(cfg);
+  const axisPaint = mode.style === "Gradient" ? `url(#${gradId})` : "";
+  const color0 = colorMode(cfg, 0, values[0] ?? 1, max, labels[0] ?? "", values.length, axisAlong(0, values.length, values[0] ?? 1, min, max));
+  const stroke = axisPaint || (isArea ? pair.stroke || color0 : color0);
+  const fill = axisPaint || (isArea ? pair.fill || color0 : color0);
 
-  const ys = series?.values ? normalizeSeries(series.values) : [0.5, 0.28, 0.42, 0.12, 0.34, 0.05, 0.2];
-  const plotW = W - 2 * P;
-  const plotH = H - 2 * P;
-  const pts: [number, number][] = ys.map((v, i) => [P + (i / (ys.length - 1)) * plotW, P + v * plotH]);
-  const line = buildPath(pts, curve);
-  const baseY = P + plotH;
-  const area = `${line} L ${pts[pts.length - 1][0].toFixed(1)} ${baseY} L ${pts[0][0].toFixed(1)} ${baseY} Z`;
+  const toPts = (vals: number[]): [number, number][] =>
+    vals.map((v, i) => [
+      box.left + (i / Math.max(vals.length - 1, 1)) * box.width,
+      box.bottom - ((v - min) / (max - min || 1)) * box.height,
+    ]);
+
+  const lines = groups?.length ? groups : [{ name: series?.legend ?? "Series", values }];
 
   return (
     <>
-      {isArea && <path d={area} fill={color} opacity={minimal ? 0.35 : 0.1 + (fillPct / 100) * 0.5} />}
-      <path d={line} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
-      {showPoints &&
-        pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={sw * 0.9 + 1} fill={color} stroke="#0c0f15" strokeWidth="1.5" />)}
+      {axisPaint && (
+        <defs>
+          <GradientPaint id={gradId} mode={mode} box={box} min={min} max={max} />
+        </defs>
+      )}
+      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={max} min={min} />}
+      {lines.map((line, li) => {
+        const pts = toPts(line.values);
+        const path = buildPath(pts, curve);
+        const area = `${path} L ${pts[pts.length - 1][0].toFixed(1)} ${box.bottom} L ${pts[0][0].toFixed(1)} ${box.bottom} Z`;
+        const c = axisPaint || colorMode(cfg, li, line.values[0] ?? 1, max, line.name, lines.length);
+        const sc = li === 0 && isArea ? stroke : c;
+        return (
+          <g key={line.name}>
+            {isArea && <path d={area} fill={li === 0 ? fill : c} opacity={fillOp} />}
+            <path d={path} fill="none" stroke={sc} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+            {(showPoints || decorate) &&
+              pts.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={p[0]}
+                  cy={p[1]}
+                  r={showPoints ? 3 : 10}
+                  fill={showPoints ? (axisPaint ? colorMode(cfg, i, line.values[i] ?? 0, max, line.name, pts.length, axisAlong(i, pts.length, line.values[i] ?? 0, min, max)) : sc) : "transparent"}
+                  stroke={showPoints ? "#0c0f15" : "none"}
+                  strokeWidth={showPoints ? "1.5" : 0}
+                  {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}
+                />
+              ))}
+          </g>
+        );
+      })}
+      {series?.reference != null && (
+        <line
+          x1={box.left}
+          x2={box.right}
+          y1={box.bottom - ((series.reference - min) / (max - min || 1)) * box.height}
+          y2={box.bottom - ((series.reference - min) / (max - min || 1)) * box.height}
+          stroke="rgba(255,255,255,.35)"
+          strokeDasharray="2 3"
+        />
+      )}
+      {decorate && <Annotation cfg={cfg} series={series} box={box} max={max} min={min} />}
+      {decorate && (
+        <Legend
+          cfg={cfg}
+          series={series}
+          items={lines.map((l, i) => ({ label: l.name, color: colorMode(cfg, i, 1, 1, l.name, lines.length), value: l.values[l.values.length - 1] }))}
+          box={box}
+        />
+      )}
     </>
   );
 }
 
-function PieDonut({ cfg, chartId, minimal, compact, series }: RenderProps) {
-  const base = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
-  const palette = minimal && !series ? PALETTE(BRAND) : PALETTE(base);
-  const style = str(cfg("Pie Styling", "Chart style", "Donut"), "Donut");
-  const isDonut = chartId === "polar" ? true : style === "Donut";
-  const innerPct = num(cfg("Pie Styling", "Inner radius", 55), 55);
-  const startPct = num(cfg("Pie Styling", "Start angle", 0), 0);
-  const padPct = num(cfg("Pie Styling", "Pad angle (slice gap)", 8), 8);
-  const showCenter = !minimal && !compact && bool(cfg("Pie Styling", "Show center value", true), true);
-
+function PieDonut({ cfg, chartId, minimal, compact, series, decorate, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const metrics = usePlot();
+  const { W, H } = metrics;
+  const data = series?.values ?? [34, 24, 18, 14, 10];
+  const labels = series?.labels ?? data.map((_, i) => `S${i + 1}`);
+  const total = data.reduce((a, b) => a + b, 0) || 1;
+  const fmt = str(cfg("Pie / Donut", "Label format", "Percentage"), "Percentage");
+  const isDonut = chartId !== "pie" || true;
   const cx = W / 2;
-  const cy = H / 2;
-  const rO = 56;
-  const rI = isDonut ? rO * (0.3 + (innerPct / 100) * 0.55) : 0;
-  const start = (startPct / 100) * 360;
-  const pad = (padPct / 100) * 12;
-  const data =
-    series?.values ?? (chartId === "polar" ? [22, 18, 16, 14, 12, 10, 8] : [34, 24, 18, 14, 10]);
-  const total = data.reduce((a, b) => a + b, 0);
-  let cursor = start;
-  const centerValue = series?.values
-    ? `${Math.round((Math.max(...series.values) / total) * 100)}%`
-    : "72%";
+  const cy = H / 2 + (decorate ? 4 : 0);
+  const rO = Math.min(W, H) * 0.32;
+  const rI = isDonut ? rO * 0.54 : 0;
+  let cursor = -90;
+  const showLabels = !minimal && !compact && bool(cfg("Layout & visibility", "Show data labels", false), false);
+  const max = Math.max(...data, 1);
 
   return (
     <>
       {data.map((d, i) => {
         const sweep = (d / total) * 360;
-        const a0 = cursor + pad / 2;
-        const a1 = cursor + sweep - pad / 2;
+        const a0 = cursor + 1;
+        const a1 = cursor + sweep - 1;
         cursor += sweep;
-        return <path key={i} d={wedge(cx, cy, rO, rI, a0, a1)} fill={palette[i % palette.length]} />;
+        const color = colorMode(cfg, i, d, max, labels[i], data.length, axisAlong(i, data.length, d, 0, max));
+        const [lx, ly] = polar(cx, cy, (rO + rI) / 2 + 2, (a0 + a1) / 2);
+        const sliceLabel =
+          fmt === "Value" ? formatBySpec(d, "") : fmt === "Both" ? `${formatBySpec(d, "")} (${Math.round((d / total) * 100)}%)` : `${Math.round((d / total) * 100)}%`;
+        return (
+          <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}>
+            <path d={wedge(cx, cy, rO, rI, a0, a1)} fill={color} />
+            {showLabels && sweep > 18 && (
+              <text x={lx} y={ly + 3} fill="#fff" fontSize={FS_TICK} fontWeight="500" textAnchor="middle">
+                {sliceLabel}
+              </text>
+            )}
+          </g>
+        );
       })}
-      {isDonut && showCenter && (
-        <text x={cx} y={cy + 5} fill="#fff" fontSize="18" fontWeight="500" textAnchor="middle">
-          {centerValue}
+      {isDonut && (
+        <text x={cx} y={cy + 4} fill="#fff" fontSize="16" fontWeight="500" textAnchor="middle">
+          {`${Math.round((Math.max(...data) / total) * 100)}%`}
+        </text>
+      )}
+      {decorate && (
+        <Legend
+          cfg={cfg}
+          series={series}
+          items={labels.map((lab, i) => ({ label: lab, color: colorMode(cfg, i, data[i], max, lab, data.length), value: data[i] }))}
+          box={plotBox(cfg, true, 0, 0, metrics)}
+        />
+      )}
+    </>
+  );
+}
+
+function PolarRose({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const { W, H, P } = usePlot();
+  const bands = series?.polar ?? [];
+  const dirs = bands.length ? bands : [{ direction: "N", speed: 8, frequency: 4 }];
+  const cx = W / 2;
+  const cy = H / 2 + 4;
+  const max = Math.max(...dirs.map((d) => d.frequency), 1);
+  const ramp = asRepeatable(cfg("Intensity color ramp", "Ramp colors (low→high)", undefined));
+  const legendLabel = str(cfg("Intensity color ramp", "Change Intensity legend label", ""), "Intensity");
+  const ring = Math.min(W, H) * 0.32;
+  return (
+    <>
+      {[0.35, 0.65, 1].map((t) => (
+        <circle key={t} cx={cx} cy={cy} r={ring * t} fill="none" stroke="rgba(255,255,255,.1)" />
+      ))}
+      {dirs.map((d, i) => {
+        const ang = (i / dirs.length) * 360;
+        const r = ring * 0.25 + (d.frequency / max) * ring * 0.75;
+        const color = ramp[Math.min(ramp.length - 1, Math.round((d.speed / 20) * (ramp.length - 1)))]?.color ?? colorMode(cfg, i, d.frequency, max, d.direction, dirs.length);
+        const [x, y] = polar(cx, cy, r, ang);
+        return (
+          <g key={d.direction} {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}>
+            <line x1={cx} y1={cy} x2={x} y2={y} stroke={color} strokeWidth={Math.max(8, d.speed / 3)} strokeLinecap="round" opacity="0" />
+            <line x1={cx} y1={cy} x2={x} y2={y} stroke={color} strokeWidth={Math.max(2, d.speed / 3)} strokeLinecap="round" />
+            <text x={polar(cx, cy, ring + 10, ang)[0]} y={polar(cx, cy, ring + 10, ang)[1] + 4} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="middle">
+              {d.direction}
+            </text>
+          </g>
+        );
+      })}
+      {decorate && (
+        <text x={P} y={H - 6} fill={INK} fontSize={FS_CAPTION} fontWeight="500">
+          {legendLabel}
         </text>
       )}
     </>
   );
 }
 
-function Gauge({ cfg, minimal, compact, series }: RenderProps) {
+function Gauge({ cfg, minimal, compact, series, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
   const zonesOn = minimal && !series ? true : bool(cfg("Gauge — zone colors", "Color zones on dial", true), true);
-  const startPct = num(cfg("Gauge — zone colors", "Arc start angle", 17), 17);
-  const endPct = num(cfg("Gauge — zone colors", "Arc end angle", 83), 83);
   const showCenter = !minimal && !compact && bool(cfg("Gauge — meter & labels", "Show center value", true), true);
-  const base = minimal && !series ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
-
-  const a0 = -180 + (startPct / 100) * 360;
-  const a1 = -180 + (endPct / 100) * 360;
+  const base = colorFromCfg(cfg).color;
+  const ticksN = Math.round(sliderMapped(cfg("Gauge — meter & labels", "Tick subdivisions", 40), 12, 120, 36));
+  const movement = str(cfg("Gauge — meter & labels", "Movement state", "Rising"), "Rising");
+  const a0 = -180;
+  const a1 = 0;
+  const { W, H } = usePlot();
   const cx = W / 2;
-  const cy = H / 2 + 18;
-  const r = 60;
+  const cy = H / 2 + Math.min(H, W) * 0.08;
+  const r = Math.min(W, H) * 0.38;
   const value = series?.gaugeValue ?? 72;
   const va = a0 + ((a1 - a0) * value) / 100;
   const [nx, ny] = polar(cx, cy, r - 12, va);
-  const zones = minimal ? [BRAND, "#9bd1ff", "#c6a7ff"] : ["#34d399", "#fbbf24", "#f87171"];
+  const zones = ["#34d399", "#fbbf24", "#f87171"];
 
   return (
-    <>
+    <g {...markHover({ setHover, onMarkEnter, onMarkLeave }, 0)}>
       <path d={arcStroke(cx, cy, r, a0, a1)} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="10" strokeLinecap="round" />
       {zonesOn ? (
         zones.map((c, i) => {
@@ -239,63 +837,164 @@ function Gauge({ cfg, minimal, compact, series }: RenderProps) {
       ) : (
         <path d={arcStroke(cx, cy, r, a0, va)} fill="none" stroke={base} strokeWidth="10" strokeLinecap="round" />
       )}
+      {Array.from({ length: ticksN }).map((_, i) => {
+        const ang = a0 + ((a1 - a0) * i) / Math.max(ticksN - 1, 1);
+        const [x0, y0] = polar(cx, cy, r + 2, ang);
+        const [x1, y1] = polar(cx, cy, r + 6, ang);
+        return <line key={i} x1={x0} y1={y0} x2={x1} y2={y1} stroke="rgba(255,255,255,.25)" strokeWidth="1" />;
+      })}
       <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
       <circle cx={cx} cy={cy} r="4" fill="#fff" />
       {showCenter && (
         <text x={cx} y={cy - 18} fill="#fff" fontSize="20" fontWeight="500" textAnchor="middle">
-          {value}
+          {Math.round(value)}
         </text>
       )}
-    </>
+      <text x={cx} y={cy + 16} fill={INK} fontSize={FS_CAPTION} fontWeight="500" textAnchor="middle">
+        {movement}
+      </text>
+    </g>
   );
 }
 
-function Scatter({ cfg, minimal }: RenderProps) {
-  const color = minimal ? BRAND : str(cfg("Color mode", "Single color", BRAND), BRAND);
-  const radiusPct = num(cfg("Point Styling", "Radius", 40), 40);
-  const shape = str(cfg("Point Styling", "Point shape", "Circle"), "Circle");
-  const opacityPct = num(cfg("Point Styling", "Point opacity", 70), 70);
-  const baseR = minimal ? 4 : 2 + (radiusPct / 100) * 5;
-  const op = minimal ? 0.85 : 0.3 + (opacityPct / 100) * 0.7;
+function Scatter({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const radiusMin = sliderMapped(cfg("Scatter", "Min / max bubble radius", 30), 1, 20, 4);
+  const radiusMax = sliderMapped(cfg("Scatter", "Min / max bubble radius", 30), 10, 100, 18);
+  const points = series?.scatterPoints;
+  const plot = plotBox(cfg, !!decorate, 0, 0, usePlot());
+  const xs = points?.map((p) => p.x) ?? [];
+  const ys = points?.map((p) => p.y) ?? [];
+  const minX = Math.min(...xs, 0);
+  const maxX = Math.max(...xs, 1);
+  const minY = Math.min(...ys, 0);
+  const maxY = Math.max(...ys, 1);
+  const rs = points?.map((p) => p.r ?? 0) ?? [];
+  const minR = Math.min(...rs, 0);
+  const maxR = Math.max(...rs, 1);
+  const cats = [...new Set(points?.map((p) => p.category || "") ?? [])];
+  const marks = points
+    ? points.map((p) => ({
+        x: plot.left + ((p.x - minX) / (maxX - minX || 1)) * plot.width,
+        y: plot.bottom - ((p.y - minY) / (maxY - minY || 1)) * plot.height,
+        r: radiusMin + ((p.r ?? minR) - minR) / (maxR - minR || 1) * (radiusMax - radiusMin) * 0.25,
+        category: p.category ?? "",
+        value: p.y,
+        along: {
+          x: (p.x - minX) / (maxX - minX || 1),
+          y: (p.y - minY) / (maxY - minY || 1),
+        },
+      }))
+    : Array.from({ length: 18 }).map((_, i) => ({
+        x: plot.left + ((i * 53) % plot.width),
+        y: plot.top + ((i * i * 19) % plot.height),
+        r: 3 + (i % 3),
+        category: "",
+        value: i,
+        along: { x: i / 17, y: i / 17 },
+      }));
+  const maxV = Math.max(...marks.map((m) => m.value), 1);
 
   return (
     <>
-      {Array.from({ length: 22 }).map((_, i) => {
-        const x = P + ((i * 53) % (W - 2 * P));
-        const y = P + ((i * i * 19) % (H - 2 * P));
-        const r = baseR + (i % 3) * (minimal ? 0.5 : 1);
-        if (shape === "Square") return <rect key={i} x={x - r} y={y - r} width={r * 2} height={r * 2} rx={1} fill={color} opacity={op} />;
-        if (shape === "Triangle")
-          return <polygon key={i} points={`${x},${y - r} ${x - r},${y + r} ${x + r},${y + r}`} fill={color} opacity={op} />;
-        return <circle key={i} cx={x} cy={y} r={r} fill={color} opacity={op} />;
+      {decorate && <AxisChrome cfg={cfg} box={plot} labels={["min", "max"]} max={maxY} min={minY} />}
+      {marks.map((p, i) => {
+        const color = colorMode(cfg, cats.indexOf(p.category), p.value, maxV, p.category, Math.max(cats.length, marks.length), p.along);
+        return (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={Math.max(2, p.r)}
+            fill={color}
+            opacity={0.82}
+            {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}
+          />
+        );
       })}
+      {decorate && (
+        <Legend
+          cfg={cfg}
+          series={series}
+          items={(cats.length ? cats : ["Points"]).map((c, i) => ({ label: c || "Points", color: colorMode(cfg, i, 1, 1, c, Math.max(cats.length, 1)) }))}
+          box={plot}
+        />
+      )}
+      {decorate && <Annotation cfg={cfg} series={{ values: ys }} box={plot} max={maxY} min={minY} />}
     </>
   );
 }
 
-function HBars({ cfg, chartId, minimal, compact, series }: RenderProps) {
-  const color = minimal && !series ? BRAND : str(cfg("Progress Styling", "Fill color", cfg("Color mode", "Single color", BRAND)), BRAND);
-  const showLabels = !minimal && !compact && bool(cfg("Layout & visibility", "Show data labels", true), true);
-  const corner = str(cfg("Progress Styling", "Corner radius", "Pill"), "Pill");
-  const rad = corner === "Square" ? 2 : corner === "Rounded" ? 5 : 999;
-  const data = series?.values ?? (chartId === "progress" ? [68] : [84, 72, 61, 44]);
+function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const { W, H, P } = usePlot();
+  const showLabels = !minimal && !compact && bool(cfg("Layout & visibility", "Show data labels", false), false);
+  const layout = str(cfg("Bar", "Layout", "Inline"), "Inline");
+  const kpiMode = str(cfg("Bar", "KPI number mode", "Percentage"), "Percentage");
+  const sort = minimal && !series ? false : bool(cfg("Bar", "Sort by value", false), false);
+  const sortOrder = str(cfg("Bar", "Sort order", "Descending"), "Descending");
+  const source = series?.values ?? (chartId === "progress" ? [68] : [84, 72, 61, 44]);
+  const sourceLabels = series?.labels ?? source.map((_, i) => `Item ${i + 1}`);
+  const paired = source.map((value, i) => ({ value, label: sourceLabels[i] ?? "", i }));
+  if (sort && chartId === "horizontalBar") {
+    paired.sort((a, b) => (sortOrder === "Ascending" ? a.value - b.value : b.value - a.value));
+  }
+  const data = paired.map((p) => p.value);
+  const labels = paired.map((p) => p.label);
+  const maxTotal = series?.maxTotal ?? Math.max(...data, 1);
   const n = data.length;
-  const plotW = W - 2 * P;
-  const gap = 12;
-  const bh = Math.min(20, (H - 2 * P - gap * (n - 1)) / n);
-  const max = Math.max(...data, 1);
+  const cartesian = layout === "Cartesian" && chartId === "horizontalBar";
+  const labelW = cartesian ? 58 : 0;
+  const plotW = W - 2 * P - labelW;
+  const gap = 10;
+  const bh = Math.min(H >= 280 ? 28 : 18, (H - 2 * P - gap * (n - 1)) / n);
+  const track = str(cfg("Bar", "Background track style", "None"), "None");
+  const showMarker = bool(cfg("Track & marker styling", "Show marker", true), true);
+  const fillTo = bool(cfg("Track & marker styling", "Fill track to marker", false), false);
+  const isScore = chartId === "score";
+  const mode = colorFromCfg(cfg);
+  const gradId = useId().replace(/:/g, "");
+  const plotBoxH = {
+    left: P + labelW,
+    right: P + labelW + plotW,
+    top: P,
+    bottom: P + n * (bh + gap) - gap,
+  };
+  const gradFill = mode.style === "Gradient" ? `url(#${gradId})` : "";
 
   return (
     <>
+      {gradFill && (
+        <defs>
+          <GradientPaint id={gradId} mode={mode} box={plotBoxH} min={0} max={maxTotal} />
+        </defs>
+      )}
       {data.map((v, i) => {
         const y = P + i * (bh + gap);
+        const color =
+          gradFill ||
+          colorMode(cfg, i, v, maxTotal, labels[i], n, {
+            x: v / (maxTotal || 1),
+            y: i / Math.max(n - 1, 1),
+          });
+        const pct = v / (maxTotal || 1);
+        const w = Math.max(2, pct * plotW);
+        const label = kpiMode === "Value of total" ? `${formatBySpec(v, "")} / ${formatBySpec(maxTotal, "")}` : `${Math.round(pct * 100)}%`;
         return (
-          <g key={i}>
-            <rect x={P} y={y} width={plotW} height={bh} rx={Math.min(rad, bh / 2)} fill="rgba(255,255,255,.1)" />
-            <rect x={P} y={y} width={(v / max) * plotW} height={bh} rx={Math.min(rad, bh / 2)} fill={color} />
+          <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, paired[i]?.i ?? i)}>
+            {cartesian && (
+              <text x={P + labelW - 4} y={y + bh / 2 + 4} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="end">
+                {labels[i].length > 10 ? `${labels[i].slice(0, 9)}…` : labels[i]}
+              </text>
+            )}
+            {(track !== "None" || chartId === "progress" || isScore) && (
+              <rect x={P + labelW} y={y} width={plotW} height={bh} rx={bh / 2} fill="rgba(255,255,255,.1)" />
+            )}
+            {(fillTo || !isScore) && (
+              <rect x={P + labelW} y={y} width={w} height={bh} rx={bh / 2} fill={color} />
+            )}
+            {isScore && showMarker && <circle cx={P + labelW + w} cy={y + bh / 2} r={5} fill="#fff" stroke={color} strokeWidth="2" />}
             {showLabels && (
-              <text x={P + plotW - 4} y={y + bh / 2 + 3} fill="rgba(255,255,255,.7)" fontSize="8" textAnchor="end">
-                {max <= 100 ? `${v}%` : v}
+              <text x={P + labelW + plotW - 4} y={y + bh / 2 + 4} fill={INK_STRONG} fontSize={FS_TICK} fontWeight="500" textAnchor="end">
+                {cartesian ? formatBySpec(v, "") : `${!cartesian ? labels[i] + "  " : ""}${chartId === "progress" || isScore ? label : formatBySpec(v, "")}`}
               </text>
             )}
           </g>
@@ -305,32 +1004,106 @@ function HBars({ cfg, chartId, minimal, compact, series }: RenderProps) {
   );
 }
 
+function RangeChart({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const rows = series?.ranges ?? [];
+  const labels = rows.map((r) => r.label);
+  const highs = rows.map((r) => r.high);
+  const lows = rows.map((r) => r.low);
+  const min = Math.min(...lows, 0);
+  const max = Math.max(...highs, 1);
+  const box = plotBox(cfg, !!decorate, 0, 0, usePlot());
+  const stops = asGradient(cfg("Bar gradient", "Bar gradient", undefined));
+  const n = Math.max(rows.length, 1);
+  const slot = box.width / n;
+  const bw = slot * 0.45;
+  return (
+    <>
+      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={max} min={min} />}
+      <defs>
+        <linearGradient id="cp-range-grad" x1="0" y1="1" x2="0" y2="0">
+          {stops.map((s) => (
+            <stop key={s.at} offset={`${s.at}%`} stopColor={s.color} />
+          ))}
+        </linearGradient>
+      </defs>
+      {rows.map((row, i) => {
+        const x = box.left + i * slot + (slot - bw) / 2;
+        const y1 = box.bottom - ((row.high - min) / (max - min || 1)) * box.height;
+        const y0 = box.bottom - ((row.low - min) / (max - min || 1)) * box.height;
+        return (
+          <g key={row.label} {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}>
+            <line x1={x + bw / 2} y1={y0} x2={x + bw / 2} y2={y1} stroke="rgba(255,255,255,.2)" strokeWidth="6" strokeLinecap="round" />
+            <rect x={x} y={y1} width={bw} height={Math.max(4, y0 - y1)} rx={4} fill="url(#cp-range-grad)" />
+            <circle cx={x + bw / 2} cy={y1} r="4" fill="#fff" />
+            <circle cx={x + bw / 2} cy={y0} r="4" fill="#fff" />
+          </g>
+        );
+      })}
+      {series?.reference != null && (
+        <line
+          x1={box.left}
+          x2={box.right}
+          y1={box.bottom - ((series.reference - min) / (max - min || 1)) * box.height}
+          y2={box.bottom - ((series.reference - min) / (max - min || 1)) * box.height}
+          stroke="rgba(255,255,255,.35)"
+          strokeDasharray="2 3"
+        />
+      )}
+    </>
+  );
+}
+
+function Availability({ cfg, series }: RenderProps) {
+  const { W, H, P } = usePlot();
+  const rows = series?.availability ?? [];
+  const cols = Math.max(...rows.map((r) => r.cells.length), 4);
+  const gap = 4;
+  const cellW = (W - 2 * P - gap * (cols - 1)) / cols;
+  const cellH = (H - 2 * P - gap * (Math.max(rows.length, 1) - 1)) / Math.max(rows.length, 1);
+  const max = Math.max(...rows.flatMap((r) => r.cells), 1);
+  return (
+    <>
+      {(rows.length ? rows : [{ label: "A", cells: [40, 70, 20, 90] }]).map((row, ri) =>
+        Array.from({ length: cols }).map((_, ci) => {
+          const v = row.cells[ci] ?? 0;
+          const color = colorMode(cfg, ci, v, max, row.label, cols);
+          return (
+            <rect
+              key={`${ri}-${ci}`}
+              x={P + ci * (cellW + gap)}
+              y={P + ri * (cellH + gap)}
+              width={cellW}
+              height={cellH}
+              rx={2}
+              fill={v ? color : "rgba(255,255,255,.08)"}
+              opacity={v ? 0.35 + (v / max) * 0.65 : 1}
+            />
+          );
+        }),
+      )}
+    </>
+  );
+}
+
 function Kpi({ cfg, minimal, series }: RenderProps) {
+  const { W, H, P } = usePlot();
   if (minimal && !series) {
     return (
       <>
         <rect x={P + 20} y={P + 18} width={W - 2 * P - 40} height={28} rx={6} fill="rgba(255,255,255,.08)" />
         <rect x={P + 20} y={P + 18} width={(W - 2 * P - 40) * 0.55} height={28} rx={6} fill={BRAND} opacity={0.9} />
-        <path
-          d={`M ${P + 24} ${H - P - 20} L ${P + 56} ${H - P - 36} L ${P + 92} ${H - P - 28} L ${P + 128} ${H - P - 44} L ${W - P - 24} ${H - P - 24}`}
-          fill="none"
-          stroke={BRAND}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
       </>
     );
   }
-
   const showComparison = bool(cfg("KPI card", "Show comparison vs last period", true), true);
   const showUnit = bool(cfg("KPI card", "Show unit", true), true);
   const primary = series?.kpiPrimary ?? "84";
   const unit = showUnit ? (series?.kpiUnit ?? "%") : "";
   const comparison = series?.kpiComparison ?? "+6.2%";
+  const color = colorFromCfg(cfg).color;
   return (
     <>
-      <text x={W / 2} y={H / 2 + 2} fill="#fff" fontSize="40" fontWeight="500" textAnchor="middle">
+      <text x={W / 2} y={H / 2 + 2} fill={color} fontSize="40" fontWeight="500" textAnchor="middle">
         {primary}
         {unit}
       </text>
@@ -343,7 +1116,77 @@ function Kpi({ cfg, minimal, series }: RenderProps) {
   );
 }
 
-function Table({ minimal }: { minimal?: boolean }) {
+function KpiGrid({ cfg, series }: RenderProps) {
+  const { W, H, P } = usePlot();
+  const tiles = series?.kpiTiles ?? [];
+  const showPill = bool(cfg("KPI Grid", "Show status pill", true), true);
+  const glow = bool(cfg("KPI Grid", "Highlight critical tiles (glow)", false), false);
+  const accents = asRecord(
+    Object.fromEntries(asRepeatable(cfg("Status", "Status → tile accent color", undefined)).map((r) => [r.label, r.color])),
+  );
+  const gap = 8;
+  const cardW = (W - 2 * P - gap) / 2;
+  const cardH = (H - 2 * P - gap) / 2;
+  const items = tiles.length ? tiles : [
+    { label: "North", secondary: "Metro", value: "94", status: "On track" },
+    { label: "East", secondary: "Coastal", value: "76", status: "At risk" },
+  ];
+  return (
+    <>
+      {items.slice(0, 4).map((t, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = P + col * (cardW + gap);
+        const y = P + row * (cardH + gap);
+        const accent = accents[t.status] || colorMode(cfg, i, Number(t.value), 100, t.status, 4);
+        const critical = /risk|fail|critical/i.test(t.status);
+        return (
+          <g key={t.label}>
+            <rect
+              x={x}
+              y={y}
+              width={cardW}
+              height={cardH}
+              rx={6}
+              fill="rgba(255,255,255,.06)"
+              stroke={accent}
+              strokeWidth={1.2}
+              filter={glow && critical ? "url(#cp-glow)" : undefined}
+            />
+            <text x={x + 8} y={y + 14} fill="rgba(255,255,255,.5)" fontSize="7">
+              {t.label}
+            </text>
+            <text x={x + 8} y={y + 32} fill="#fff" fontSize="14" fontWeight="500">
+              {t.value}
+            </text>
+            {t.secondary && (
+              <text x={x + 8} y={y + cardH - 8} fill="rgba(255,255,255,.35)" fontSize="7">
+                {t.secondary}
+              </text>
+            )}
+            {showPill && (
+              <text x={x + cardW - 8} y={y + 14} fill={accent} fontSize="7" textAnchor="end">
+                {t.status}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      <defs>
+        <filter id="cp-glow">
+          <feGaussianBlur stdDeviation="2.4" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+    </>
+  );
+}
+
+function Table({ minimal, series }: { minimal?: boolean; series?: PreviewSeries }) {
+  const { W, H, P } = usePlot();
   if (minimal) {
     const rowH = (H - 2 * P) / 5;
     return (
@@ -351,24 +1194,20 @@ function Table({ minimal }: { minimal?: boolean }) {
         <rect x={P} y={P} width={W - 2 * P} height={rowH} rx={4} fill="rgba(255,255,255,.08)" />
         {Array.from({ length: 4 }).map((_, i) => {
           const y = P + rowH + 4 + i * (rowH + 4);
-          return (
-            <g key={i}>
-              <rect x={P} y={y} width={W - 2 * P} height={rowH - 2} rx={3} fill="rgba(255,255,255,.05)" />
-              <rect x={P + 8} y={y + rowH / 2 - 3} width={(W - 2 * P) * 0.35} height={6} rx={3} fill="rgba(255,255,255,.12)" />
-              <rect x={P + (W - 2 * P) * 0.55} y={y + rowH / 2 - 3} width={(W - 2 * P) * 0.28} height={6} rx={3} fill={BRAND} opacity={0.75} />
-            </g>
-          );
+          return <rect key={i} x={P} y={y} width={W - 2 * P} height={rowH - 2} rx={3} fill="rgba(255,255,255,.05)" />;
         })}
       </>
     );
   }
-
-  const rows = [
-    ["Metric", "Value", "Status"],
-    ["Permits", "1,240", "Healthy"],
-    ["Waste", "+15%", "Watch"],
-    ["Complaints", "+12%", "Risk"],
-  ];
+  const table = series?.table;
+  const header = table?.headers ?? table?.columns ?? ["Metric", "Value", "Status"];
+  const bodyRows = table
+    ? table.rows.slice(0, 4).map((row) => (table.columns ?? header).map((col) => String(row[col] ?? "")))
+    : [
+        ["Permits", "1,240", "Healthy"],
+        ["Waste", "+15%", "Watch"],
+      ];
+  const rows = [header, ...bodyRows];
   const rowH = (H - 2 * P) / rows.length;
   return (
     <>
@@ -378,10 +1217,11 @@ function Table({ minimal }: { minimal?: boolean }) {
           {cols.map((c, j) => (
             <text
               key={j}
-              x={P + 6 + j * ((W - 2 * P) / 3)}
+              x={P + 6 + j * ((W - 2 * P) / Math.max(cols.length, 1))}
               y={P + i * rowH + rowH / 2 + 3}
-              fill={i === 0 ? "#fff" : "rgba(255,255,255,.5)"}
-              fontSize="8"
+              fill={i === 0 ? INK_STRONG : INK}
+              fontSize={FS_TICK}
+              fontWeight={i === 0 ? "600" : "500"}
             >
               {c}
             </text>
@@ -392,190 +1232,17 @@ function Table({ minimal }: { minimal?: boolean }) {
   );
 }
 
-function RangeMinimal() {
-  const y = H / 2;
-  const x0 = P + 20;
-  const x1 = W - P - 20;
-  return (
-    <>
-      <line x1={x0} y1={y} x2={x1} y2={y} stroke="rgba(255,255,255,.15)" strokeWidth="8" strokeLinecap="round" />
-      <line x1={x0 + 36} y1={y} x2={x1 - 48} y2={y} stroke={BRAND} strokeWidth="8" strokeLinecap="round" />
-      <circle cx={x0 + 36} cy={y} r="7" fill="#fff" />
-      <circle cx={x1 - 48} cy={y} r="7" fill="#fff" />
-    </>
-  );
-}
-
-function AvailabilityMinimal() {
-  const cols = 10;
-  const rows = 6;
-  const gap = 4;
-  const cellW = (W - 2 * P - gap * (cols - 1)) / cols;
-  const cellH = (H - 2 * P - gap * (rows - 1)) / rows;
-  const on = new Set([2, 5, 8, 11, 14, 17, 21, 24, 28, 31, 35, 38, 42, 45, 49, 52]);
-
-  return (
-    <>
-      {Array.from({ length: rows * cols }).map((_, i) => {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        const x = P + col * (cellW + gap);
-        const y = P + row * (cellH + gap);
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={y}
-            width={cellW}
-            height={cellH}
-            rx={2}
-            fill={on.has(i) ? BRAND : "rgba(255,255,255,.08)"}
-            opacity={on.has(i) ? 0.55 + (i % 3) * 0.15 : 1}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-function KpiGridMinimal() {
-  const gap = 10;
-  const cardW = (W - 2 * P - gap) / 2;
-  const cardH = (H - 2 * P - gap) / 2;
-  return (
-    <>
-      {Array.from({ length: 4 }).map((_, i) => {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const x = P + col * (cardW + gap);
-        const y = P + row * (cardH + gap);
-        return (
-          <g key={i}>
-            <rect x={x} y={y} width={cardW} height={cardH} rx={6} fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.08)" />
-            <rect x={x + 10} y={y + 12} width={cardW * 0.45} height={6} rx={3} fill="rgba(255,255,255,.12)" />
-            <rect x={x + 10} y={y + cardH - 18} width={cardW - 20} height={6} rx={3} fill={BRAND} opacity={0.65 + (i % 2) * 0.2} />
-          </g>
-        );
-      })}
-    </>
-  );
-}
-
-function LinearGaugeMinimal() {
-  const y = H / 2 + 8;
-  const x0 = P + 16;
-  const x1 = W - P - 16;
-  const mid = x0 + (x1 - x0) * 0.62;
-  return (
-    <>
-      <rect x={x0} y={y - 8} width={x1 - x0} height={16} rx={8} fill="rgba(255,255,255,.1)" />
-      <rect x={x0} y={y - 8} width={mid - x0} height={16} rx={8} fill={BRAND} />
-      <circle cx={mid} cy={y} r="9" fill="#fff" stroke={BRAND} strokeWidth="2" />
-    </>
-  );
-}
-
-function MapArcsMinimal() {
-  return (
-    <>
-      <ellipse cx={72} cy={H - 26} rx={20} ry={6} fill="rgba(255,255,255,.1)" />
-      <ellipse cx={168} cy={H - 26} rx={20} ry={6} fill="rgba(255,255,255,.1)" />
-      <path d={`M 72 94 Q 120 30 168 94`} fill="none" stroke={BRAND} strokeWidth="3.5" strokeLinecap="round" />
-      <circle cx={72} cy={94} r="11" fill={BRAND} opacity={0.85} />
-      <circle cx={168} cy={94} r="11" fill={BRAND} opacity={0.85} />
-    </>
-  );
-}
-
-function MapFencesMinimal() {
-  const d = `M ${P + 8} ${H - 42} Q 68 ${H - 98} 108 ${H - 58} T 188 ${H - 104} T ${W - P - 8} ${H - 46}`;
-  return (
-    <>
-      <ellipse cx={W / 2} cy={H - 22} rx={92} ry={10} fill="rgba(255,255,255,.08)" />
-      <path d={d} fill="none" stroke={BRAND} strokeWidth="16" strokeLinecap="round" opacity={0.82} />
-    </>
-  );
-}
-
-function MapPillarsMinimal() {
-  const specs = [
-    [14, 38],
-    [22, 62],
-    [18, 48],
-    [28, 78],
-    [16, 44],
-    [20, 56],
-  ];
-  const base = H - 30;
-  let x = 46;
-  return (
-    <>
-      <ellipse cx={W / 2} cy={base + 8} rx={90} ry={10} fill="rgba(255,255,255,.08)" />
-      {specs.map(([w, h], i) => {
-        const el = <rect key={i} x={x} y={base - h} width={w} height={h} rx={3} fill={BRAND} opacity={0.68 + (i % 3) * 0.1} />;
-        x += w + 8;
-        return el;
-      })}
-    </>
-  );
-}
-
-function MapDiscsMinimal() {
-  const discs: [number, number, number][] = [
-    [78, 90, 24],
-    [118, 98, 15],
-    [154, 86, 19],
-    [102, 76, 11],
-  ];
-  return (
-    <>
-      <ellipse cx={W / 2} cy={H - 26} rx={86} ry={10} fill="rgba(255,255,255,.08)" />
-      {discs.map(([cx, cy, r], i) => (
-        <ellipse key={i} cx={cx} cy={cy} rx={r} ry={r * 0.34} fill={BRAND} opacity={0.62 + i * 0.09} />
-      ))}
-    </>
-  );
-}
-
-function MapAreaMinimal() {
-  return (
-    <>
-      <polygon points={`${P + 28},${H - 48} ${P + 88},${H - 68} ${P + 148},${H - 48} ${P + 88},${H - 28}`} fill={BRAND} opacity={0.48} />
-      <polygon points={`${P + 58},${H - 54} ${P + 118},${H - 74} ${P + 178},${H - 54} ${P + 118},${H - 34}`} fill={BRAND} opacity={0.68} />
-      <polygon points={`${P + 88},${H - 60} ${P + 148},${H - 80} ${P + 208},${H - 60} ${P + 148},${H - 40}`} fill={BRAND} opacity={0.88} />
-    </>
-  );
-}
-
-function MapHeatmapMinimal() {
-  const cols = 16;
-  const rows = 10;
-  const gap = 3;
-  const cellW = (W - 2 * P - gap * (cols - 1)) / cols;
-  const cellH = (H - 2 * P - gap * (rows - 1)) / rows;
-  return (
-    <>
-      {Array.from({ length: rows * cols }).map((_, i) => {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        const x = P + col * (cellW + gap);
-        const y = P + row * (cellH + gap);
-        const intensity = 0.25 + ((row * 3 + col * 5) % 7) * 0.1;
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={y}
-            width={cellW}
-            height={cellH}
-            rx={1}
-            fill={BRAND}
-            opacity={intensity}
-          />
-        );
-      })}
-    </>
-  );
+function StoryKpiUnit({ unit }: { unit: string }) {
+  if (!unit) return null;
+  const cubed = unit.match(/^(.*?)m\s*[³3]\s*$/i);
+  if (cubed) {
+    return (
+      <span className="cp-preview__story-kpi-unit">
+        {cubed[1]}m<sup>3</sup>
+      </span>
+    );
+  }
+  return <span className="cp-preview__story-kpi-unit">{unit}</span>;
 }
 
 type Props = {
@@ -587,7 +1254,34 @@ type Props = {
   compact?: boolean;
   series?: PreviewSeries;
   chartTitle?: string;
+  size?: ChartPreviewSize;
 };
+
+function useMeasuredPlot(size: ChartPreviewSize) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [plot, setPlot] = useState(() => SIZE_PLOT[size]);
+
+  useEffect(() => {
+    setPlot(SIZE_PLOT[size]);
+  }, [size]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr?.width || !cr?.height) return;
+      const W = Math.max(120, Math.round(cr.width));
+      const H = Math.max(80, Math.round(cr.height));
+      const P = H >= 280 ? 22 : H >= 160 ? 18 : 12;
+      setPlot((prev) => (prev.W === W && prev.H === H && prev.P === P ? prev : { W, H, P }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [size]);
+
+  return { ref, plot };
+}
 
 export default function ChartPreview({
   type,
@@ -598,45 +1292,120 @@ export default function ChartPreview({
   compact = false,
   series,
   chartTitle,
+  size = "medium",
 }: Props) {
-  const showTitle = !minimal && !compact && bool(cfg("Layout & visibility", "Show title", true), true);
-  const renderProps = { cfg, chartId, minimal, compact, series };
+  const decorate = !minimal && !compact;
+  const { ref, plot } = useMeasuredPlot(compact || minimal ? "small" : size);
+  const [hover, setHover] = useState<number | null>(null);
+  const [tipPos, setTipPos] = useState<{ x: number; y: number; flip: boolean } | null>(null);
+  const onMarkEnter = (index: number, e: ReactMouseEvent) => {
+    setHover(index);
+    setTipPos({ x: e.clientX, y: e.clientY, flip: e.clientY < 72 });
+  };
+  const onMarkLeave = () => {
+    setHover(null);
+    setTipPos(null);
+  };
+  const renderProps: RenderProps = {
+    cfg,
+    chartId,
+    visualId,
+    minimal,
+    compact,
+    series,
+    decorate,
+    hover,
+    setHover,
+    onMarkEnter,
+    onMarkLeave,
+  };
+  const isMap = visualId ? MAP_IDS.has(visualId) : false;
+  const tipText =
+    decorate && hover != null
+      ? isMap
+        ? mapTooltip(cfg, series?.markTips?.[hover])
+        : markTooltip(cfg, series?.markTips?.[hover], series?.labels?.[hover] ?? "", series?.values?.[hover])
+      : "";
 
-  let body: React.ReactNode;
-  if (minimal && visualId === "availability") body = <AvailabilityMinimal />;
-  else if (minimal && visualId === "range") body = <RangeMinimal />;
-  else if (minimal && visualId === "kpi-grid") body = <KpiGridMinimal />;
-  else if (minimal && visualId === "gauge-linear") body = <LinearGaugeMinimal />;
-  else if (minimal && visualId === "arcs") body = <MapArcsMinimal />;
-  else if (minimal && visualId === "fences") body = <MapFencesMinimal />;
-  else if (minimal && visualId === "pillars") body = <MapPillarsMinimal />;
-  else if (minimal && visualId === "discs") body = <MapDiscsMinimal />;
-  else if (minimal && visualId === "map-area") body = <MapAreaMinimal />;
-  else if (minimal && visualId === "heatmap") body = <MapHeatmapMinimal />;
+  let body: ReactNode;
+  if (isMap)
+    body = (
+      <MapPreview
+        cfg={cfg}
+        visualId={visualId!}
+        series={series}
+        compact={compact || minimal}
+        onMarkEnter={onMarkEnter}
+        onMarkLeave={onMarkLeave}
+      />
+    );
+  else if (chartId === "availability") body = <Availability {...renderProps} />;
+  else if (chartId === "range") body = <RangeChart {...renderProps} />;
+  else if (chartId === "kpiGrid") body = <KpiGrid {...renderProps} />;
+  else if (chartId === "polar") body = <PolarRose {...renderProps} />;
+  else if (chartId === "score" || chartId === "progress" || type === "horizontalBar") body = <HBars {...renderProps} />;
   else if (type === "line") body = <LineArea {...renderProps} />;
   else if (type === "donut") body = <PieDonut {...renderProps} />;
   else if (type === "gauge") body = <Gauge {...renderProps} />;
   else if (type === "scatter") body = <Scatter {...renderProps} />;
-  else if (type === "horizontalBar") body = <HBars {...renderProps} />;
   else if (type === "kpi") body = <Kpi {...renderProps} />;
-  else if (type === "table") body = <Table minimal={minimal} />;
+  else if (type === "table") body = <Table minimal={minimal} series={series} />;
   else body = <Bars {...renderProps} />;
 
-  const showChartTitle = showTitle && type !== "kpi" && type !== "table";
-  const title = chartTitle ?? "Average Response Time";
+  const title = chartTitle || series?.title;
+  const showBadge =
+    decorate &&
+    Boolean(series?.badge) &&
+    (bool(cfg("Status badge", "Show status badge", true), true) ||
+      bool(cfg("Gauge — meter & labels", "Show status badge", false), false));
+
+  const badgeStyle = series?.badge?.color ? { background: series.badge.color, color: "#0b1220" } : undefined;
 
   return (
-    <div
-      className={
-        "cp-preview" +
-        (minimal ? " cp-preview--minimal" : "") +
-        (compact ? " cp-preview--compact" : "")
-      }
-    >
-      {showChartTitle && <p className="cp-preview__chart-title">{title}</p>}
-      <svg className="cp-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
-        {body}
-      </svg>
-    </div>
+    <PlotContext.Provider value={plot}>
+      <div
+        className={
+          "cp-preview" +
+          (minimal ? " cp-preview--minimal" : "") +
+          (compact ? " cp-preview--compact" : "")
+        }
+      >
+        {title && decorate && type !== "kpi" && type !== "table" && <p className="cp-preview__chart-title">{title}</p>}
+        {decorate && series?.storyKpi && (
+          <div className="cp-preview__story-kpi">
+            <strong>{series.storyKpi.value}</strong>
+            <StoryKpiUnit unit={series.storyKpi.unit} />
+          </div>
+        )}
+        {showBadge && series?.badge && (
+          <span className={"cp-preview__badge cp-preview__badge--" + series.badge.tone} style={badgeStyle}>
+            {series.badge.text}
+          </span>
+        )}
+        <div className="cp-preview__plot" ref={ref}>
+          <svg className="cp-svg" viewBox={`0 0 ${plot.W} ${plot.H}`} preserveAspectRatio="xMidYMid meet">
+            {body}
+          </svg>
+        </div>
+        {tipText &&
+          tipPos &&
+          createPortal(
+            <div
+              className="cp-preview__tip"
+              style={{
+                left: tipPos.x,
+                top: tipPos.y,
+                transform: tipPos.flip ? "translate(-50%, 12px)" : "translate(-50%, calc(-100% - 10px))",
+              }}
+              role="tooltip"
+            >
+              {tipText.split("\n").map((line, i) => (
+                <span key={`${i}-${line}`}>{line}</span>
+              ))}
+            </div>,
+            document.body,
+          )}
+      </div>
+    </PlotContext.Provider>
   );
 }

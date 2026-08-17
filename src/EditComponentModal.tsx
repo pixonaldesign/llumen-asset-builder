@@ -1,10 +1,11 @@
-import { useState, useRef, useCallback, useLayoutEffect, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useLayoutEffect, useEffect, useMemo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   AlignBottomSimple,
   AlignLeftSimple,
   AlignRightSimple,
   AlignTopSimple,
+  Info,
   Lock,
   LockOpen,
 } from "@phosphor-icons/react";
@@ -15,20 +16,35 @@ import {
   SearchIcon,
   RequiredIcon,
   FieldAlertIcon,
-  InfoIcon,
 } from "./icons";
 import { charts } from "./chartModel";
 import type { Opt } from "./chartModel";
 import {
   fieldsForVisual,
   isFieldVisible,
+  settingsNavSections,
   subCategoriesForVisual,
 } from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
 import ChartDataQueryPreview from "./ChartDataQueryPreview";
-import StaticVisualPreview from "./StaticVisualPreview";
 import ColorPalette, { ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
+import { getSettingsTabIcon } from "./visualIcons";
 import Dropdown from "./Dropdown";
+import { derivePreviewSeries, mappedMeasureColumn } from "./derivePreviewSeries";
+import { allColumnNames, defaultColumnForField, fieldOptionsFor, numericExtent, uniqueValues } from "./mockDataset";
+import {
+  DEFAULT_COLOR_MODE,
+  DEFAULT_GRADIENT,
+  DEFAULT_REPEATABLE,
+  asColorMode,
+  asGradient,
+  asRepeatable,
+  asStringArray,
+  repeatableToStops,
+  stopsToRepeatable,
+  type GradientStop,
+  type RepeatableRow,
+} from "./previewTheme";
 import DataSourceStep from "./DataSourceStep";
 import FiltersStep from "./FiltersStep";
 import DeepDiveStep from "./DeepDiveStep";
@@ -38,7 +54,7 @@ import ApiResponsePreview from "./ApiResponsePreview";
 import VisualTypePicker from "./VisualTypePicker";
 import SelectedVisualBar from "./SelectedVisualBar";
 import { visualTypeByChartId, visualTypeById } from "./visualCatalog";
-import type { VisualCategoryId, VisualType } from "./visualCatalog";
+import type { VisualType } from "./visualCatalog";
 
 type VizPhase = "picker" | "settings";
 
@@ -65,8 +81,10 @@ const WIZARD_STEPS: { id: WizardStepId; label: string }[] = [
 
 function isValueFilled(o: Opt, value: unknown): boolean {
   if (o.type === "toggle") return true;
+  if (Array.isArray(value)) return value.length > 0;
   if (typeof value === "string") return value.trim().length > 0;
   if (typeof value === "number") return !Number.isNaN(value);
+  if (value && typeof value === "object") return Object.keys(value as object).length > 0;
   return value !== undefined && value !== null && value !== "";
 }
 
@@ -87,7 +105,7 @@ function wizardStepState(index: number, currentStep: number, maxUnlockedStep: nu
   return "active";
 }
 
-const SAMPLE_COLUMNS = ["value", "category", "timestamp", "unit", "status", "region", "amount"];
+const SAMPLE_COLUMNS = allColumnNames();
 
 /* config keys & defaults ------------------------------------------------ */
 type Config = Record<string, unknown>;
@@ -124,6 +142,69 @@ function parseMargins(v: unknown): MarginsValue {
   return { top: n, right: n, bottom: n, left: n, locked: true };
 }
 
+function splitMinMax(raw: unknown): { min: string; max: string } {
+  const s = String(raw ?? "").trim();
+  if (!s) return { min: "", max: "" };
+  const m = s.match(/^(.*)\s*[/,–—-]\s*(.*)$/);
+  if (m) return { min: m[1].trim(), max: m[2].trim() };
+  return { min: s, max: "" };
+}
+
+function joinMinMax(min: string, max: string) {
+  if (!min.trim() && !max.trim()) return "";
+  return `${min.trim()} / ${max.trim()}`;
+}
+
+function isMinMaxNumber(o: Opt) {
+  const n = o.name.toLowerCase();
+  return n.includes("min/max") || (n.includes("range") && n.includes("min"));
+}
+
+function isMultiToggle(o: Opt, values: string[]) {
+  return (
+    o.name.toLowerCase().includes("show") ||
+    o.name.toLowerCase() === "content" ||
+    values.some((v) => v.toLowerCase().startsWith("show "))
+  );
+}
+
+function multiChoices(o: Opt): string[] {
+  return o.name === "Visible columns" ? SAMPLE_COLUMNS : o.values.length ? o.values : ["Field A", "Field B", "Field C"];
+}
+
+function defaultMulti(o: Opt): string[] {
+  const values = multiChoices(o);
+  if (isMultiToggle(o, values)) return [...values];
+  if (o.name === "Visible columns") return values.slice(0, 4);
+  return values.slice(0, Math.min(3, values.length));
+}
+
+function defaultColorList(o: Opt): Record<string, string> {
+  const pal = ["#3FA7A0", "#73adf5", "#c6a7ff", "#ffd58a", "#f0888c", "#7ee0c0"];
+  const n = o.name.toLowerCase();
+  const keys = n.includes("status")
+    ? uniqueValues("status")
+    : n.includes("icon")
+      ? uniqueValues("category")
+      : uniqueValues("category");
+  return Object.fromEntries(keys.map((k, i) => [k, pal[i % pal.length]]));
+}
+
+function defaultSlider(o: Opt): number {
+  const n = o.name.toLowerCase();
+  if (n.includes("top n")) return 100;
+  const range = o.desc.match(/(-?\d*\.?\d+)\s*[–—-]\s*(-?\d*\.?\d+)/);
+  const def = o.desc.match(/Default\s+([\d.]+)/i);
+  if (range && def) {
+    const lo = parseFloat(range[1]);
+    const hi = parseFloat(range[2]);
+    const v = parseFloat(def[1]);
+    if (hi !== lo) return Math.round(((v - lo) / (hi - lo)) * 100);
+  }
+  if (n.includes("opacity")) return 40;
+  return 50;
+}
+
 function defaultFor(o: Opt): unknown {
   if (o.defaultValue !== undefined) return o.defaultValue;
   switch (o.type) {
@@ -134,20 +215,42 @@ function defaultFor(o: Opt): unknown {
     case "posgrid":
       return "top-left";
     case "slider":
-      return 58;
+      return defaultSlider(o);
     case "margins":
       return defaultMargins();
     case "number":
-      return "24";
+      return o.name.toLowerCase().includes("range") ? "" : "24";
     case "color":
-      return "#73adf5";
+      return o.group === "Color mode" ? { ...DEFAULT_COLOR_MODE, stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })) } : "#3FA7A0";
     case "colorList":
-      return { Alpha: "#2F4F6E", Beta: "#4A7C59", Gamma: "#C18A3A" };
+      return defaultColorList(o);
     case "colorPair":
-      return { stroke: "#2de8c8", fill: "#2de8c8" };
+      return { stroke: "#3FA7A0", fill: "#3FA7A0" };
+    case "multi":
+      return defaultMulti(o);
+    case "repeatable":
+      if (o.name === "Color thresholds" || o.name.toLowerCase().includes("status")) {
+        return [
+          { min: "", max: "", color: "#f87171", label: "At risk" },
+          { min: "", max: "", color: "#fbbf24", label: "Watch" },
+          { min: "", max: "", color: "#34d399", label: "On track" },
+        ];
+      }
+      return DEFAULT_REPEATABLE.map((r) => ({ ...r }));
+    case "gradient":
+      return DEFAULT_GRADIENT.map((r) => ({ ...r }));
     case "dropdown":
       return o.values[0] ?? "";
     case "field":
+      if (o.level === "required") return defaultColumnForField(o.name);
+      if (o.group === "Story card KPI") {
+        if (/value field/i.test(o.name) && !/min/i.test(o.name)) return defaultColumnForField("Y axis") || "value";
+        if (/unit/i.test(o.name)) return "unit";
+      }
+      if (o.group === "Status badge" && /color source/i.test(o.name)) {
+        return defaultColumnForField("Y axis") || "value";
+      }
+      return "";
     case "text":
     default:
       return "";
@@ -161,7 +264,7 @@ function sliderDisplay(o: Opt, pct: number) {
   const lo = parseFloat(m[1]);
   const hi = parseFloat(m[2]);
   const val = lo + (pct / 100) * (hi - lo);
-  const unit = o.desc.includes("px") ? " px" : o.desc.includes("°") ? "°" : "";
+  const unit = o.desc.includes("px") ? " px" : o.desc.includes("°") ? "°" : lo === 0 && hi === 100 ? "%" : "";
   const dec = hi <= 1 ? 2 : 0;
   return `${val.toFixed(dec)}${unit}`;
 }
@@ -176,11 +279,6 @@ function Switch({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
       onClick={() => onChange(!value)}
     />
   );
-}
-
-function LocalSwitch({ defaultOn }: { defaultOn?: boolean }) {
-  const [on, setOn] = useState(!!defaultOn);
-  return <Switch value={on} onChange={setOn} />;
 }
 
 function Segmented({ values, value, onChange }: { values: string[]; value: string; onChange: (v: string) => void }) {
@@ -285,10 +383,9 @@ function PlacementPicker({ value, onChange }: { value: string; onChange: (v: str
   );
 }
 
-function Chip({ label, defaultSel }: { label: string; defaultSel?: boolean }) {
-  const [sel, setSel] = useState(!!defaultSel);
+function Chip({ label, selected, onToggle }: { label: string; selected: boolean; onToggle: () => void }) {
   return (
-    <span className={"ia-chip" + (sel ? " selected" : "")} onClick={() => setSel((s) => !s)}>
+    <span className={"ia-chip" + (selected ? " selected" : "")} onClick={onToggle}>
       {label}
     </span>
   );
@@ -331,7 +428,7 @@ function FieldInfoTip({ desc }: { desc: string }) {
           onFocus={show}
           onBlur={hide}
         >
-          <InfoIcon className="ia-field-info__icon" width={14} height={14} aria-hidden="true" />
+          <Info className="ia-field-info__icon" size={14} weight="fill" aria-hidden="true" />
         </button>
       </span>
       {open &&
@@ -368,19 +465,27 @@ function Control({
 
     case "slider": {
       const pct = Number(getVal(o));
+      const thumb = 36;
       return (
-        <div className="ia-surface ia-slider">
-          <div className="ia-slider-row">
+        <div className="ia-slider">
+          <div className="ia-slider-track">
+            <div
+              className="ia-slider-fill"
+              style={{ width: `calc(${thumb}px + (100% - ${thumb}px) * ${Math.max(0, Math.min(100, pct))} / 100)` }}
+            >
+              <span className="ia-slider-thumb" aria-hidden="true" />
+            </div>
             <input
               type="range"
               className="ia-range"
               min={0}
               max={100}
               value={pct}
+              aria-label={o.name}
               onChange={(e) => setVal(o, Number(e.target.value))}
             />
-            <div className="ia-slider-val">{sliderDisplay(o, pct)}</div>
           </div>
+          <div className="ia-slider-val">{sliderDisplay(o, pct)}</div>
         </div>
       );
     }
@@ -394,6 +499,31 @@ function Control({
       );
 
     case "number": {
+      if (isMinMaxNumber(o)) {
+        const { min, max } = splitMinMax(getVal(o));
+        return (
+          <div className="ia-two-col ia-minmax">
+            <div className="ia-surface ia-text">
+              <input
+                value={min}
+                placeholder="Min"
+                aria-label="Min"
+                inputMode="decimal"
+                onChange={(e) => setVal(o, joinMinMax(e.target.value, max))}
+              />
+            </div>
+            <div className="ia-surface ia-text">
+              <input
+                value={max}
+                placeholder="Max"
+                aria-label="Max"
+                inputMode="decimal"
+                onChange={(e) => setVal(o, joinMinMax(min, e.target.value))}
+              />
+            </div>
+          </div>
+        );
+      }
       const v = String(getVal(o));
       const bump = (d: number) => setVal(o, String((Number(v) || 0) + d));
       return (
@@ -412,13 +542,31 @@ function Control({
         <div className="ia-surface ia-text">
           <input
             value={String(getVal(o))}
-            placeholder={o.name.toLowerCase().includes("format") ? ".0f" : "Manual value"}
+            placeholder={
+              o.name.toLowerCase().includes("format")
+                ? ".0f"
+                : o.group === "Story card KPI"
+                  ? o.name
+                  : "Manual value"
+            }
             onChange={(e) => setVal(o, e.target.value)}
           />
         </div>
       );
 
     case "color":
+      if (o.group === "Color mode") {
+        const current = asColorMode(getVal(o));
+        return (
+          <ColorPalette
+            variant="full"
+            color={current.color}
+            setColor={() => {}}
+            value={current}
+            onChange={(next) => setVal(o, next)}
+          />
+        );
+      }
       return <ColorPalette color={String(getVal(o))} setColor={(c) => setVal(o, c)} variant="simple" />;
 
     case "colorPair": {
@@ -451,7 +599,7 @@ function Control({
 
     case "colorList": {
       const map = (getVal(o) as Record<string, string>) ?? {};
-      const entries = Object.keys(map).length ? Object.entries(map) : [["Alpha", "#2F4F6E"], ["Beta", "#4A7C59"]];
+      const entries = Object.keys(map).length ? Object.entries(map) : Object.entries(defaultColorList(o));
       return (
         <div className="ia-surface ia-color-list">
           <div className="ia-color-list__palette">
@@ -473,69 +621,182 @@ function Control({
     }
 
     case "multi": {
-      const values = o.values.length ? o.values : ["Field A", "Field B", "Field C"];
-      const asToggles =
-        o.name.toLowerCase().includes("show") ||
-        o.name.toLowerCase() === "content" ||
-        values.some((v) => v.toLowerCase().startsWith("show "));
-      if (asToggles)
+      const values = multiChoices(o);
+      const selected = asStringArray(getVal(o));
+      const toggle = (v: string) =>
+        setVal(o, selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
+      if (isMultiToggle(o, values))
         return (
-          <div className="ia-surface ia-toggle-list">
-            {values.map((v, i) => (
+          <>
+            {values.map((v) => (
               <div key={v} className="ia-toggle-flat">
                 <div className="ia-toggle-line">
                   <strong>{v}</strong>
-                  <LocalSwitch defaultOn={i !== 2} />
+                  <Switch value={selected.includes(v)} onChange={() => toggle(v)} />
                 </div>
               </div>
             ))}
-          </div>
+          </>
         );
       return (
-        <div className="ia-surface">
-          <div className="ia-chips">
-            {values.map((v, i) => (
-              <Chip key={v} label={v} defaultSel={i < 2} />
-            ))}
-          </div>
+        <div className="ia-chips">
+          {values.map((v) => (
+            <Chip key={v} label={v} selected={selected.includes(v)} onToggle={() => toggle(v)} />
+          ))}
         </div>
       );
     }
 
-    case "repeatable":
+    case "repeatable": {
+      const rows = asRepeatable(getVal(o));
+      const update = (next: RepeatableRow[]) => setVal(o, next);
+      if (o.name === "Color thresholds") {
+        const current = {
+          ...DEFAULT_COLOR_MODE,
+          style: "Steps" as const,
+          color: rows[rows.length - 1]?.color ?? DEFAULT_COLOR_MODE.color,
+          stops: repeatableToStops(rows),
+        };
+        return (
+          <ColorPalette
+            variant="steps"
+            color={current.color}
+            setColor={() => {}}
+            value={current}
+            onChange={(next) => update(stopsToRepeatable(next.stops, rows))}
+          />
+        );
+      }
       return (
         <div className="ia-surface ia-repeat">
-          <div className="ia-rule">
-            <span>0–50</span>
-            <span className="ia-rule-color" />
-            <span className="ia-rule-x">×</span>
-          </div>
-          <div className="ia-rule">
-            <span>51–100</span>
-            <span className="ia-rule-color" style={{ background: "#ffd58a" }} />
-            <span className="ia-rule-x">×</span>
-          </div>
+          {rows.map((row, i) => (
+            <div key={i} className="ia-rule ia-rule--edit">
+              <input
+                className="ia-rule-input"
+                value={row.label}
+                aria-label="Label"
+                onChange={(e) => {
+                  const next = rows.map((r, j) => (j === i ? { ...r, label: e.target.value } : r));
+                  update(next);
+                }}
+              />
+              <input
+                className="ia-rule-input ia-rule-input--num"
+                value={row.min}
+                aria-label="Min"
+                onChange={(e) => {
+                  const next = rows.map((r, j) => (j === i ? { ...r, min: e.target.value } : r));
+                  update(next);
+                }}
+              />
+              <input
+                className="ia-rule-input ia-rule-input--num"
+                value={row.max}
+                aria-label="Max"
+                onChange={(e) => {
+                  const next = rows.map((r, j) => (j === i ? { ...r, max: e.target.value } : r));
+                  update(next);
+                }}
+              />
+              <ColorPalette
+                color={row.color}
+                setColor={(c) => update(rows.map((r, j) => (j === i ? { ...r, color: c } : r)))}
+                variant="swatch"
+              />
+              <span
+                className="ia-rule-x"
+                role="button"
+                onClick={() => update(rows.filter((_, j) => j !== i))}
+              >
+                ×
+              </span>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="cp-add"
+            onClick={() =>
+              update([
+                ...rows,
+                {
+                  min: String(rows.length * 50),
+                  max: String(rows.length * 50 + 50),
+                  color: ["#3FA7A0", "#73adf5", "#c6a7ff", "#f0888c"][rows.length % 4],
+                  label: `Stop ${rows.length + 1}`,
+                },
+              ])
+            }
+          >
+            Add row
+          </button>
         </div>
       );
+    }
 
-    case "gradient":
+    case "gradient": {
+      const stops = asGradient(getVal(o));
+      const update = (next: GradientStop[]) => setVal(o, next);
       return (
-        <div className="ia-surface">
-          <div className="ia-gradient" />
+        <div className="ia-surface ia-gradient-edit">
+          <div
+            className="ia-gradient"
+            style={{
+              background: `linear-gradient(90deg, ${stops
+                .map((s) => `${s.color} ${s.at}%`)
+                .join(", ")})`,
+            }}
+          />
+          {stops.map((stop, i) => (
+            <div key={i} className="ia-rule ia-rule--edit">
+              <input
+                className="ia-rule-input ia-rule-input--num"
+                type="number"
+                min={0}
+                max={100}
+                value={stop.at}
+                aria-label="Stop position"
+                onChange={(e) =>
+                  update(stops.map((s, j) => (j === i ? { ...s, at: Number(e.target.value) } : s)))
+                }
+              />
+              <ColorPalette
+                color={stop.color}
+                setColor={(c) => update(stops.map((s, j) => (j === i ? { ...s, color: c } : s)))}
+                variant="swatch"
+              />
+              <span
+                className="ia-rule-x"
+                role="button"
+                onClick={() => update(stops.filter((_, j) => j !== i))}
+              >
+                ×
+              </span>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="cp-add"
+            onClick={() =>
+              update([...stops, { color: "#ffd58a", at: Math.min(100, (stops[stops.length - 1]?.at ?? 0) + 25) }])
+            }
+          >
+            Add stop
+          </button>
         </div>
       );
+    }
 
     case "dropdown":
     case "field":
     default: {
-      const options = o.type === "field" ? SAMPLE_COLUMNS : o.values;
-      const list = options.length ? options : [`Set ${o.name}`];
+      const options = o.type === "field" ? fieldOptionsFor(o.name) : o.values.map((v) => ({ value: v, label: v }));
+      const list = options.length ? options : [{ value: `Set ${o.name}`, label: `Set ${o.name}` }];
       return (
         <Dropdown
           value={String(getVal(o))}
           onChange={(v) => setVal(o, v)}
           allowEmpty={o.type === "field"}
-          options={list.map((v) => ({ value: v, label: v }))}
+          options={list}
         />
       );
     }
@@ -552,6 +813,13 @@ function FieldBlock({
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
 }) {
+  if (o.group === "Color mode" && o.type === "color") {
+    return (
+      <div className="ia-color-mode">
+        <Control o={o} getVal={getVal} setVal={setVal} />
+      </div>
+    );
+  }
   if (o.type === "toggle") {
     return (
       <div className="ia-toggle-flat">
@@ -564,6 +832,9 @@ function FieldBlock({
         </div>
       </div>
     );
+  }
+  if (o.type === "multi" && isMultiToggle(o, multiChoices(o))) {
+    return <Control o={o} getVal={getVal} setVal={setVal} />;
   }
   if (o.type === "posgrid") {
     return (
@@ -608,6 +879,9 @@ function pairAxes(items: Opt[]): (Opt | [Opt, Opt])[] {
     if (next && isXField(cur) && isYField(next)) {
       rows.push([cur, next]);
       i++;
+    } else if (next && cur.group === "Story card KPI" && cur.name === "Min" && next.name === "Max") {
+      rows.push([cur, next]);
+      i++;
     } else {
       rows.push(cur);
     }
@@ -632,23 +906,111 @@ function renderFieldRows(
   );
 }
 
+function visibleWhenKey(o: Opt): string | null {
+  if (!o.visibleWhen) return null;
+  const expected = o.visibleWhen.is;
+  return `${o.visibleWhen.group}::${o.visibleWhen.name}::${Array.isArray(expected) ? expected.join("|") : expected}`;
+}
+
+type RevealGroup = { key: string; fields: Opt[] };
+type FieldCluster = { parent: Opt | null; reveals: RevealGroup[] };
+
+function clusterFields(items: Opt[]): FieldCluster[] {
+  const clusters: FieldCluster[] = [];
+  let i = 0;
+  while (i < items.length) {
+    const o = items[i];
+    if (o.visibleWhen) {
+      const key = visibleWhenKey(o)!;
+      const fields: Opt[] = [];
+      while (i < items.length && visibleWhenKey(items[i]) === key) fields.push(items[i++]);
+      clusters.push({ parent: null, reveals: [{ key, fields }] });
+      continue;
+    }
+    i += 1;
+    const reveals: RevealGroup[] = [];
+    while (i < items.length && items[i].visibleWhen?.group === o.group && items[i].visibleWhen?.name === o.name) {
+      const key = visibleWhenKey(items[i])!;
+      const fields: Opt[] = [];
+      while (i < items.length && visibleWhenKey(items[i]) === key) fields.push(items[i++]);
+      reveals.push({ key, fields });
+    }
+    clusters.push({ parent: o, reveals });
+  }
+  return clusters;
+}
+
+function RevealPanel({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={"ia-reveal" + (open ? " is-open" : "")} aria-hidden={!open} inert={!open || undefined}>
+      <div className="ia-reveal__inner">{children}</div>
+    </div>
+  );
+}
+
 /* ---------- group card ---------- */
 function GroupCard({
   items,
   getVal,
   setVal,
+  getValByKey,
 }: {
   items: Opt[];
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
+  getValByKey: (group: string, name: string) => unknown;
 }) {
+  const clusters = clusterFields(items);
+  const nodes: ReactNode[] = [];
+  for (let i = 0; i < clusters.length; i++) {
+    const cluster = clusters[i];
+    const next = clusters[i + 1];
+    if (
+      cluster.parent &&
+      !cluster.reveals.length &&
+      next?.parent &&
+      !next.reveals.length &&
+      isXField(cluster.parent) &&
+      isYField(next.parent)
+    ) {
+      nodes.push(
+        <div className="ia-two-col" key={cluster.parent.group + cluster.parent.name}>
+          <FieldBlock o={cluster.parent} getVal={getVal} setVal={setVal} />
+          <FieldBlock o={next.parent} getVal={getVal} setVal={setVal} />
+        </div>,
+      );
+      i += 1;
+      continue;
+    }
+    const reveals = cluster.reveals.map((group) => (
+      <RevealPanel key={group.key} open={isFieldVisible(group.fields[0], getValByKey)}>
+        {renderFieldRows(pairAxes(group.fields), getVal, setVal)}
+      </RevealPanel>
+    ));
+    if (!cluster.parent) {
+      nodes.push(<div key={cluster.reveals[0]?.key ?? i}>{reveals}</div>);
+      continue;
+    }
+    if (!cluster.reveals.length) {
+      nodes.push(<FieldBlock key={cluster.parent.group + cluster.parent.name} o={cluster.parent} getVal={getVal} setVal={setVal} />);
+      continue;
+    }
+    nodes.push(
+      <div className="ia-field-cluster" key={cluster.parent.group + cluster.parent.name}>
+        <FieldBlock o={cluster.parent} getVal={getVal} setVal={setVal} />
+        {reveals}
+      </div>,
+    );
+  }
   return (
     <section className="ia-group">
-      <div className="ia-card">
-        <div className="ia-card-body">
-          <div className="ia-card-fields">{renderFieldRows(pairAxes(items), getVal, setVal)}</div>
-        </div>
-      </div>
+      <div className="ia-card-fields">{nodes}</div>
     </section>
   );
 }
@@ -669,10 +1031,6 @@ export default function EditComponentModal({
   const [selectedVisualId, setSelectedVisualId] = useState<string | null>(
     startAtVisualPicker ? null : "vertical-bar",
   );
-  const [vizSectionsExpanded, setVizSectionsExpanded] = useState<Record<VisualCategoryId, boolean>>({
-    chart: true,
-    "map-layer": true,
-  });
   const [vizPhase, setVizPhase] = useState<VizPhase>(startAtVisualPicker ? "picker" : "settings");
   const [activeSubCategory, setActiveSubCategory] = useState("Mapping");
   const [currentStep, setCurrentStep] = useState(startAtVisualPicker ? 0 : 1);
@@ -694,6 +1052,7 @@ export default function EditComponentModal({
 
   const visualFields = useMemo(() => fieldsForVisual(displayVisualId), [displayVisualId]);
   const subCategories = useMemo(() => subCategoriesForVisual(displayVisualId), [displayVisualId]);
+  const navSections = useMemo(() => settingsNavSections(displayVisualId), [displayVisualId]);
 
   useEffect(() => {
     if (!subCategories.includes(activeSubCategory)) {
@@ -720,13 +1079,39 @@ export default function EditComponentModal({
     return getVal(field);
   };
 
-  const visibleFields = visualFields.filter((o) => {
+  const tabFields = visualFields.filter((o) => {
     if (o.group !== activeSubCategory) return false;
     if (query && !`${o.name} ${o.desc}`.toLowerCase().includes(query.toLowerCase())) return false;
-    return isFieldVisible(o, getValByKey);
+    return true;
   });
 
   const mappingFields = visualFields.filter((o) => o.group === "Mapping");
+
+  const resolvedConfig = useMemo(() => {
+    const next: Config = { ...config };
+    for (const o of visualFields) {
+      const k = keyOf(o);
+      if (next[k] === undefined) next[k] = defaultFor(o);
+    }
+    return next;
+  }, [config, visualFields]);
+
+  const previewSeries = useMemo(
+    () =>
+      derivePreviewSeries({
+        visualId: displayVisualId,
+        chartId: activeChart,
+        config: resolvedConfig,
+        title: generalInfo.name,
+        insight: generalInfo.description,
+      }),
+    [displayVisualId, activeChart, resolvedConfig, generalInfo.name, generalInfo.description],
+  );
+
+  const colorDataRange = useMemo(
+    () => numericExtent(mappedMeasureColumn(resolvedConfig)),
+    [resolvedConfig],
+  );
 
   const goNext = () => {
     if (currentStep >= WIZARD_STEPS.length - 1) return;
@@ -760,9 +1145,6 @@ export default function EditComponentModal({
       onClose?.();
       return;
     }
-    if (isVizStep && vizPhase === "picker") {
-      return;
-    }
     if (isVizStep && vizPhase === "settings" && sectionHasErrors(mappingFields, getVal)) {
       return;
     }
@@ -772,14 +1154,21 @@ export default function EditComponentModal({
   const selectVisual = (visual: VisualType) => {
     setSelectedVisualId(visual.id);
     setActiveChart(visual.chartId);
+    setVizPhase("settings");
+    const requiredMaps = fieldsForVisual(visual.id).filter(
+      (o) => o.group === "Mapping" && o.level === "required" && o.type === "field",
+    );
+    setConfig((c) => {
+      const next = { ...c };
+      for (const o of requiredMaps) {
+        const k = keyOf(o);
+        if (!isValueFilled(o, next[k])) next[k] = defaultColumnForField(o.name);
+      }
+      return next;
+    });
   };
 
   const returnToVisualPicker = () => setVizPhase("picker");
-
-  const confirmVisualSelection = () => {
-    if (!selectedVisualId) return;
-    setVizPhase("settings");
-  };
 
   const selectStep = (index: number) => {
     if (index > maxUnlockedStep) return;
@@ -799,12 +1188,7 @@ export default function EditComponentModal({
   const mappingIncomplete = sectionHasErrors(mappingFields, getVal);
   const displayVisualLabel = displayVisual?.label ?? chart.name;
   const displayVisualCategory = displayVisual?.category ?? "chart";
-  const selectedCategoryExpanded =
-    !selectedVisual || vizSectionsExpanded[selectedVisual.category];
-  const showChartPreview =
-    !isDataSourceStep &&
-    !isDeepDiveStep &&
-    (!isVizPicker || (!!selectedVisualId && selectedCategoryExpanded));
+  const showChartPreview = !isDataSourceStep && !isDeepDiveStep && !isVizPicker;
 
   const stepperRef = useRef<HTMLElement>(null);
   const stepRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -837,12 +1221,12 @@ export default function EditComponentModal({
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
-      <ColorPaletteProvider>
+      <ColorPaletteProvider dataRange={colorDataRange}>
       <div className="modal">
         {/* Header */}
         <header className="modal__header">
           <div className="modal__heading">
-            <h2 className="modal__title">Edit Component</h2>
+            <h2 className="modal__title">Edit Asset</h2>
             {(generalInfo.name || generalInfo.category) && (
               <p className="modal__subtitle">
                 {[generalInfo.name, generalInfo.category].filter(Boolean).join(" · ")}
@@ -854,7 +1238,7 @@ export default function EditComponentModal({
           </button>
         </header>
 
-        <nav ref={stepperRef} className="wizard-stepper" aria-label="Component setup steps">
+        <nav ref={stepperRef} className="wizard-stepper" aria-label="Asset setup steps">
           <div
             className="wizard-stepper__glow"
             aria-hidden="true"
@@ -895,7 +1279,8 @@ export default function EditComponentModal({
         <div
           className={
             "modal__body" +
-            (isDeepDiveStep ? " modal__body--deep-dive" : "")
+            (isDeepDiveStep ? " modal__body--deep-dive" : "") +
+            (isVizPicker ? " modal__body--viz-picker" : "")
           }
         >
           <section className={"settings" + (isVizPicker ? " settings--viz-picker" : "")}>
@@ -904,8 +1289,6 @@ export default function EditComponentModal({
                 <VisualTypePicker
                   selectedId={selectedVisualId}
                   onSelect={selectVisual}
-                  onConfirmSelection={confirmVisualSelection}
-                  onExpandedChange={setVizSectionsExpanded}
                 />
               </div>
             ) : (
@@ -956,7 +1339,7 @@ export default function EditComponentModal({
                   <div className="settings__subbar">
                     <p className="settings__subbar-label">Visual Settings</p>
                     <label className="settings__search">
-                      <SearchIcon className="settings__search-ico" width={14} height={14} aria-hidden="true" />
+                      <SearchIcon className="settings__search-ico" width={20} height={20} aria-hidden="true" />
                       <input
                         className="settings__search-input"
                         type="search"
@@ -969,34 +1352,44 @@ export default function EditComponentModal({
 
                   <div className="vs-panel">
                     <nav className="vs-panel__nav" aria-label="Visual settings">
-                      {subCategories.map((label) => {
-                        const selected = activeSubCategory === label;
-                        const catFields = visualFields.filter((o) => o.group === label);
-                        const hasErrors = sectionHasErrors(catFields, getVal);
-                        return (
-                          <button
-                            key={label}
-                            type="button"
-                            className={"vs-tab" + (selected ? " is-selected" : "")}
-                            aria-current={selected ? "true" : undefined}
-                            onClick={() => setActiveSubCategory(label)}
-                          >
-                            <span className="vs-tab__main">
-                              <span className="vs-tab__label">{label}</span>
-                            </span>
-                            {hasErrors && (
-                              <FieldAlertIcon className="vs-tab__alert" aria-label="Required fields incomplete" />
-                            )}
-                          </button>
-                        );
-                      })}
+                      {navSections.map((section) => (
+                        <div key={section.id} className="vs-nav-section">
+                          <div className="vs-nav-section__head">
+                            <p className="vs-nav-section__label">{section.label}</p>
+                            <span className="vs-nav-section__rule" aria-hidden="true" />
+                          </div>
+                          {section.tabs.map((label) => {
+                            const selected = activeSubCategory === label;
+                            const catFields = visualFields.filter((o) => o.group === label);
+                            const hasErrors = sectionHasErrors(catFields, getVal);
+                            const TabIcon = getSettingsTabIcon(label);
+                            return (
+                              <button
+                                key={label}
+                                type="button"
+                                className={"vs-tab" + (selected ? " is-selected" : "")}
+                                aria-current={selected ? "true" : undefined}
+                                onClick={() => setActiveSubCategory(label)}
+                              >
+                                <span className="vs-tab__main">
+                                  <TabIcon className="vs-tab__icon" size={16} weight="regular" aria-hidden="true" />
+                                  <span className="vs-tab__label">{label}</span>
+                                </span>
+                                {hasErrors && (
+                                  <FieldAlertIcon className="vs-tab__alert" aria-label="Required fields incomplete" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </nav>
                     <div className="vs-panel__content">
-                      {visibleFields.length === 0 ? (
+                      {tabFields.length === 0 ? (
                         <div className="ia-empty">No options for this visual in this section.</div>
                       ) : (
                         <div className="ia-stack">
-                          <GroupCard items={visibleFields} getVal={getVal} setVal={setVal} />
+                          <GroupCard items={tabFields} getVal={getVal} setVal={setVal} getValByKey={getValByKey} />
                         </div>
                       )}
                     </div>
@@ -1017,7 +1410,7 @@ export default function EditComponentModal({
             )}
           </section>
 
-          {!isDeepDiveStep && (
+          {!isDeepDiveStep && !isVizPicker && (
           <section className="preview">
             {isDataSourceStep ? (
               <ApiResponsePreview />
@@ -1025,9 +1418,7 @@ export default function EditComponentModal({
               <>
                 <div className="preview__head">
                   <div className="preview__head-row">
-                    <h3 className="preview__title">
-                      {isVizPicker && selectedVisual ? selectedVisual.label : "Chart Preview"}
-                    </h3>
+                    <h3 className="preview__title">Chart Preview</h3>
                     {!isPreviewVizOnly && (
                     <div
                       className="seg-toggle preview__mode-toggle"
@@ -1075,17 +1466,21 @@ export default function EditComponentModal({
                     </div>
                     <div className="preview__chart-slot">
                       <div className={"chart-card chart-card--" + size}>
-                        {isVizPicker && selectedVisual ? (
-                          <StaticVisualPreview visual={selectedVisual} />
-                        ) : (
-                          <ChartPreview type={chart.preview} chartId={activeChart} cfg={cfg} />
-                        )}
+                        <ChartPreview
+                          type={chart.preview}
+                          chartId={activeChart}
+                          visualId={displayVisualId}
+                          cfg={cfg}
+                          series={previewSeries}
+                          chartTitle={generalInfo.name || undefined}
+                          size={size}
+                        />
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="preview__stage preview__stage--table">
-                    <ChartDataQueryPreview chartId={activeChart} />
+                    <ChartDataQueryPreview />
                   </div>
                 )}
               </>
@@ -1105,7 +1500,7 @@ export default function EditComponentModal({
               disabled={currentStep === 0 && !(isVizStep && vizPhase === "settings")}
               onClick={handlePrev}
             >
-              <ArrowLeftIcon className="pg-btn__icon" width={16} height={16} aria-hidden="true" />
+              <ArrowLeftIcon className="pg-btn__icon" width={20} height={20} aria-hidden="true" />
               <span>Previous</span>
             </button>
             <button
@@ -1125,9 +1520,9 @@ export default function EditComponentModal({
               }
               onClick={handleNext}
             >
-              <span>{isGeneralInfoStep ? "Create component" : "Next"}</span>
+              <span>{isGeneralInfoStep ? "Create asset" : "Next"}</span>
               {!isGeneralInfoStep && (
-                <ArrowRightIcon className="pg-btn__icon" width={16} height={16} aria-hidden="true" />
+                <ArrowRightIcon className="pg-btn__icon" width={20} height={20} aria-hidden="true" />
               )}
             </button>
           </footer>

@@ -157,7 +157,11 @@ function AccessLevelSelect({
       <button
         ref={triggerRef}
         type="button"
-        className={"access-level-select" + (open ? " is-open" : "")}
+        className={
+          "access-level-select" +
+          (open ? " is-open" : "") +
+          (!selected ? " is-placeholder" : "")
+        }
         aria-expanded={open}
         aria-haspopup="listbox"
         onClick={toggle}

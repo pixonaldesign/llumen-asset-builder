@@ -130,10 +130,10 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
       <div className="add-component-modal">
         <header className="add-component-modal__header">
           <h2 id="add-component-title" className="add-component-modal__title">
-            Add Component
+            Add Asset
           </h2>
 
-          <nav className="add-component-modal__tabs" aria-label="Component categories">
+          <nav className="add-component-modal__tabs" aria-label="Asset categories">
             {COMPONENT_SECTIONS.map((tab) => (
               <button
                 key={tab.id}
@@ -150,7 +150,7 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
             <SearchIcon width={20} height={20} aria-hidden="true" />
             <input
               type="search"
-              placeholder="Search components..."
+              placeholder="Search assets..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -164,7 +164,7 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
           }
         >
           {hasSectionContent && (
-          <aside className="add-component-modal__sidebar" aria-label="Filter components">
+          <aside className="add-component-modal__sidebar" aria-label="Filter assets">
             {sidebars.map((item) => (
               <button
                 key={item.id}
@@ -193,7 +193,7 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
               ))
             ) : (
               <div className="add-component-modal__empty">
-                <p>No components match your search.</p>
+                <p>No assets match your search.</p>
               </div>
             )}
           </div>
@@ -205,7 +205,7 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
 
         <footer className="add-component-modal__footer">
           <p className="add-component-modal__hint">
-            You can add components by drag and drop, or select multiple.
+            You can add assets by drag and drop, or select multiple.
           </p>
           <button
             type="button"

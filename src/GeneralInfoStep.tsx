@@ -44,7 +44,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
       <div className="general-info-step__fields">
         <div className="general-info-field">
           <label className="general-info-field__label" htmlFor="general-info-name">
-            Component Name<span className="general-info-field__required">*</span>
+            Asset Name<span className="general-info-field__required">*</span>
           </label>
           <input
             id="general-info-name"
@@ -65,7 +65,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
             className="general-info-field__input general-info-field__textarea"
             value={value.description}
             onChange={(e) => set({ description: e.target.value })}
-            placeholder="Describe what this component shows and how it should be used"
+            placeholder="Describe what this asset shows and how it should be used"
             rows={4}
           />
         </div>

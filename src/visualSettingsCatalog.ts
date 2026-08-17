@@ -111,15 +111,6 @@ const COLOR_MODE: NotionVisualType[] = [
   "Pie/Donut",
   "Availability",
 ];
-const COLOR_MODE_CAT: NotionVisualType[] = [
-  "Vertical Bar",
-  "Horizontal Bar",
-  "Progress Bar",
-  "Line",
-  "Area",
-  "Scatter",
-  "Pie/Donut",
-];
 const LEGEND: NotionVisualType[] = [
   "Vertical Bar",
   "Horizontal Bar",
@@ -299,7 +290,27 @@ const FIELDS: FieldDef[] = [
   f("Visible columns", "multi", "Mapping", ["Data Table"], {
     desc: "Multi-select with Select all / Clear.",
     required: true,
-    values: ["value", "category", "timestamp", "unit", "status", "region", "amount"],
+    values: [
+      "district",
+      "region",
+      "category",
+      "timestamp",
+      "value",
+      "amount",
+      "incidents",
+      "completion_rate",
+      "status",
+      "unit",
+      "series",
+      "predicted",
+      "actual",
+      "name",
+      "type",
+      "direction",
+      "wind_speed",
+      "origin",
+      "destination",
+    ],
   }),
   f("Header label per column", "text", "Mapping", ["Data Table"], {
     desc: "Blank uses the raw column name.",
@@ -325,45 +336,36 @@ const FIELDS: FieldDef[] = [
   }),
   f("KPI value calculation", "dropdown", "Story card KPI", STORY_KPI, {
     values: ["Hidden unless manual value is set", "Last row", "First row", "Maximum", "Minimum", "Sum"],
-    defaultValue: "Hidden unless manual value is set",
+    defaultValue: "Sum",
   }),
   f("KPI unit field", "field", "Story card KPI", STORY_KPI),
   f("KPI min / max value fields", "field", "Story card KPI", STORY_KPI, {
     desc: "Columns for range context. On Score Indicator these also define the gradient bar's scale.",
   }),
-  f("Manual KPI value / min / max / unit", "text", "Story card KPI", STORY_KPI, {
-    desc: "Static fallbacks, or a full override if a manual value is set.",
+  f("Manual override", "toggle", "Story card KPI", STORY_KPI, {
+    desc: "Replace mapped KPI value, range, and unit with static values.",
+    def: false,
+  }),
+  f("Value", "text", "Story card KPI", STORY_KPI, {
+    desc: "Headline number shown on the story card.",
+    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
+  }),
+  f("Min", "text", "Story card KPI", STORY_KPI, {
+    desc: "Manual minimum for range context and score scale.",
+    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
+  }),
+  f("Max", "text", "Story card KPI", STORY_KPI, {
+    desc: "Manual maximum for range context and score scale.",
+    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
+  }),
+  f("Unit", "text", "Story card KPI", STORY_KPI, {
+    desc: "Unit label, e.g. % or M AED.",
+    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
   }),
 
   /* ---- Color mode ---- */
-  f("Mode", "dropdown", "Color mode", COLOR_MODE, {
-    desc: "How colors are assigned. Single Color is hidden for line/area once a Series field is mapped.",
-    values: ["Single Color", "Categorical Colors", "Sequential Colors"],
-    defaultValue: "Single Color",
-  }),
-  f("Single color", "color", "Color mode", COLOR_MODE, {
-    desc: "One color for the whole series.",
-    defaultValue: "#3FA7A0",
-    visibleWhen: { group: "Color mode", name: "Mode", is: "Single Color" },
-  }),
-  f("Categorical field", "field", "Color mode", COLOR_MODE_CAT, {
-    desc: "Which column defines categories. Hidden when a Series field is already mapped.",
-    visibleWhen: { group: "Color mode", name: "Mode", is: "Categorical Colors" },
-  }),
-  f("Per-category colors", "colorList", "Color mode", COLOR_MODE_CAT, {
-    desc: "A color for each category value so a category keeps its color when data is re-sorted.",
-    visibleWhen: { group: "Color mode", name: "Mode", is: "Categorical Colors" },
-  }),
-  f("Sequential based on", "dropdown", "Color mode", COLOR_MODE_CAT, {
-    desc: "Ramp by Value or by Category.",
-    values: ["Value", "Category"],
-    defaultValue: "Value",
-    visibleWhen: { group: "Color mode", name: "Mode", is: "Sequential Colors" },
-  }),
-  f("Sequential base color", "color", "Color mode", COLOR_MODE_CAT, {
-    desc: "Generates a light→dark ramp from this base color.",
-    defaultValue: "#3FA7A0",
-    visibleWhen: { group: "Color mode", name: "Mode", is: "Sequential Colors" },
+  f("Palette", "color", "Color mode", COLOR_MODE, {
+    desc: "Pick a palette, then apply it as a single color, a gradient, or discrete steps.",
   }),
 
   /* ---- Layout & visibility ---- */
@@ -384,10 +386,12 @@ const FIELDS: FieldDef[] = [
     values: ["Top", "Bottom"],
     valuesByType: { "Pie/Donut": ["Left", "Right"] },
     defaultValue: "Top",
+    visibleWhen: { group: "Legend", name: "Show legend", is: "true" },
   }),
   f("Content", "multi", "Legend", LEGEND, {
     desc: "Show labels · Show values · Show percentages.",
     values: ["Show labels", "Show values", "Show percentages"],
+    visibleWhen: { group: "Legend", name: "Show legend", is: "true" },
   }),
 
   /* ---- Status badge ---- */
@@ -411,6 +415,11 @@ const FIELDS: FieldDef[] = [
   /* ---- Bar ---- */
   f("Show values on bars", "toggle", "Bar", BARS, { def: false }),
   f("Sort by value", "toggle", "Bar", BARS, { def: false }),
+  f("Sort order", "segmented", "Bar", BARS, {
+    values: ["Ascending", "Descending"],
+    defaultValue: "Descending",
+    visibleWhen: { group: "Bar", name: "Sort by value", is: "true" },
+  }),
   f("Stack series", "toggle", "Bar", BARS, { def: false }),
   f("Top N categories", "slider", "Bar", BARS, {
     desc: "0–100 (0 = auto by card height).",
@@ -484,10 +493,11 @@ const FIELDS: FieldDef[] = [
   }),
 
   /* ---- Scaling / axes ---- */
+  f("Show label", "toggle", "Scaling / axes", AXIS_CHARTS, { def: false }),
   f("Axis label", "text", "Scaling / axes", AXIS_CHARTS, {
     desc: "Override; empty uses the mapped field name.",
+    visibleWhen: { group: "Scaling / axes", name: "Show label", is: "true" },
   }),
-  f("Show label", "toggle", "Scaling / axes", AXIS_CHARTS, { def: false }),
   f("Format", "text", "Scaling / axes", AXIS_CHARTS, {
     desc: "D3 number format for ticks (e.g. .2f, $,.0f, %).",
   }),
@@ -506,10 +516,13 @@ const FIELDS: FieldDef[] = [
   /* ---- Tooltips / Annotations ---- */
   f("Enable tooltip", "toggle", "Tooltips", TOOLTIPS),
   f("Tooltip format", "text", "Tooltips", ["Vertical Bar", "Horizontal Bar", "Line", "Area", "Scatter", "Pie/Donut"], {
-    desc: "Template, e.g. {x}: {y}.",
+    desc: "D3 number format for the value (e.g. .0f), or a template with {value}, {category}, {timestamp}, {unit}, {status}.",
+    defaultValue: ".0f",
   }),
   f("Tooltip content fields", "multi", "Tooltips", TOOLTIPS, {
+    desc: "Hover shows these mock-data columns: value, category, timestamp, unit, status.",
     values: ["value", "category", "timestamp", "unit", "status"],
+    defaultValue: ["value", "category", "timestamp"],
   }),
   f("Source", "dropdown", "Annotations / guidelines", AXIS_CHARTS, {
     values: ["Average", "Maximum", "Minimum", "Linear trend (OLS)", "Manual position"],
@@ -635,7 +648,9 @@ const FIELDS: FieldDef[] = [
   f("Fence zoom scaling", "repeatable", "Advanced", ["Fences"]),
   f("Show legend in Map Data", "toggle", "Map Legend", ["All Map Layers"]),
   f("Tooltip fields", "multi", "Tooltip Fields", MAP_TOOLTIPS, {
+    desc: "Hover shows these mock-data columns: name, value, type, status.",
     values: ["name", "value", "type", "status"],
+    defaultValue: ["name", "value", "type"],
   }),
 ];
 
@@ -680,6 +695,26 @@ export function fieldsForVisual(visualId: string): Opt[] {
 export function subCategoriesForVisual(visualId: string): string[] {
   const groups = new Set(fieldsForVisual(visualId).map((o) => o.group));
   return SUBCATEGORY_ORDER.filter((name) => groups.has(name));
+}
+
+/** Always-on mapping / appearance tabs. Everything else sits under Extra. */
+export const SETTINGS_NAV_CORE = ["Mapping", "Story card KPI", "Color mode"] as const;
+
+export type SettingsNavSection = {
+  id: "core" | "extra";
+  label: string;
+  tabs: string[];
+};
+
+export function settingsNavSections(visualId: string): SettingsNavSection[] {
+  const tabs = subCategoriesForVisual(visualId);
+  const coreSet = new Set<string>(SETTINGS_NAV_CORE);
+  const core = tabs.filter((name) => coreSet.has(name));
+  const extra = tabs.filter((name) => !coreSet.has(name));
+  const sections: SettingsNavSection[] = [];
+  if (core.length) sections.push({ id: "core", label: "Core", tabs: core });
+  if (extra.length) sections.push({ id: "extra", label: "Extra", tabs: extra });
+  return sections;
 }
 
 export function isFieldVisible(o: Opt, getValByKey: (group: string, name: string) => unknown): boolean {

@@ -21,7 +21,7 @@ export default function CreateComponentPopup({ onClose, onEditComponent }: Props
       <div className="create-popup">
         <header className="create-popup__header">
           <h2 id="create-popup-title" className="create-popup__title">
-            Create Component
+            Create Asset
           </h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
             <CloseIcon width={18} height={18} />
@@ -47,7 +47,7 @@ export default function CreateComponentPopup({ onClose, onEditComponent }: Props
 
           <div className="create-popup__footer">
             <button type="submit" className="btn btn--primary">
-              Edit Component
+              Edit Asset
             </button>
           </div>
         </form>

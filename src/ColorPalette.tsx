@@ -1,15 +1,12 @@
 /**
- * ColorPalette — unified color picking system for the chart builder.
+ * ColorPalette — Color Palette Selector V2.
  *
  *   1. Color palette — picker popover (Sequential / Categorical / Diverging)
  *   2. Palette type  — Single / Gradient / Steps
  *   3. Stops editor  — solid swatch, gradient ramp, or discrete steps
- *
- * The primary color is mirrored to the host config under
- * `Colors::Single color` so the live chart preview stays in sync.
  */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import Dropdown from "./Dropdown";
 import {
@@ -22,9 +19,16 @@ import {
   StepsDotsIcon,
   TrashIcon,
 } from "./icons";
+import {
+  DEFAULT_COLOR_MODE,
+  asColorMode,
+  type ColorModeConfig,
+  type ColorStop,
+  type PaletteFamily,
+  type PaletteStyle,
+} from "./previewTheme";
 
 type PaletteType = "Sequential" | "Categorical" | "Diverging";
-type Style = "Single" | "Gradient" | "Steps";
 
 interface Stop {
   id: number;
@@ -71,15 +75,29 @@ const DEFAULT_SELECTION: PaletteSelection = {
   colors: DEFAULT_PRESET.colors,
 };
 
+type DataRange = { min: number; max: number };
+
 const PaletteContext = createContext<{
   selection: PaletteSelection;
   setSelection: (next: PaletteSelection) => void;
 } | null>(null);
 
-export function ColorPaletteProvider({ children }: { children: ReactNode }) {
+const DataRangeContext = createContext<DataRange | null>(null);
+
+export function ColorPaletteProvider({
+  children,
+  dataRange,
+}: {
+  children: ReactNode;
+  dataRange?: DataRange | null;
+}) {
   const [selection, setSelection] = useState<PaletteSelection>(DEFAULT_SELECTION);
   const value = useMemo(() => ({ selection, setSelection }), [selection]);
-  return <PaletteContext.Provider value={value}>{children}</PaletteContext.Provider>;
+  return (
+    <PaletteContext.Provider value={value}>
+      <DataRangeContext.Provider value={dataRange ?? null}>{children}</DataRangeContext.Provider>
+    </PaletteContext.Provider>
+  );
 }
 
 function usePaletteSelection(): [PaletteSelection, (preset: PalettePreset) => void] {
@@ -102,28 +120,85 @@ function usePaletteSelection(): [PaletteSelection, (preset: PalettePreset) => vo
 let uid = 0;
 const nextId = () => ++uid;
 
-function gradientStops(colors: string[]): Stop[] {
-  const ramp = colors.length ? colors : ["#e8f0ff", "#2b61f5"];
-  return [
-    { id: nextId(), value: 194, color: ramp[0], opacity: 100 },
-    { id: nextId(), value: 600, color: ramp[ramp.length - 1], opacity: 100 },
-  ];
+function niceNum(n: number, span: number): number {
+  if (!Number.isFinite(n)) return 0;
+  if (span >= 10) return Math.round(n);
+  return Number(n.toFixed(2));
 }
 
-function stepStops(colors: string[]): Stop[] {
-  const ramp = colors.length ? colors : ["#e8f0ff", "#9cc0fb", "#5b8df0", "#2b61f5"];
-  const values = [194, 350, 520, 600];
-  return values.slice(0, Math.max(2, ramp.length)).map((v, i) => ({
-    id: nextId(),
-    value: v,
-    color: ramp[i % ramp.length],
-    opacity: 100,
+function formatRangeNum(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  if (Math.abs(n - Math.round(n)) < 1e-6) return String(Math.round(n));
+  return String(Number(n.toFixed(2)));
+}
+
+function isPlaceholderStops(stops: { value: number }[]): boolean {
+  if (!stops.length) return true;
+  const lo = Math.min(...stops.map((s) => s.value));
+  const hi = Math.max(...stops.map((s) => s.value));
+  return lo === 194 && hi === 600;
+}
+
+function remapStopValues(stops: Stop[], min: number, max: number): Stop[] {
+  if (!stops.length) return spreadStops(["#f87171", "#fbbf24", "#34d399"], min, max, 3);
+  const span = max - min;
+  const lo = Math.min(...stops.map((s) => s.value));
+  const hi = Math.max(...stops.map((s) => s.value));
+  if (Math.abs(hi - lo) < 1e-6) {
+    return stops.map((s, i) => ({
+      ...s,
+      value: niceNum(min + (stops.length === 1 ? 0 : i / (stops.length - 1)) * span, span),
+    }));
+  }
+  return stops.map((s) => ({
+    ...s,
+    value: niceNum(min + ((s.value - lo) / (hi - lo)) * span, span),
   }));
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function spreadStops(colors: string[], min: number, max: number, count: number): Stop[] {
+  const ramp = colors.length ? colors : ["#eff5fe", "#2b61f5"];
+  const n = Math.max(2, count);
+  const span = max - min;
+  return Array.from({ length: n }, (_, i) => {
+    const t = n === 1 ? 0 : i / (n - 1);
+    const colorIndex = Math.round(t * (ramp.length - 1));
+    return {
+      id: nextId(),
+      value: niceNum(min + t * span, span),
+      color: ramp[Math.min(colorIndex, ramp.length - 1)],
+      opacity: 100,
+    };
+  });
+}
+
+function gradientStops(colors: string[], min = 0, max = 100): Stop[] {
+  return spreadStops(colors, min, max, 3);
+}
+
+function toUiStops(list: ColorStop[]): Stop[] {
+  return list.map((s) => ({ id: nextId(), value: s.value, color: s.color, opacity: s.opacity }));
+}
+
+function persistable(list: Stop[]): ColorStop[] {
+  return list.map(({ value, color, opacity }) => ({ value, color, opacity }));
+}
+
+function stepStops(colors: string[], min = 0, max = 100): Stop[] {
+  return spreadStops(colors, min, max, 4);
+}
+
+function Field({
+  label,
+  children,
+  inline,
+}: {
+  label: string;
+  children: React.ReactNode;
+  inline?: boolean;
+}) {
   return (
-    <div className="cp-field">
+    <div className={"cp-field" + (inline ? " cp-field--inline" : "")}>
       <span className="cp-label">{label}</span>
       {children}
     </div>
@@ -217,51 +292,15 @@ function PalettePickerMenu({
   );
 }
 
-function SwatchPicker({
-  colors,
-  color,
-  onSelect,
+export function PaletteSelector({
+  value,
+  onSelectPreset,
 }: {
-  colors: string[];
-  color: string;
-  onSelect: (c: string) => void;
+  value?: PaletteSelection;
+  onSelectPreset?: (preset: PalettePreset) => void;
 }) {
-  return (
-    <div className="cp-swatch-grid" role="listbox" aria-label="Palette colors">
-      {colors.map((c) => {
-        const selected = sameHex(c, color);
-        return (
-          <button
-            key={c}
-            type="button"
-            role="option"
-            aria-selected={selected}
-            aria-label={c}
-            className={"cp-swatch-btn" + (selected ? " is-selected" : "")}
-            style={{ background: c }}
-            onClick={() => onSelect(c)}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-function OverrideButton({ on, onToggle }: { on: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      className={"pg-btn pg-btn--ghost pg-btn--sm cp-override" + (on ? " is-on" : "")}
-      aria-pressed={on}
-      onClick={onToggle}
-    >
-      {on ? "Use palette" : "Override"}
-    </button>
-  );
-}
-
-export function PaletteSelector() {
-  const [selection, applyPreset] = usePaletteSelection();
+  const [ctxSelection, applyPreset] = usePaletteSelection();
+  const selection = value ?? ctxSelection;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<PaletteType>(selection.type);
   const [pickerSearch, setPickerSearch] = useState("");
@@ -315,7 +354,7 @@ export function PaletteSelector() {
       >
         <span className="cp-picker-trigger-name">{selection.name}</span>
         <span className="cp-picker-trigger-end">
-          <PaletteSwatches colors={selection.colors} />
+          <span className="cp-picker-trigger-badge">{selection.type}</span>
           <ChevronDownIcon className="cp-caret" width={16} height={16} aria-hidden="true" />
         </span>
       </button>
@@ -331,6 +370,7 @@ export function PaletteSelector() {
             onSearch={setPickerSearch}
             onSelect={(preset) => {
               applyPreset(preset);
+              onSelectPreset?.(preset);
               setPickerSearch("");
               setPickerOpen(false);
             }}
@@ -345,17 +385,85 @@ export function PaletteSelector() {
 
 function StopRow({
   stop,
+  colors,
   showValue,
+  showRemove,
   removable,
   onChange,
   onRemove,
 }: {
   stop: Stop;
+  colors: string[];
   showValue: boolean;
+  showRemove?: boolean;
   removable: boolean;
   onChange: (s: Stop) => void;
   onRemove: () => void;
 }) {
+  const committedHex = toHex(stop.color).toUpperCase();
+  const [hexDraft, setHexDraft] = useState(committedHex);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const swatchRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const customRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setHexDraft(committedHex);
+  }, [committedHex]);
+
+  const syncMenuPosition = useCallback(() => {
+    const el = swatchRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const width = 248;
+    const estHeight = 196;
+    const gap = 8;
+    let left = rect.left;
+    let top = rect.bottom + gap;
+    left = Math.min(left, window.innerWidth - width - gap);
+    left = Math.max(gap, left);
+    if (top + estHeight > window.innerHeight - gap) {
+      top = Math.max(gap, rect.top - estHeight - gap);
+    }
+    setMenuPos({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    syncMenuPosition();
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (swatchRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    const onLayout = () => syncMenuPosition();
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onLayout);
+    window.addEventListener("scroll", onLayout, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onLayout);
+      window.removeEventListener("scroll", onLayout, true);
+    };
+  }, [menuOpen, syncMenuPosition]);
+
+  const pickColor = (next: string) => {
+    onChange({ ...stop, color: next });
+    setMenuOpen(false);
+  };
+
+  const openCustomPicker = () => {
+    customRef.current?.click();
+    setMenuOpen(false);
+  };
+
   return (
     <div className="cp-stop-wrap">
       <div className="cp-stop">
@@ -364,22 +472,80 @@ function StopRow({
             <input
               className="cp-stop-value"
               inputMode="numeric"
-              aria-label={`Data value for color ${toHex(stop.color)}`}
+              aria-label={`Data value for color ${committedHex}`}
               value={String(stop.value)}
               onChange={(e) => onChange({ ...stop, value: Number(e.target.value.replace(/[^\d-]/g, "")) || 0 })}
             />
           ) : (
-            <span className="cp-stop-hex">{toHex(stop.color).toUpperCase()}</span>
+            <input
+              className="cp-stop-hex"
+              aria-label="Hex color"
+              spellCheck={false}
+              value={hexDraft}
+              onChange={(e) => {
+                const next = e.target.value;
+                setHexDraft(next);
+                const trimmed = next.trim();
+                if (/^#?[0-9a-fA-F]{6}$/.test(trimmed)) {
+                  onChange({ ...stop, color: trimmed.startsWith("#") ? trimmed : `#${trimmed}` });
+                }
+              }}
+              onBlur={() => setHexDraft(committedHex)}
+            />
           )}
 
-          <label className="cp-swatch">
-            <input
-              type="color"
-              value={toHex(stop.color)}
-              onChange={(e) => onChange({ ...stop, color: e.target.value })}
-            />
+          <button
+            ref={swatchRef}
+            type="button"
+            className={"cp-swatch" + (menuOpen ? " is-open" : "")}
+            aria-label={`Choose color ${committedHex}`}
+            aria-expanded={menuOpen}
+            aria-haspopup="listbox"
+            onClick={() => {
+              if (menuOpen) {
+                setMenuOpen(false);
+                return;
+              }
+              syncMenuPosition();
+              setMenuOpen(true);
+            }}
+          >
             <span style={{ background: stop.color }} />
-          </label>
+          </button>
+          {menuOpen &&
+            createPortal(
+              <div
+                ref={menuRef}
+                className="cp-picker-menu cp-picker-menu--flyout cp-swatch-menu"
+                role="listbox"
+                aria-label="Palette colors"
+                style={{ top: menuPos.top, left: menuPos.left }}
+              >
+                <span className="cp-label">Selected color</span>
+                <div className="cp-swatch-menu__grid">
+                  {colors.map((c, i) => {
+                    const selected = sameHex(c, stop.color);
+                    return (
+                      <button
+                        key={`${c}-${i}`}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        aria-label={toHex(c).toUpperCase()}
+                        className={"cp-swatch-menu__dot" + (selected ? " is-selected" : "")}
+                        style={{ background: c }}
+                        onClick={() => pickColor(c)}
+                      />
+                    );
+                  })}
+                </div>
+                <button type="button" className="cp-add cp-swatch-menu__custom" onClick={openCustomPicker}>
+                  <PlusIcon width={16} height={16} />
+                  <span>Add a custom color</span>
+                </button>
+              </div>,
+              document.body,
+            )}
         </div>
 
         <span className="cp-divider" />
@@ -399,17 +565,45 @@ function StopRow({
         </div>
       </div>
 
-      {removable && (
-        <button className="cp-stop-del" aria-label="Remove stop" onClick={onRemove}>
+      {showRemove && (
+        <button
+          type="button"
+          className="cp-stop-del"
+          aria-label="Remove stop"
+          disabled={!removable}
+          onClick={onRemove}
+        >
           <TrashIcon width={16} height={16} />
         </button>
       )}
+      <input
+        ref={customRef}
+        type="color"
+        className="cp-swatch-native"
+        value={toHex(stop.color)}
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(e) => onChange({ ...stop, color: e.target.value })}
+      />
     </div>
   );
 }
 
 function stopPercent(value: number, min: number, span: number) {
   return ((value - min) / span) * 100;
+}
+
+const TRACK_KNOB = 16;
+
+function knobLeft(pct: number) {
+  const t = Math.max(0, Math.min(100, pct));
+  return `calc(${TRACK_KNOB / 2}px + ${t} * (100% - ${TRACK_KNOB}px) / 100)`;
+}
+
+function dragPercent(clientX: number, rect: DOMRect) {
+  const inset = TRACK_KNOB / 2;
+  const usable = Math.max(1, rect.width - TRACK_KNOB);
+  return Math.max(0, Math.min(1, (clientX - rect.left - inset) / usable));
 }
 
 function markAlign(index: number, count: number): "start" | "center" | "end" {
@@ -420,6 +614,7 @@ function markAlign(index: number, count: number): "start" | "center" | "end" {
 
 function DataRangeEditor({
   sorted,
+  colors,
   min,
   max,
   span,
@@ -430,6 +625,7 @@ function DataRangeEditor({
   onRemove,
 }: {
   sorted: Stop[];
+  colors: string[];
   min: number;
   max: number;
   span: number;
@@ -439,17 +635,41 @@ function DataRangeEditor({
   onChange: (s: Stop) => void;
   onRemove: (id: number) => void;
 }) {
+  const trackRef = useRef<HTMLDivElement>(null);
   const marks = sorted.map((s) => ({
     id: s.id,
-    label: String(s.value),
+    label: formatRangeNum(s.value),
     value: s.value,
   }));
+
+  const dragStop = (stopId: number, clientX: number) => {
+    const track = trackRef.current;
+    const stop = sorted.find((s) => s.id === stopId);
+    if (!track || !stop) return;
+    const rect = track.getBoundingClientRect();
+    const pct = dragPercent(clientX, rect);
+    const nextValue = niceNum(min + pct * span, span);
+    if (nextValue !== stop.value) onChange({ ...stop, value: nextValue });
+  };
+
+  const onKnobPointerDown = (event: ReactPointerEvent<HTMLButtonElement>, id: number) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStop(id, event.clientX);
+    const move = (ev: PointerEvent) => dragStop(id, ev.clientX);
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
 
   return (
     <>
       <div className="cp-range-head cp-range-head--combined">
         <span className="cp-range-combined">
-          <span className="cp-label">Data range:</span> {min} - {max}
+          <span className="cp-label">Data range:</span> {formatRangeNum(min)} - {formatRangeNum(max)}
         </span>
       </div>
 
@@ -458,7 +678,7 @@ function DataRangeEditor({
           const pct = stopPercent(mark.value, min, span);
           const isEnd = markAlign(i, marks.length) === "end";
           return (
-            <div key={`mark-${mark.id}`} className="cp-track-mark" style={{ left: `${pct}%` }}>
+            <div key={`mark-${mark.id}`} className="cp-track-mark" style={{ left: knobLeft(pct) }}>
               <span className="cp-track-mark__tick" aria-hidden="true" />
               <span
                 className={
@@ -471,17 +691,20 @@ function DataRangeEditor({
           );
         })}
         <div
+          ref={trackRef}
           className={"cp-track" + (stepsStyle ? " cp-track--steps" : " cp-track--gradient")}
           style={{ background: trackBg }}
         >
           {marks.map((mark) => {
             const pct = stopPercent(mark.value, min, span);
             return (
-              <span
+              <button
                 key={mark.id}
+                type="button"
                 className="cp-track-knob cp-track-knob--step"
-                style={{ left: `${pct}%` }}
-                aria-hidden="true"
+                style={{ left: knobLeft(pct) }}
+                aria-label={`Stop at ${mark.label}`}
+                onPointerDown={(e) => onKnobPointerDown(e, mark.id)}
               />
             );
           })}
@@ -493,7 +716,9 @@ function DataRangeEditor({
           <StopRow
             key={s.id}
             stop={s}
+            colors={colors}
             showValue
+            showRemove
             removable={removable}
             onChange={onChange}
             onRemove={() => onRemove(s.id)}
@@ -508,37 +733,102 @@ export default function ColorPalette({
   color,
   setColor,
   variant = "full",
+  value,
+  onChange,
 }: {
   color: string;
   setColor: (c: string) => void;
-  variant?: "full" | "simple" | "swatch";
+  variant?: "full" | "simple" | "swatch" | "steps";
+  value?: ColorModeConfig;
+  onChange?: (next: ColorModeConfig) => void;
 }) {
   const isSimple = variant === "simple";
   const isSwatch = variant === "swatch";
-  const [selection] = usePaletteSelection();
-  const [override, setOverride] = useState(false);
-  const [style, setStyle] = useState<Style>("Single");
-  const [distribution, setDistribution] = useState("Linear");
-  const [opacity, setOpacity] = useState(100);
-  const [gStops, setGStops] = useState<Stop[]>(() => gradientStops(selection.colors));
-  const [sStops, setSStops] = useState<Stop[]>(() => stepStops(selection.colors));
+  const isStepsOnly = variant === "steps";
+  const isFull = !isSimple && !isSwatch && !isStepsOnly;
+  const dataRange = useContext(DataRangeContext);
+  const [local, setLocal] = useState<ColorModeConfig>(() => asColorMode(value ?? { ...DEFAULT_COLOR_MODE, color }));
+  const config = value ?? local;
+  const commit = (patch: Partial<ColorModeConfig>) => {
+    const next: ColorModeConfig = { ...config, ...patch };
+    if (!value) setLocal(next);
+    onChange?.(next);
+    if (!onChange) {
+      if (patch.color) setColor(patch.color);
+      else if (next.color !== color) setColor(next.color);
+    }
+  };
 
-  const paletteColors = selection.colors;
-  const showSwatches = !override && (isSimple || isSwatch || style === "Single");
-  const showPicker = override && (isSimple || isSwatch || style === "Single");
+  const domainMin = dataRange?.min;
+  const domainMax = dataRange?.max;
+
+  const [gStops, setGStops] = useState<Stop[]>(() =>
+    config.style !== "Steps" && config.stops.length ? toUiStops(config.stops) : gradientStops(config.colors, domainMin ?? 0, domainMax ?? 100),
+  );
+  const [sStops, setSStops] = useState<Stop[]>(() =>
+    config.style === "Steps" && config.stops.length ? toUiStops(config.stops) : stepStops(config.colors, domainMin ?? 0, domainMax ?? 100),
+  );
+
+  const [ctxSelection] = usePaletteSelection();
+  const paletteColors =
+    (isStepsOnly ? ctxSelection.colors : config.colors).length
+      ? isStepsOnly
+        ? ctxSelection.colors
+        : config.colors
+      : DEFAULT_COLOR_MODE.colors;
+  const style = isStepsOnly ? "Steps" : config.style;
 
   useEffect(() => {
-    setGStops(gradientStops(selection.colors));
-    setSStops(stepStops(selection.colors));
-  }, [selection.colors]);
+    if (domainMin == null || domainMax == null) return;
+    const current = style === "Steps" ? sStops : gStops;
+    const lo = current.length ? Math.min(...current.map((s) => s.value)) : NaN;
+    const hi = current.length ? Math.max(...current.map((s) => s.value)) : NaN;
+    const aligned = Math.abs(lo - domainMin) < 1e-6 && Math.abs(hi - domainMax) < 1e-6;
+    if (aligned && !isPlaceholderStops(current)) return;
+    if (isStepsOnly) {
+      const s = remapStopValues(current, domainMin, domainMax);
+      setSStops(s);
+      commit({ style: "Steps", stops: persistable(s) });
+      return;
+    }
+    const g = spreadStops(paletteColors, domainMin, domainMax, Math.max(3, gStops.length));
+    const s = spreadStops(paletteColors, domainMin, domainMax, Math.max(4, sStops.length));
+    setGStops(g);
+    setSStops(s);
+    commit({ stops: persistable(style === "Steps" ? s : g) });
+    // Domain identity only — stop lists are rebuilt here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domainMin, domainMax]);
 
+  const applyPreset = (preset: PalettePreset) => {
+    const min = domainMin ?? 0;
+    const max = domainMax ?? 100;
+    const g = gradientStops(preset.colors, min, max);
+    const s = stepStops(preset.colors, min, max);
+    setGStops(g);
+    setSStops(s);
+    const last = preset.colors[preset.colors.length - 1] ?? config.color;
+    commit({
+      paletteName: preset.name,
+      paletteFamily: preset.type as PaletteFamily,
+      colors: preset.colors,
+      color: last,
+      stops: persistable(style === "Steps" ? s : g),
+    });
+  };
+  const paletteSelection: PaletteSelection = {
+    name: config.paletteName,
+    type: config.paletteFamily,
+    colors: paletteColors,
+  };
+  const distribution = config.distribution || "Linear";
+  const opacity = config.opacity;
   const stops = style === "Gradient" ? gStops : sStops;
   const setStops = style === "Gradient" ? setGStops : setSStops;
-
   const sorted = [...stops].sort((a, b) => a.value - b.value);
-  const min = sorted[0]?.value ?? 0;
-  const max = sorted[sorted.length - 1]?.value ?? 100;
-  const span = Math.max(1, max - min);
+  const min = domainMin ?? sorted[0]?.value ?? 0;
+  const max = domainMax ?? sorted[sorted.length - 1]?.value ?? 100;
+  const span = Math.max(max - min, 1e-6);
 
   const trackBg =
     style === "Gradient"
@@ -553,67 +843,88 @@ export default function ColorPalette({
           })
           .join(", ")})`;
 
-  const updateStop = (next: Stop) => {
-    setStops((list) => list.map((s) => (s.id === next.id ? next : s)));
-    if (next.id === sorted[sorted.length - 1]?.id) setColor(next.color);
+  const persistStops = (list: Stop[]) => {
+    commit({
+      stops: persistable(list),
+      color: list[list.length - 1]?.color ?? config.color,
+    });
   };
-  const removeStop = (id: number) => setStops((list) => (list.length > 2 ? list.filter((s) => s.id !== id) : list));
+
+  const updateStop = (next: Stop) => {
+    setStops((list) => {
+      const updated = list.map((s) => (s.id === next.id ? next : s));
+      persistStops(updated);
+      return updated;
+    });
+  };
+  const removeStop = (id: number) =>
+    setStops((list) => {
+      if (list.length <= 2) return list;
+      const updated = list.filter((s) => s.id !== id);
+      persistStops(updated);
+      return updated;
+    });
   const addStop = () => {
     const mid = Math.round((min + max) / 2);
-    setStops((list) => [...list, { id: nextId(), value: mid, color: paletteColors[1] ?? paletteColors[0], opacity: 100 }]);
+    setStops((list) => {
+      const updated = [
+        ...list,
+        { id: nextId(), value: mid, color: paletteColors[1] ?? paletteColors[0], opacity: 100 },
+      ];
+      persistStops(updated);
+      return updated;
+    });
+  };
+  const setStyle = (next: PaletteStyle) => {
+    const src = next === "Steps" ? sStops : gStops;
+    commit({
+      style: next,
+      stops: persistable(src),
+    });
   };
 
   return (
     <div className={"cp" + (isSimple || isSwatch ? " cp--simple" : "") + (isSwatch ? " cp--swatch" : "")}>
       {!isSwatch && (
         <div className="cp-field">
-          <div className="cp-field-head">
-            <span className="cp-label">Color palette</span>
-            {(isSimple || style === "Single") && (
-              <OverrideButton on={override} onToggle={() => setOverride((v) => !v)} />
-            )}
-          </div>
-          <PaletteSelector />
+          <span className="cp-label">Color palette</span>
+          {isFull || isStepsOnly ? (
+            <PaletteSelector value={isStepsOnly ? ctxSelection : paletteSelection} onSelectPreset={applyPreset} />
+          ) : (
+            <PaletteSelector />
+          )}
         </div>
       )}
 
       {isSwatch && (
-        <div className="cp-swatch-line">
-          {showSwatches && <SwatchPicker colors={paletteColors} color={color} onSelect={setColor} />}
-          {showPicker && (
-            <StopRow
-              stop={{ id: 0, value: min, color, opacity }}
-              showValue={false}
-              removable={false}
-              onChange={(s) => {
-                setColor(s.color);
-                setOpacity(s.opacity);
-              }}
-              onRemove={() => {}}
-            />
-          )}
-          <OverrideButton on={override} onToggle={() => setOverride((v) => !v)} />
-        </div>
+        <StopRow
+          stop={{ id: 0, value: min, color, opacity }}
+          colors={paletteColors}
+          showValue={false}
+          removable={false}
+          onChange={(s) => {
+            setColor(s.color);
+            commit({ color: s.color, opacity: s.opacity });
+          }}
+          onRemove={() => {}}
+        />
       )}
 
-      {!isSimple && !isSwatch && (
+      {isFull && (
         <Field label="Palette type">
-          <div className="cp-segmented">
-            {(["Single", "Gradient", "Steps"] as Style[]).map((s) => {
+          <div className="cp-type">
+            {(["Single", "Gradient", "Steps"] as PaletteStyle[]).map((s) => {
               const Icon = s === "Single" ? SinglePillIcon : s === "Gradient" ? GradientPillIcon : StepsDotsIcon;
               return (
                 <button
                   key={s}
                   type="button"
-                  className={
-                    "pg-btn pg-btn--outline pg-btn--icon-right cp-seg " +
-                    (style === s ? "pg-btn--primary" : "pg-btn--secondary")
-                  }
+                  className={"cp-type__btn" + (style === s ? " is-active" : "")}
                   aria-pressed={style === s}
                   onClick={() => setStyle(s)}
                 >
                   <span>{s}</span>
-                  <Icon className="pg-btn__icon" width={16} height={16} aria-hidden="true" />
+                  <Icon className="cp-type__icon" />
                 </button>
               );
             })}
@@ -621,34 +932,53 @@ export default function ColorPalette({
         </Field>
       )}
 
-      {!isSwatch && showSwatches && (
-        <SwatchPicker colors={paletteColors} color={color} onSelect={setColor} />
-      )}
-
-      {!isSwatch && showPicker && (
+      {((isFull && style === "Single") || isSimple) && (
         <StopRow
-          stop={{ id: 0, value: min, color, opacity }}
+          stop={{ id: 0, value: min, color: config.color || color, opacity }}
+          colors={paletteColors}
           showValue={false}
           removable={false}
           onChange={(s) => {
-            setColor(s.color);
-            setOpacity(s.opacity);
+            commit({ color: s.color, opacity: s.opacity });
+            if (!onChange) setColor(s.color);
           }}
           onRemove={() => {}}
         />
       )}
 
-      {!isSimple && !isSwatch && style === "Gradient" && (
+      {isFull && style === "Gradient" && (
         <>
           <Field label="Distribution">
             <Dropdown
               value={distribution}
-              onChange={setDistribution}
-              options={["Linear", "Radial"].map((o) => ({ value: o, label: o }))}
+              onChange={(v) => commit({ distribution: v })}
+              options={["Linear", "Quantile", "Quantize"].map((o) => ({ value: o, label: o }))}
+            />
+          </Field>
+          <Field label="Gradient axis">
+            <div className="ia-segmented">
+              {(["X", "Y"] as const).map((axis) => (
+                <span
+                  key={axis}
+                  className={(config.gradientAxis || "Y") === axis ? "active" : ""}
+                  onClick={() => commit({ gradientAxis: axis })}
+                >
+                  {axis}
+                </span>
+              ))}
+            </div>
+          </Field>
+          <Field label="Reverse direction" inline>
+            <span
+              role="switch"
+              aria-checked={Boolean(config.gradientReverse)}
+              className={"ia-mini-switch" + (config.gradientReverse ? " on" : "")}
+              onClick={() => commit({ gradientReverse: !config.gradientReverse })}
             />
           </Field>
           <DataRangeEditor
             sorted={sorted}
+            colors={paletteColors}
             min={min}
             max={max}
             span={span}
@@ -658,16 +988,17 @@ export default function ColorPalette({
             onRemove={removeStop}
           />
           <button type="button" className="cp-add" onClick={addStop}>
-            <PlusIcon width={15} height={15} />
+            <PlusIcon width={16} height={16} />
             <span>Add Another Stop</span>
           </button>
         </>
       )}
 
-      {!isSimple && !isSwatch && style === "Steps" && (
+      {((isFull && style === "Steps") || isStepsOnly) && (
         <>
           <DataRangeEditor
             sorted={sorted}
+            colors={paletteColors}
             min={min}
             max={max}
             span={span}
@@ -678,7 +1009,7 @@ export default function ColorPalette({
             onRemove={removeStop}
           />
           <button type="button" className="cp-add" onClick={addStop}>
-            <PlusIcon width={15} height={15} />
+            <PlusIcon width={16} height={16} />
             <span>Add Another Stop</span>
           </button>
         </>

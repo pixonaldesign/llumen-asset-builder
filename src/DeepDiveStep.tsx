@@ -169,7 +169,7 @@ function ComponentCardActionMenu({
   if (!open || !style) return null;
 
   return createPortal(
-    <div ref={menuRef} className="dd-component-menu-flyout" style={style} role="menu" aria-label="Component actions">
+    <div ref={menuRef} className="dd-component-menu-flyout" style={style} role="menu" aria-label="Asset actions">
       <div className="dd-component-menu">
         <button type="button" className="dd-component-menu__item" role="menuitem" onClick={onConfigure}>
           Configure
@@ -844,10 +844,10 @@ export default function DeepDiveStep() {
             </button>
           </div>
 
-          <section className="dd-panel" aria-label={activeTab ? `${activeTab.name} components` : "Tab components"}>
+          <section className="dd-panel" aria-label={activeTab ? `${activeTab.name} assets` : "Tab assets"}>
             <button type="button" className="dd-panel__add" onClick={() => setAddModalOpen(true)}>
               <PlusIcon width={14} height={14} aria-hidden="true" />
-              <span>Add Component</span>
+              <span>Add Asset</span>
             </button>
 
             {activeTab && activeTab.components.length > 0 ? (
@@ -861,7 +861,7 @@ export default function DeepDiveStep() {
                 <span className="dd-panel__empty-icon" aria-hidden="true">
                   <GridFour size={28} weight="regular" />
                 </span>
-                <p>No components added to this tab</p>
+                <p>No assets added to this tab</p>
               </div>
             )}
           </section>
@@ -886,7 +886,7 @@ export default function DeepDiveStep() {
               <span className="dd-panel__empty-icon" aria-hidden="true">
                 <GridFour size={28} weight="regular" />
               </span>
-              <p>No components added to this tab</p>
+              <p>No assets added to this tab</p>
             </div>
           )}
         </section>

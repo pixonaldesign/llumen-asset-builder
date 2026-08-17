@@ -251,7 +251,7 @@ function FieldMapSelect({
         onClick={toggle}
       >
         <span>{label}</span>
-        <ChevronDownIcon width={14} height={14} aria-hidden="true" />
+        <ChevronDownIcon width={16} height={16} aria-hidden="true" />
       </button>
       {open &&
         pos &&
@@ -521,7 +521,7 @@ export default function FiltersStep() {
         onClick={toggleAddMenu}
       >
         <span>+ Add Filter</span>
-        <ChevronDownIcon width={14} height={14} aria-hidden="true" />
+        <ChevronDownIcon width={16} height={16} aria-hidden="true" />
       </button>
 
       <AddFilterMenu

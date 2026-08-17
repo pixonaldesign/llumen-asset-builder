@@ -189,7 +189,7 @@
   /* Frosted UI: pair translucent role fills (dropdown, tooltips, glazed surfaces) with this blur */
   --lc-backdrop-blur-ui: 30px;
   /* Modal dimming scrim (overlays; independent of light/dark page chrome) */
-  --lc-bg-modal-backdrop: color-mix(in srgb, var(--color-neutral-900) 70%, transparent);
+  --lc-bg-modal-backdrop: #000000a3;
 
   /* lc-color-refract-01 (data viz) */
   --color-refract-01-50: #f3f2fd;
@@ -336,34 +336,44 @@
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  /* Glazed surfaces (50% alpha; pair with backdrop-filter: blur(var(--lc-backdrop-blur-ui)) on frosted UI) */
-  --lc-surface-base: rgba(6, 14, 23, 0.5);
+  /* Glazed surfaces — Figma surface/level-0…3, subtle, sunken, overlay */
+  --lc-surface-base: #0e1014;
   /* Page / app column wash */
-  --lc-surface-1: rgba(13, 27, 42, 0.5);
+  --lc-surface-1: #1a1a1a80;
   /* Primary card, sidebars */
-  --lc-surface-2: rgba(26, 42, 61, 0.5);
+  --lc-surface-2: #2e2e2e80;
   /* Elevated panels, table headers, chrome rails */
-  --lc-surface-3: rgba(46, 63, 85, 0.5);
+  --lc-surface-3: #42424280;
   /* Overlays, modals, toasts */
+  --lc-surface-subtle: #ffffff0a;
+  --lc-surface-sunken: #0000003d;
+  --lc-surface-overlay: #0e1014;
   /* Legacy numeric aliases (older docs / chips) */
   --lc-surface-0: var(--lc-surface-base);
   --lc-surface-4: var(--lc-surface-3);
 
   /* Shell / layout backgrounds (not role-colored) */
-  --lc-bg-header: color-mix(in srgb, var(--color-neutral-800) 6%, transparent);
+  --lc-bg-header: var(--lc-surface-subtle);
   --lc-bg-base: var(--lc-surface-base);
-  --lc-bg-sidebar: color-mix(in srgb, var(--color-neutral-800) 60%, transparent);
+  --lc-bg-sidebar: var(--lc-surface-1);
+  --lc-bg-default: #ffffff1a;
+  --lc-bg-default-hover: #ffffff12;
+  --lc-bg-subtle: #ffffff0a;
+  --lc-bg-disabled: #ffffff12;
+  --lc-bg-modal-scrim: #000000a3;
 
   /* Structural borders (dark — page chrome, tables, inputs) */
-  --lc-border-default: color-mix(in srgb, var(--color-neutral-100) 10%, transparent);
-  --lc-border-strong: color-mix(in srgb, var(--color-neutral-50) 20%, transparent);
-  --lc-border-subtle: color-mix(in srgb, var(--color-neutral-50) 10%, transparent);
+  --lc-border-default: #ffffff1a;
+  --lc-border-strong: #ffffff1a;
+  --lc-border-subtle: #ffffff0a;
+  --lc-border-hover: #ffffff12;
+  --lc-border-disabled: #ffffff0a;
 
   /* Surface roles: cards, data, menus, overlays (see playground · Surfaces) */
-  --lc-bg-card: color-mix(in srgb, var(--color-neutral-100) 10%, transparent);
+  --lc-bg-card: var(--lc-bg-default);
   --lc-border-card: var(--lc-border-default);
 
-  --lc-bg-modal: color-mix(in srgb, var(--color-neutral-700) 80%, transparent);
+  --lc-bg-modal: var(--lc-surface-overlay);
   --lc-border-modal: var(--lc-border-default);
 
   --lc-bg-table: color-mix(in srgb, var(--color-neutral-100) 10%, transparent);
@@ -384,32 +394,32 @@ html[data-theme="dark"] {
      Per role: backgrounds → borders → text (Mapped to Tailwind bg-/border-/text-)
   ========================================= */
   /* Hierarchy / neutral ink (typography & icons) */
-  --lc-text-primary: var(--white);
-  --lc-text-secondary: var(--color-neutral-100);
-  --lc-text-tertiary: var(--color-neutral-300);
-  --lc-text-disabled: var(--color-neutral-100);
-  --lc-text-inverse: var(--color-neutral-900);
+  --lc-text-primary: #ffffff;
+  --lc-text-secondary: #ffffffb8;
+  --lc-text-tertiary: #ffffff7a;
+  --lc-text-disabled: #ffffff52;
+  --lc-text-inverse: #0c0e10;
   --lc-text-placeholder: var(--lc-text-tertiary);
 
   /* Neutral */
-  --lc-bg-neutral: var(--color-neutral-500);
-  --lc-bg-neutral-hover: var(--color-neutral-400);
-  --lc-bg-neutral-pressed: var(--color-neutral-500);
-  --lc-bg-neutral-subtle: color-mix(in srgb, var(--color-neutral-800) 50%, transparent);
-  --lc-bg-neutral-subtle-hover: var(--color-neutral-500);
-  --lc-bg-neutral-subtle-pressed: var(--color-neutral-500);
-  --lc-border-neutral: var(--color-neutral-500);
-  --lc-border-neutral-subtle: var(--color-neutral-300);
-  --lc-text-neutral: var(--color-neutral-300);
+  --lc-bg-neutral: #51575f;
+  --lc-bg-neutral-hover: color-mix(in srgb, var(--lc-bg-neutral) 85%, white);
+  --lc-bg-neutral-pressed: color-mix(in srgb, var(--lc-bg-neutral) 80%, black);
+  --lc-bg-neutral-subtle: #ffffff1a;
+  --lc-bg-neutral-subtle-hover: #ffffff12;
+  --lc-bg-neutral-subtle-pressed: #ffffff12;
+  --lc-border-neutral: #51575f;
+  --lc-border-neutral-subtle: #ffffff1a;
+  --lc-text-neutral: #d4d5d7;
   --lc-text-on-neutral: var(--lc-text-primary);
 
-  /* Form controls (inputs, textarea, select, search, date/time — separate from button neutral) */
-  --lc-bg-control: color-mix(in srgb, var(--color-neutral-500) 20%, transparent);
-  --lc-bg-control-disabled: var(--color-neutral-600);
-  --lc-border-control: color-mix(in srgb, var(--color-neutral-100) 20%, transparent);
-  --lc-border-control-hover: color-mix(in srgb, var(--color-neutral-50) 40%, transparent);
-  --lc-border-control-focus: var(--lc-border-brand);
-  --lc-border-control-disabled: var(--color-neutral-400);
+  /* Form controls — Figma form-control/input */
+  --lc-bg-control: #00000052;
+  --lc-bg-control-disabled: var(--lc-bg-disabled);
+  --lc-border-control: #ffffff1a;
+  --lc-border-control-hover: var(--lc-border-hover);
+  --lc-border-control-focus: #70aeff;
+  --lc-border-control-disabled: var(--lc-border-disabled);
   --lc-text-control: var(--lc-text-primary);
   --lc-text-control-placeholder: var(--lc-text-placeholder);
   --lc-text-control-disabled: var(--lc-text-disabled);
@@ -417,62 +427,63 @@ html[data-theme="dark"] {
   --lc-shadow-control-error-focus: 0 0 0 3px color-mix(in srgb, var(--lc-border-negative) 22%, transparent);
 
   /* Primary (brand) */
-  --lc-bg-brand: var(--color-primary-500);
-  --lc-bg-brand-hover: var(--color-primary-400);
-  --lc-bg-brand-pressed: var(--color-primary-500);
-  --lc-bg-brand-subtle: color-mix(in srgb, var(--color-primary-800) 50%, transparent);
-  --lc-bg-brand-subtle-hover: var(--color-primary-500);
-  --lc-bg-brand-subtle-pressed: var(--color-primary-500);
-  --lc-border-brand: var(--color-primary-500);
-  --lc-border-brand-subtle: var(--color-primary-300);
-  --lc-text-brand: var(--color-primary-300);
-  --lc-text-on-brand: var(--color-neutral-900);
+  --lc-bg-brand: #70aeff;
+  --lc-bg-brand-hover: color-mix(in srgb, var(--lc-bg-brand) 88%, white);
+  --lc-bg-brand-pressed: color-mix(in srgb, var(--lc-bg-brand) 85%, black);
+  --lc-bg-brand-subtle: #5f92d933;
+  --lc-bg-brand-subtle-hover: color-mix(in srgb, var(--lc-bg-brand) 28%, transparent);
+  --lc-bg-brand-subtle-pressed: color-mix(in srgb, var(--lc-bg-brand) 22%, transparent);
+  --lc-border-brand: #70aeff;
+  --lc-border-brand-subtle: #70aeff33;
+  --lc-text-brand: #70aeff;
+  --lc-text-brand-hover: color-mix(in srgb, var(--lc-text-brand) 88%, white);
+  --lc-text-on-brand: #0c0e10;
 
   /* Positive */
-  --lc-bg-positive: var(--color-positive-500);
-  --lc-bg-positive-hover: var(--color-positive-400);
-  --lc-bg-positive-pressed: var(--color-positive-500);
-  --lc-bg-positive-subtle: color-mix(in srgb, var(--color-positive-800) 50%, transparent);
-  --lc-bg-positive-subtle-hover: var(--color-positive-500);
-  --lc-bg-positive-subtle-pressed: var(--color-positive-500);
-  --lc-border-positive: var(--color-positive-500);
-  --lc-border-positive-subtle: var(--color-positive-300);
-  --lc-text-positive: var(--color-positive-300);
-  --lc-text-on-positive: var(--color-neutral-900);
+  --lc-bg-positive: #51c87d;
+  --lc-bg-positive-hover: color-mix(in srgb, var(--lc-bg-positive) 88%, white);
+  --lc-bg-positive-pressed: color-mix(in srgb, var(--lc-bg-positive) 85%, black);
+  --lc-bg-positive-subtle: #1e954a33;
+  --lc-bg-positive-subtle-hover: color-mix(in srgb, var(--lc-bg-positive) 28%, transparent);
+  --lc-bg-positive-subtle-pressed: color-mix(in srgb, var(--lc-bg-positive) 22%, transparent);
+  --lc-border-positive: #51c87d;
+  --lc-border-positive-subtle: #51c87d33;
+  --lc-text-positive: #51c87d;
+  --lc-text-on-positive: #0c0e10;
 
   /* Warning */
-  --lc-bg-warning: var(--color-warning-500);
-  --lc-bg-warning-hover: var(--color-warning-400);
-  --lc-bg-warning-pressed: var(--color-warning-500);
-  --lc-bg-warning-subtle: color-mix(in srgb, var(--color-warning-800) 50%, transparent);
-  --lc-bg-warning-subtle-hover: var(--color-warning-500);
-  --lc-bg-warning-subtle-pressed: var(--color-warning-500);
-  --lc-border-warning: var(--color-warning-500);
-  --lc-border-warning-subtle: var(--color-warning-300);
-  --lc-text-warning: var(--color-warning-300);
-  --lc-text-on-warning: var(--color-neutral-900);
+  --lc-bg-warning: #fbc155;
+  --lc-bg-warning-hover: color-mix(in srgb, var(--lc-bg-warning) 88%, white);
+  --lc-bg-warning-pressed: color-mix(in srgb, var(--lc-bg-warning) 85%, black);
+  --lc-bg-warning-subtle: #c88e2233;
+  --lc-bg-warning-subtle-hover: color-mix(in srgb, var(--lc-bg-warning) 28%, transparent);
+  --lc-bg-warning-subtle-pressed: color-mix(in srgb, var(--lc-bg-warning) 22%, transparent);
+  --lc-border-warning: #fbc155;
+  --lc-border-warning-subtle: #fbc15533;
+  --lc-text-warning: #fbc155;
+  --lc-text-on-warning: #0c0e10;
 
   /* Negative */
-  --lc-bg-negative: var(--color-negative-500);
-  --lc-bg-negative-hover: var(--color-negative-400);
-  --lc-bg-negative-pressed: var(--color-negative-500);
-  --lc-bg-negative-subtle: color-mix(in srgb, var(--color-negative-800) 50%, transparent);
-  --lc-bg-negative-subtle-hover: var(--color-negative-500);
-  --lc-bg-negative-subtle-pressed: var(--color-negative-500);
-  --lc-border-negative: var(--color-negative-500);
-  --lc-border-negative-subtle: var(--color-negative-300);
-  --lc-text-negative: var(--color-negative-300);
-  --lc-text-on-negative: var(--color-neutral-900);
+  --lc-bg-negative: #f17474;
+  --lc-bg-negative-hover: color-mix(in srgb, var(--lc-bg-negative) 88%, white);
+  --lc-bg-negative-pressed: color-mix(in srgb, var(--lc-bg-negative) 85%, black);
+  --lc-bg-negative-subtle: #be414133;
+  --lc-bg-negative-subtle-hover: color-mix(in srgb, var(--lc-bg-negative) 28%, transparent);
+  --lc-bg-negative-subtle-pressed: color-mix(in srgb, var(--lc-bg-negative) 22%, transparent);
+  --lc-border-negative: #f17474;
+  --lc-border-negative-subtle: #f1747433;
+  --lc-text-negative: #f17474;
+  --lc-text-on-negative: #0c0e10;
 
   /* =========================================
      ACCESSIBILITY (Mapped to Tailwind 'ring-')
      Used for focus states to ensure keyboard navigation visibility.
   ========================================= */
-  --lc-ring-brand: color-mix(in srgb, var(--color-primary-500) 30%, transparent);
-  --lc-ring-positive: color-mix(in srgb, var(--color-positive-500) 30%, transparent);
-  --lc-ring-warning: color-mix(in srgb, var(--color-warning-500) 30%, transparent);
-  --lc-ring-negative: color-mix(in srgb, var(--color-negative-500) 30%, transparent);
-  --lc-ring-neutral: color-mix(in srgb, var(--color-neutral-500) 30%, transparent);
+  --lc-ring-brand: color-mix(in srgb, var(--lc-bg-brand) 30%, transparent);
+  --lc-ring-positive: color-mix(in srgb, var(--lc-bg-positive) 30%, transparent);
+  --lc-ring-warning: color-mix(in srgb, var(--lc-bg-warning) 30%, transparent);
+  --lc-ring-negative: color-mix(in srgb, var(--lc-bg-negative) 30%, transparent);
+  --lc-ring-neutral: color-mix(in srgb, var(--lc-bg-neutral) 30%, transparent);
 
   /* =========================================
      SHADOWS (Mapped to Tailwind 'shadow-')
@@ -540,12 +551,18 @@ html[data-theme="light"] {
   /* Legacy numeric aliases (older docs / chips) */
   --lc-surface-0: var(--lc-surface-base);
   --lc-surface-4: var(--lc-surface-3);
+  --lc-surface-subtle: color-mix(in srgb, var(--color-neutral-900) 4%, transparent);
+  --lc-surface-sunken: color-mix(in srgb, var(--color-neutral-900) 6%, transparent);
+  --lc-surface-overlay: rgba(255, 255, 255, 0.92);
 
   /* Shell / layout backgrounds (not role-colored) */
   --lc-bg-header: color-mix(in srgb, var(--color-neutral-900) 5%, transparent);
   --lc-bg-base: var(--lc-surface-base);
-  /* Mirrors dark: translucent wash from neutral ink (light = low % of dark neutral) */
   --lc-bg-sidebar: color-mix(in srgb, var(--white) 70%, transparent);
+  --lc-bg-default: color-mix(in srgb, var(--color-neutral-900) 6%, transparent);
+  --lc-bg-default-hover: color-mix(in srgb, var(--color-neutral-900) 8%, transparent);
+  --lc-bg-subtle: color-mix(in srgb, var(--color-neutral-900) 4%, transparent);
+  --lc-bg-disabled: color-mix(in srgb, var(--color-neutral-900) 8%, transparent);
 
   /* Structural borders (light — page chrome, tables, inputs): inverse of dark (tint ink into transparent) */
   --lc-border-default: color-mix(in srgb, var(--color-neutral-900) 12%, transparent);
@@ -849,9 +866,8 @@ html[data-theme="dark"] .theme-toggle button[aria-pressed="true"] {
 .pg-pill,
 .pg-inp {
   font-family: 'Innovator Grotesk', system-ui, sans-serif;
-  font-size: 13px;
-  line-height: 1.25;
-  border-radius: var(--lc-ui-radius);
+  font-size: 14px;
+  line-height: 20px;
   transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 
@@ -859,10 +875,12 @@ html[data-theme="dark"] .theme-toggle button[aria-pressed="true"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   min-height: 36px;
-  padding: 0 16px;
+  padding: 8px 12px;
   font-weight: 500;
   border: none;
+  border-radius: var(--radius-full);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -979,33 +997,34 @@ html[data-theme="light"] .pg-demo-ghost-hover {
 /* —— Button modifiers: sizes & icon slot —— */
 .pg-btn--sm {
   min-height: 28px;
-  padding: 0 var(--space-lg);
+  padding: 4px 8px;
   font-size: 12px;
-  border-radius: var(--lc-ui-radius);
+  line-height: 16px;
+  border-radius: var(--radius-full);
 }
 
 .pg-btn--lg {
   min-height: 44px;
-  padding: 0 var(--space-3xl);
-  font-size: 15px;
-  border-radius: var(--lc-ui-radius);
+  padding: 12px 16px;
+  font-size: 14px;
+  border-radius: var(--radius-full);
 }
 
 .pg-btn__icon {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   display: block;
 }
 
 .pg-btn--sm .pg-btn__icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .pg-btn--lg .pg-btn__icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .pg-btn--icon-left,
@@ -1523,6 +1542,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   padding: 6px 12px;
   font-weight: 500;
   border: 1px solid var(--lc-border-default);
+  border-radius: var(--radius-full);
   background: var(--lc-bg-neutral);
   color: var(--lc-text-secondary);
   cursor: pointer;
@@ -1598,19 +1618,22 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 }
 
 .pg-field-lbl {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--lc-text-primary);
+  line-height: 20px;
+  color: var(--lc-text-secondary);
 }
 
 .pg-inp {
   width: 100%;
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 36px;
+  padding: 8px 12px;
   border: 1px solid var(--lc-border-control);
   background: var(--lc-bg-control);
   color: var(--lc-text-control);
   border-radius: var(--lc-ui-radius);
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
 }
 
 .pg-inp::placeholder {
@@ -1929,40 +1952,207 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   background: var(--lc-bg-table-row-hover);
 }
 
-/* Dropdown field + popover menu */
+/* Input field — Figma Input Field 769:5885 */
+.input,
+.general-info-field__input,
+.access-step__invite-input,
+.ds-url-bar__input,
+.ds-param-row__input,
+.text-field input,
+.color-field input,
+.cp-picker-search input,
+.topbar__search,
+.settings__search,
+.ia-surface.ia-text,
+.ia-surface.ia-number {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  min-height: 36px;
+  padding: 8px 12px;
+  overflow: hidden;
+  border-radius: var(--lc-ui-radius);
+  border: 1px solid var(--lc-border-control);
+  background: var(--lc-bg-control);
+  color: var(--lc-text-control);
+  font-family: var(--lc-font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  outline: none;
+  appearance: none;
+  transition: border-color 0.14s, background-color 0.14s;
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+}
+
+.input::placeholder,
+.general-info-field__input::placeholder,
+.access-step__invite-input::placeholder,
+.ds-url-bar__input::placeholder,
+.ds-param-row__input::placeholder,
+.text-field input::placeholder,
+.color-field input::placeholder,
+.cp-picker-search input::placeholder,
+.topbar__search input::placeholder,
+.settings__search-input::placeholder,
+.ia-text input::placeholder {
+  color: var(--lc-text-control-placeholder);
+}
+
+.input:focus,
+.input:focus-visible,
+.general-info-field__input:focus,
+.general-info-field__input:focus-visible,
+.access-step__invite-input:focus,
+.access-step__invite-input:focus-visible,
+.ds-url-bar__input:focus,
+.ds-url-bar__input:focus-visible,
+.ds-param-row__input:focus,
+.ds-param-row__input:focus-visible,
+.text-field input:focus,
+.color-field input:focus,
+.cp-picker-search input:focus,
+.topbar__search:focus-within,
+.settings__search:focus-within,
+.ia-surface.ia-text:focus-within,
+.ia-surface.ia-number:focus-within {
+  border-color: var(--lc-border-control-focus);
+  box-shadow: none;
+  outline: none;
+}
+
+.input.is-error,
+.input[aria-invalid='true'],
+.general-info-field__input.is-error,
+.general-info-field__input[aria-invalid='true'],
+.access-step__invite-input.is-error,
+.access-step__invite-input[aria-invalid='true'],
+.ds-url-bar__input.is-error,
+.ds-url-bar__input[aria-invalid='true'],
+.ds-param-row__input.is-error,
+.ds-param-row__input[aria-invalid='true'] {
+  border-color: var(--lc-border-negative);
+}
+
+textarea.general-info-field__input {
+  height: auto;
+  min-height: 112px;
+  overflow: auto;
+  line-height: 20px;
+  resize: vertical;
+}
+
+.field__label,
+.general-info-field__label {
+  font-family: var(--lc-font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--lc-text-secondary);
+}
+
+.field__hint {
+  font-family: var(--lc-font-sans);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--lc-text-tertiary);
+}
+
+/* Dropdown field + popover menu — Figma DropDown 2196:24471 */
 .pg-surface-dropdown-field {
   position: relative;
   max-width: 360px;
   width: 100%;
 }
 
-.pg-surface-dropdown-trigger {
+.pg-surface-dropdown-trigger,
+.cp-picker-trigger,
+.filters-field-select,
+.filters-step__add,
+.access-level-select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-md);
+  gap: 10px;
+  box-sizing: border-box;
   width: 100%;
-  min-height: 40px;
-  padding: 0 var(--space-md);
+  min-height: 36px;
+  height: 36px;
+  padding: 8px 12px;
+  overflow: hidden;
   border-radius: var(--lc-ui-radius);
-  border: 1px solid var(--lc-border-control);
-  background: var(--lc-bg-control);
-  color: var(--lc-text-control);
-  font-family: 'Innovator Grotesk', system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 500;
+  border: 1px solid var(--lc-border-default);
+  background-color: var(--lc-bg-default);
+  background-image: none;
+  color: var(--lc-text-primary);
+  font-family: var(--lc-font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s, background 0.15s;
+  appearance: none;
+  transition: border-color 0.14s, background-color 0.14s, background-image 0.14s, color 0.14s;
   -webkit-tap-highlight-color: transparent;
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
 }
 
-.pg-surface-dropdown-trigger:hover {
-  border-color: var(--lc-border-control-hover);
+.pg-surface-dropdown-trigger:hover,
+.cp-picker-trigger:hover,
+.filters-field-select:hover,
+.filters-step__add:hover,
+.access-level-select:hover {
+  border-color: color-mix(in srgb, var(--white) 16%, transparent);
+  background-color: var(--lc-bg-default);
+  background-image: linear-gradient(var(--lc-bg-default-hover), var(--lc-bg-default-hover));
 }
 
-.pg-surface-dropdown-trigger[aria-expanded='true'] {
+.pg-surface-dropdown-trigger[aria-expanded='true'],
+.pg-surface-dropdown-trigger:focus-visible,
+.cp-picker-trigger.is-open,
+.cp-picker-trigger:focus-visible,
+.filters-field-select.is-open,
+.filters-field-select:focus-visible,
+.filters-step__add.is-open,
+.filters-step__add:focus-visible,
+.access-level-select.is-open,
+.access-level-select:focus-visible {
   border-color: var(--lc-border-control-focus);
+  background-color: var(--lc-bg-default);
+  background-image: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.pg-surface-dropdown-trigger:active:not([aria-expanded='true']),
+.cp-picker-trigger:active:not(.is-open),
+.filters-field-select:active:not(.is-open),
+.filters-step__add:active:not(.is-open),
+.access-level-select:active:not(.is-open) {
+  border-color: var(--lc-border-default);
+  background-color: var(--lc-bg-default);
+  background-image: none;
+}
+
+.pg-surface-dropdown-trigger.is-placeholder,
+.cp-picker-trigger.is-placeholder,
+.filters-field-select.is-placeholder,
+.access-level-select.is-placeholder {
+  color: var(--lc-text-tertiary);
+}
+
+.pg-surface-dropdown-trigger.is-error,
+.pg-surface-dropdown-trigger[aria-invalid='true'],
+.cp-picker-trigger.is-error,
+.cp-picker-trigger[aria-invalid='true'],
+.filters-field-select.is-error,
+.filters-field-select[aria-invalid='true'],
+.access-level-select.is-error,
+.access-level-select[aria-invalid='true'] {
+  border-color: var(--lc-border-negative);
 }
 
 .pg-surface-dropdown-trigger__text {
@@ -1973,49 +2163,77 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   white-space: nowrap;
 }
 
-.pg-surface-dropdown-trigger__caret {
+.pg-surface-dropdown-trigger__caret,
+.cp-picker-trigger .cp-caret,
+.access-level-select__caret,
+.filters-field-select svg,
+.filters-step__add svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: var(--lc-text-tertiary);
+  color: currentColor;
+  opacity: 0.72;
+}
+
+.pg-surface-dropdown-menu,
+.cp-picker-menu,
+.filters-field-menu,
+.access-level-menu {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px;
+  border-radius: var(--lc-ui-radius);
+  border: 1px solid var(--lc-border-default);
+  background: var(--lc-surface-3);
+  box-shadow:
+    0 12px 16px -4px rgba(10, 13, 18, 0.08),
+    0 4px 6px -2px rgba(10, 13, 18, 0.03),
+    0 2px 2px -1px rgba(10, 13, 18, 0.04);
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
 }
 
 .pg-surface-dropdown-menu {
   /* Portaled to document.body in JS so backdrop-filter samples the real page (Chromium + nested shell blur). */
   position: fixed;
   z-index: 10070;
-  margin: 0;
-  box-sizing: border-box;
-  border-radius: var(--lc-ui-radius);
-  border: 1px solid var(--lc-border-dropdown);
-  background: var(--lc-bg-dropdown);
-  box-shadow: var(--lc-shadow-dropdown);
-  padding: var(--space-xs);
-  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
-  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
 }
 
 .pg-surface-dropdown-menu[hidden] {
   display: none !important;
 }
 
-.pg-surface-dropdown__item {
+.pg-surface-dropdown__item,
+.cp-picker-row,
+.filters-field-menu__option,
+.access-level-menu__option {
   display: block;
   width: 100%;
-  text-align: left;
-  padding: var(--space-sm) var(--space-md);
+  min-height: 36px;
+  padding: 8px 10px;
   border: none;
-  border-radius: calc(var(--lc-ui-radius) - 2px);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--lc-text-primary);
-  font-family: 'Innovator Grotesk', system-ui, sans-serif;
-  font-size: 13px;
+  font-family: var(--lc-font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: left;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, color 0.12s;
 }
 
-.pg-surface-dropdown__item:hover {
-  background: var(--lc-bg-neutral-subtle);
+.pg-surface-dropdown__item:hover,
+.pg-surface-dropdown__item.is-selected,
+.cp-picker-row:hover,
+.cp-picker-row.is-selected,
+.filters-field-menu__option:hover,
+.filters-field-menu__option.is-selected,
+.access-level-menu__option:hover,
+.access-level-menu__option.is-selected {
+  background: var(--lc-bg-default);
+  color: var(--lc-text-primary);
 }
 
 /* Tooltip anchors + flyout */
@@ -2161,24 +2379,25 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs);
+  gap: 4px;
+  padding: 4px;
   margin-bottom: var(--space-2xl);
-  border-radius: var(--lc-ui-radius);
+  border-radius: var(--radius-xl);
   border: 1px solid var(--lc-border-default);
-  background: var(--lc-surface-2);
+  background: var(--lc-bg-default);
   -webkit-backdrop-filter: blur(30px);
   backdrop-filter: blur(30px);
 }
 
 .pg-play-tab {
   font-family: 'Innovator Grotesk', system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.2;
-  padding: var(--space-sm) var(--space-lg);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  height: 28px;
+  padding: 4px 8px;
   border: none;
-  border-radius: var(--lc-ui-radius);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--lc-text-secondary);
   cursor: pointer;
@@ -2190,12 +2409,14 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 
 .pg-play-tab:hover {
   color: var(--lc-text-primary);
-  background: var(--lc-bg-neutral-subtle);
 }
 
 .pg-play-tab.active {
-  color: var(--lc-text-brand);
-  background: var(--lc-bg-brand-subtle);
+  color: var(--lc-text-primary);
+  font-weight: 500;
+  background: var(--lc-bg-default);
+  -webkit-backdrop-filter: blur(46px);
+  backdrop-filter: blur(46px);
 }
 
 .pg-play-tab:focus-visible {

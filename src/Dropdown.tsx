@@ -67,8 +67,10 @@ export default function Dropdown({
   }, [open, syncMenuPosition]);
 
   const selected = options.find((o) => o.value === value);
+  const isEmptyChoice = allowEmpty && value === "";
+  const isPlaceholder = !selected && !isEmptyChoice;
   const displayLabel =
-    value === "" && allowEmpty ? emptyLabel : selected?.label ?? (value || placeholder);
+    isEmptyChoice ? emptyLabel : selected?.label ?? (value || placeholder);
 
   const pick = (next: string) => {
     onChange(next);
@@ -80,7 +82,12 @@ export default function Dropdown({
       <button
         ref={triggerRef}
         type="button"
-        className={"cp-picker-trigger" + (open ? " is-open" : "") + (compact ? " cp-picker-trigger--compact" : "")}
+        className={
+          "cp-picker-trigger" +
+          (open ? " is-open" : "") +
+          (compact ? " cp-picker-trigger--compact" : "") +
+          (isPlaceholder ? " is-placeholder" : "")
+        }
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label={ariaLabel}

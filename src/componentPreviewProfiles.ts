@@ -1,11 +1,50 @@
 import type { ComponentLibraryItem } from "./componentCatalog";
 
+export type MarkTip = {
+  label: string;
+  value: number;
+  category: string;
+  timestamp: string;
+  unit: string;
+  status: string;
+};
+
 export type PreviewSeries = {
   values?: number[];
+  labels?: string[];
   gaugeValue?: number;
   kpiPrimary?: string;
   kpiUnit?: string;
   kpiComparison?: string;
+  legend?: string;
+  title?: string;
+  insight?: string;
+  badge?: { text: string; tone: "positive" | "warning" | "negative" | "neutral"; color?: string };
+  markTips?: MarkTip[];
+  scatterPoints?: { x: number; y: number; r?: number; category?: string }[];
+  table?: { columns: string[]; headers?: string[]; rows: Record<string, string | number>[] };
+  groups?: { name: string; values: number[] }[];
+  ranges?: { label: string; low: number; high: number }[];
+  reference?: number;
+  maxTotal?: number;
+  storyKpi?: { value: string; unit: string };
+  kpiTiles?: { label: string; secondary?: string; value: string; status: string }[];
+  mapPoints?: {
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    value: number;
+    category: string;
+    status: string;
+    origin?: string;
+    destination?: string;
+    direction?: string;
+    speed?: number;
+  }[];
+  mapArcs?: { from: string; to: string; value: number }[];
+  polar?: { direction: string; speed: number; frequency: number }[];
+  availability?: { label: string; cells: number[] }[];
 };
 
 export type ComponentPreviewProfile = {

@@ -12,7 +12,7 @@ import {
 
 const NAV: { label: string; d: string }[] = [
   { label: "Organization", d: "M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4" },
-  { label: "Components", d: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" },
+  { label: "Assets", d: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" },
   { label: "Filters", d: "M4 5h16l-6 8v6l-4-2v-4z" },
   { label: "Events", d: "M3 5h18v16H3zM3 9h18M8 3v4M16 3v4" },
   { label: "AI Models", d: "M12 3l2.5 5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-1z" },
@@ -64,7 +64,7 @@ export default function App() {
           <span className="brand__name">Lumen</span>
         </div>
         <div className="topbar__search">
-          <SearchIcon width={15} height={15} />
+          <SearchIcon width={20} height={20} />
           <input placeholder="Search" />
         </div>
         <div className="topbar__actions">
@@ -93,7 +93,7 @@ export default function App() {
               <button
                 key={n.label}
                 className={
-                  "nav-item" + (n.label === "Components" ? " is-active" : "")
+                  "nav-item" + (n.label === "Assets" ? " is-active" : "")
                 }
               >
                 <Glyph d={n.d} width={16} height={16} />

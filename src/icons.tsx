@@ -1,4 +1,4 @@
-import type { SVGProps } from "react";
+import { useId, type SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -224,35 +224,35 @@ export const RequiredIcon = (p: IconProps) => (
   </svg>
 );
 
-/** Single — one solid filled pill */
+/** Single — solid 24×8 pill */
 export const SinglePillIcon = (p: IconProps) => (
-  <svg {...base(p)}>
-    <rect x="2" y="8.5" width="20" height="7" rx="3.5" fill="currentColor" stroke="none" />
+  <svg width={24} height={8} viewBox="0 0 24 8" fill="none" aria-hidden="true" {...p}>
+    <rect x="0.5" y="0.5" width="23" height="7" rx="3.5" fill="currentColor" stroke="currentColor" strokeOpacity="0.35" />
   </svg>
 );
 
-/** Gradient — pill with a left-to-right gradient fill */
+/** Gradient — 24×8 pill with a left-to-right fade */
 export const GradientPillIcon = (p: IconProps) => {
-  const gid = "cp-grad-pill";
+  const gid = `cp-grad-pill-${useId().replace(/:/g, "")}`;
   return (
-    <svg {...base(p)}>
+    <svg width={24} height={8} viewBox="0 0 24 8" fill="none" aria-hidden="true" {...p}>
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stopColor="currentColor" stopOpacity="0.2" />
           <stop offset="1" stopColor="currentColor" stopOpacity="1" />
         </linearGradient>
       </defs>
-      <rect x="2" y="8.5" width="20" height="7" rx="3.5" fill={`url(#${gid})`} stroke="none" />
+      <rect x="0.5" y="0.5" width="23" height="7" rx="3.5" fill={`url(#${gid})`} stroke="currentColor" strokeOpacity="0.35" />
     </svg>
   );
 };
 
-/** Steps — three dots */
+/** Steps — three 8px dots */
 export const StepsDotsIcon = (p: IconProps) => (
-  <svg {...base(p)}>
-    <circle cx="6" cy="12" r="1.8" fill="currentColor" stroke="none" />
-    <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
-    <circle cx="18" cy="12" r="1.8" fill="currentColor" stroke="none" />
+  <svg width={26} height={8} viewBox="0 0 26 8" fill="none" aria-hidden="true" {...p}>
+    <circle cx="4" cy="4" r="3.5" fill="currentColor" fillOpacity="0.72" stroke="currentColor" strokeOpacity="0.35" />
+    <circle cx="13" cy="4" r="3.5" fill="currentColor" fillOpacity="0.52" stroke="currentColor" strokeOpacity="0.35" />
+    <circle cx="22" cy="4" r="3.5" fill="currentColor" fillOpacity="0.36" stroke="currentColor" strokeOpacity="0.35" />
   </svg>
 );
 

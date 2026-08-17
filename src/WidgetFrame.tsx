@@ -46,7 +46,7 @@ export default function WidgetFrame({
             ref={menuButtonRef}
             type="button"
             className={"menu-button" + (menuOpen ? " is-open" : "")}
-            aria-label="Component actions"
+            aria-label="Asset actions"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={onMenuClick}

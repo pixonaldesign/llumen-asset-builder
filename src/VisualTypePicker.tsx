@@ -1,25 +1,12 @@
-import { Fragment, useState, type ReactNode } from "react";
-import { ChartBar, MapTrifold } from "@phosphor-icons/react";
-import { ChevronDownIcon } from "./icons";
+import { useState } from "react";
+import { Check } from "@phosphor-icons/react";
 import { VISUAL_CATEGORIES, visualTypeById, visualTypesForCategory } from "./visualCatalog";
 import type { VisualCategoryId, VisualType } from "./visualCatalog";
 import VisualArtwork from "./VisualArtwork";
 
-const CATEGORY_ICONS: Record<VisualCategoryId, typeof ChartBar> = {
-  chart: ChartBar,
-  "map-layer": MapTrifold,
-};
-
-const CATEGORY_GRID_CLASS: Partial<Record<VisualCategoryId, string>> = {
-  chart: "viz-type-grid--chart",
-  "map-layer": "viz-type-grid--map",
-};
-
 type Props = {
   selectedId: string | null;
   onSelect: (visual: VisualType) => void;
-  onConfirmSelection?: () => void;
-  onExpandedChange?: (expanded: Record<VisualCategoryId, boolean>) => void;
 };
 
 function VisualCard({
@@ -31,157 +18,79 @@ function VisualCard({
   selected: boolean;
   onSelect: (visual: VisualType) => void;
 }) {
-  const isChart = visual.category === "chart";
-  const isMap = visual.category === "map-layer";
-
   return (
     <button
       type="button"
-      className={
-        "viz-type-card" +
-        (selected ? " is-selected" : "") +
-        (isChart ? " viz-type-card--chart" : "") +
-        (isMap ? " viz-type-card--map" : "")
-      }
+      className={"viz-type-card" + (selected ? " is-selected" : "")}
       aria-pressed={selected}
       onClick={() => onSelect(visual)}
     >
       <span className="viz-type-card__artwrap">
-        <VisualArtwork visualId={visual.id} category={visual.category} size={isMap ? "map" : "card"} />
+        <VisualArtwork
+          visualId={visual.id}
+          category={visual.category}
+          size={visual.category === "map-layer" ? "map" : "card"}
+        />
       </span>
-      <span className="viz-type-card__label">{visual.label}</span>
+      <span className="viz-type-card__body">
+        <span className="viz-type-card__heading">
+          <span className="viz-type-card__title">{visual.label}</span>
+          {selected && (
+            <Check className="viz-type-card__check" size={16} weight="bold" aria-hidden="true" />
+          )}
+        </span>
+        <span className="viz-type-card__desc">{visual.description}</span>
+      </span>
     </button>
   );
 }
 
-function CategorySection({
-  categoryId,
-  label,
-  icon,
-  open,
-  showSelect,
-  onToggle,
-  onConfirm,
-  children,
-}: {
-  categoryId: VisualCategoryId;
-  label: string;
-  icon: ReactNode;
-  open: boolean;
-  showSelect: boolean;
-  onToggle: () => void;
-  onConfirm: () => void;
-  children: ReactNode;
-}) {
-  const gridClass = CATEGORY_GRID_CLASS[categoryId] ?? "";
-  const gridId = `viz-cat-grid-${categoryId}`;
-
-  return (
-    <section
-      className={"viz-type-section" + (open ? "" : " is-collapsed")}
-      aria-labelledby={`viz-cat-${categoryId}`}
-    >
-      <div className="viz-type-section__head">
-        <button
-          type="button"
-          className="viz-type-section__toggle"
-          aria-expanded={open}
-          aria-controls={gridId}
-          onClick={onToggle}
-        >
-          <span className="viz-type-section__icon" aria-hidden="true">
-            {icon}
-          </span>
-          <span id={`viz-cat-${categoryId}`} className="viz-type-section__title">
-            {label}
-          </span>
-        </button>
-        <div className="viz-type-section__actions">
-          {showSelect && (
-            <button
-              type="button"
-              className="pg-btn pg-btn--primary pg-btn--sm viz-type-section__select"
-              onClick={onConfirm}
-            >
-              <span className="viz-type-section__select-label">Select</span>
-            </button>
-          )}
-          <button
-            type="button"
-            className="viz-type-section__caret-btn"
-            aria-expanded={open}
-            aria-controls={gridId}
-            aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
-            onClick={onToggle}
-          >
-            <ChevronDownIcon className="viz-type-section__caret" width={16} height={16} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-      {open && (
-        <div id={gridId} className={"viz-type-grid" + (gridClass ? ` ${gridClass}` : "")}>
-          {children}
-        </div>
-      )}
-    </section>
-  );
-}
-
-export default function VisualTypePicker({
-  selectedId,
-  onSelect,
-  onConfirmSelection,
-  onExpandedChange,
-}: Props) {
-  const [expanded, setExpanded] = useState<Record<VisualCategoryId, boolean>>({
-    chart: true,
-    "map-layer": true,
-  });
+export default function VisualTypePicker({ selectedId, onSelect }: Props) {
   const selectedVisual = selectedId ? visualTypeById(selectedId) : null;
-
-  const toggleCategory = (categoryId: VisualCategoryId) => {
-    setExpanded((current) => {
-      const next = { ...current, [categoryId]: !current[categoryId] };
-      onExpandedChange?.(next);
-      return next;
-    });
-  };
+  const [activeTab, setActiveTab] = useState<VisualCategoryId>(
+    selectedVisual?.category ?? "chart",
+  );
+  const items = visualTypesForCategory(activeTab);
 
   return (
     <div className="viz-type-picker">
       <header className="viz-type-picker__head">
         <h2 className="viz-type-picker__title">Select Visualization Type</h2>
+        <div className="viz-type-picker__tabs" role="tablist" aria-label="Visualization category">
+          {VISUAL_CATEGORIES.map((category) => {
+            const selected = activeTab === category.id;
+            return (
+              <button
+                key={category.id}
+                type="button"
+                role="tab"
+                id={`viz-tab-${category.id}`}
+                aria-selected={selected}
+                aria-controls={`viz-panel-${category.id}`}
+                className={"viz-type-picker__tab" + (selected ? " is-active" : "")}
+                onClick={() => setActiveTab(category.id)}
+              >
+                {category.label}
+              </button>
+            );
+          })}
+        </div>
       </header>
 
-      <div className="viz-type-picker__sections">
-        {VISUAL_CATEGORIES.map((category, index) => {
-          const CategoryIcon = CATEGORY_ICONS[category.id];
-          const items = visualTypesForCategory(category.id);
-
-          return (
-            <Fragment key={category.id}>
-              {index > 0 && <div className="viz-type-sections__divider" aria-hidden="true" />}
-              <CategorySection
-                categoryId={category.id}
-                label={category.label}
-                icon={<CategoryIcon size={18} weight="regular" />}
-                open={expanded[category.id]}
-                showSelect={selectedVisual?.category === category.id}
-                onToggle={() => toggleCategory(category.id)}
-                onConfirm={() => onConfirmSelection?.()}
-              >
-                {items.map((visual) => (
-                  <VisualCard
-                    key={visual.id}
-                    visual={visual}
-                    selected={selectedId === visual.id}
-                    onSelect={onSelect}
-                  />
-                ))}
-              </CategorySection>
-            </Fragment>
-          );
-        })}
+      <div
+        id={`viz-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`viz-tab-${activeTab}`}
+        className="viz-type-grid"
+      >
+        {items.map((visual) => (
+          <VisualCard
+            key={visual.id}
+            visual={visual}
+            selected={selectedId === visual.id}
+            onSelect={onSelect}
+          />
+        ))}
       </div>
     </div>
   );
