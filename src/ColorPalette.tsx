@@ -26,6 +26,7 @@ import {
   type ColorStop,
   type PaletteFamily,
   type PaletteStyle,
+  type RepeatableRow,
 } from "./previewTheme";
 
 type PaletteType = "Sequential" | "Categorical" | "Diverging";
@@ -35,6 +36,7 @@ interface Stop {
   value: number;
   color: string;
   opacity: number;
+  label?: string;
 }
 
 interface PalettePreset {
@@ -83,19 +85,25 @@ const PaletteContext = createContext<{
 } | null>(null);
 
 const DataRangeContext = createContext<DataRange | null>(null);
+const PaletteChromeContext = createContext({ hideGradientAxis: false });
 
 export function ColorPaletteProvider({
   children,
   dataRange,
+  hideGradientAxis = false,
 }: {
   children: ReactNode;
   dataRange?: DataRange | null;
+  hideGradientAxis?: boolean;
 }) {
   const [selection, setSelection] = useState<PaletteSelection>(DEFAULT_SELECTION);
   const value = useMemo(() => ({ selection, setSelection }), [selection]);
+  const chrome = useMemo(() => ({ hideGradientAxis }), [hideGradientAxis]);
   return (
     <PaletteContext.Provider value={value}>
-      <DataRangeContext.Provider value={dataRange ?? null}>{children}</DataRangeContext.Provider>
+      <PaletteChromeContext.Provider value={chrome}>
+        <DataRangeContext.Provider value={dataRange ?? null}>{children}</DataRangeContext.Provider>
+      </PaletteChromeContext.Provider>
     </PaletteContext.Provider>
   );
 }
@@ -120,10 +128,29 @@ function usePaletteSelection(): [PaletteSelection, (preset: PalettePreset) => vo
 let uid = 0;
 const nextId = () => ++uid;
 
+const DISTRIBUTION_OPTIONS = ["Linear", "Exponential"] as const;
+
 function niceNum(n: number, span: number): number {
   if (!Number.isFinite(n)) return 0;
   if (span >= 10) return Math.round(n);
   return Number(n.toFixed(2));
+}
+
+function unitAlong(i: number, count: number, distribution: string): number {
+  if (count <= 1) return 0;
+  const t = i / (count - 1);
+  if (!distribution.toLowerCase().startsWith("exp")) return t;
+  const k = 2.2;
+  return (Math.exp(k * t) - 1) / (Math.exp(k) - 1);
+}
+
+function redistributeStops(stops: Stop[], min: number, max: number, distribution: string): Stop[] {
+  const ordered = [...stops].sort((a, b) => a.value - b.value);
+  const span = max - min;
+  return ordered.map((s, i) => ({
+    ...s,
+    value: niceNum(min + unitAlong(i, ordered.length, distribution) * span, span),
+  }));
 }
 
 function formatRangeNum(n: number): string {
@@ -156,13 +183,19 @@ function remapStopValues(stops: Stop[], min: number, max: number): Stop[] {
   }));
 }
 
-function spreadStops(colors: string[], min: number, max: number, count: number): Stop[] {
+function spreadStops(
+  colors: string[],
+  min: number,
+  max: number,
+  count: number,
+  distribution = "Linear",
+): Stop[] {
   const ramp = colors.length ? colors : ["#eff5fe", "#2b61f5"];
   const n = Math.max(2, count);
   const span = max - min;
   return Array.from({ length: n }, (_, i) => {
-    const t = n === 1 ? 0 : i / (n - 1);
-    const colorIndex = Math.round(t * (ramp.length - 1));
+    const t = unitAlong(i, n, distribution);
+    const colorIndex = Math.round((n === 1 ? 0 : i / (n - 1)) * (ramp.length - 1));
     return {
       id: nextId(),
       value: niceNum(min + t * span, span),
@@ -172,8 +205,8 @@ function spreadStops(colors: string[], min: number, max: number, count: number):
   });
 }
 
-function gradientStops(colors: string[], min = 0, max = 100): Stop[] {
-  return spreadStops(colors, min, max, 3);
+function gradientStops(colors: string[], min = 0, max = 100, distribution = "Linear"): Stop[] {
+  return spreadStops(colors, min, max, 3, distribution);
 }
 
 function toUiStops(list: ColorStop[]): Stop[] {
@@ -387,6 +420,7 @@ function StopRow({
   stop,
   colors,
   showValue,
+  showLabel,
   showRemove,
   removable,
   onChange,
@@ -395,6 +429,7 @@ function StopRow({
   stop: Stop;
   colors: string[];
   showValue: boolean;
+  showLabel?: boolean;
   showRemove?: boolean;
   removable: boolean;
   onChange: (s: Stop) => void;
@@ -468,7 +503,15 @@ function StopRow({
     <div className="cp-stop-wrap">
       <div className="cp-stop">
         <div className="cp-stop-half cp-stop-half--color">
-          {showValue ? (
+          {showLabel ? (
+            <input
+              className="cp-stop-value"
+              aria-label="Status value"
+              placeholder="Status"
+              value={stop.label ?? ""}
+              onChange={(e) => onChange({ ...stop, label: e.target.value })}
+            />
+          ) : showValue ? (
             <input
               className="cp-stop-value"
               inputMode="numeric"
@@ -667,47 +710,48 @@ function DataRangeEditor({
 
   return (
     <>
-      <div className="cp-range-head cp-range-head--combined">
-        <span className="cp-range-combined">
-          <span className="cp-label">Data range:</span> {formatRangeNum(min)} - {formatRangeNum(max)}
-        </span>
-      </div>
-
-      <div className="cp-track-area cp-track-area--steps">
-        {marks.map((mark, i) => {
-          const pct = stopPercent(mark.value, min, span);
-          const isEnd = markAlign(i, marks.length) === "end";
-          return (
-            <div key={`mark-${mark.id}`} className="cp-track-mark" style={{ left: knobLeft(pct) }}>
-              <span className="cp-track-mark__tick" aria-hidden="true" />
-              <span
-                className={
-                  "cp-track-mark__label" + (isEnd ? " cp-track-mark__label--before" : " cp-track-mark__label--after")
-                }
-              >
-                {mark.label}
-              </span>
-            </div>
-          );
-        })}
-        <div
-          ref={trackRef}
-          className={"cp-track" + (stepsStyle ? " cp-track--steps" : " cp-track--gradient")}
-          style={{ background: trackBg }}
-        >
-          {marks.map((mark) => {
+      <div className="cp-range-block">
+        <div className="cp-track-area cp-track-area--steps">
+          {marks.map((mark, i) => {
             const pct = stopPercent(mark.value, min, span);
+            const isEnd = markAlign(i, marks.length) === "end";
             return (
-              <button
-                key={mark.id}
-                type="button"
-                className="cp-track-knob cp-track-knob--step"
-                style={{ left: knobLeft(pct) }}
-                aria-label={`Stop at ${mark.label}`}
-                onPointerDown={(e) => onKnobPointerDown(e, mark.id)}
-              />
+              <div key={`mark-${mark.id}`} className="cp-track-mark" style={{ left: knobLeft(pct) }}>
+                <span className="cp-track-mark__tick" aria-hidden="true" />
+                <span
+                  className={
+                    "cp-track-mark__label" + (isEnd ? " cp-track-mark__label--before" : " cp-track-mark__label--after")
+                  }
+                >
+                  {mark.label}
+                </span>
+              </div>
             );
           })}
+          <div
+            ref={trackRef}
+            className={"cp-track" + (stepsStyle ? " cp-track--steps" : " cp-track--gradient")}
+            style={{ background: trackBg }}
+          >
+            {marks.map((mark) => {
+              const pct = stopPercent(mark.value, min, span);
+              return (
+                <button
+                  key={mark.id}
+                  type="button"
+                  className="cp-track-knob cp-track-knob--step"
+                  style={{ left: knobLeft(pct) }}
+                  aria-label={`Stop at ${mark.label}`}
+                  onPointerDown={(e) => onKnobPointerDown(e, mark.id)}
+                />
+              );
+            })}
+          </div>
+        </div>
+        <div className="cp-range-head cp-range-head--combined">
+          <span className="cp-range-combined">
+            <span className="cp-label">Data range:</span> {formatRangeNum(min)} - {formatRangeNum(max)}
+          </span>
         </div>
       </div>
 
@@ -729,6 +773,91 @@ function DataRangeEditor({
   );
 }
 
+export function CategoryColorMap({
+  rows,
+  onChange,
+}: {
+  rows: RepeatableRow[];
+  onChange: (next: RepeatableRow[]) => void;
+}) {
+  const [selection, applyPreset] = usePaletteSelection();
+  const colors = selection.colors.length ? selection.colors : DEFAULT_COLOR_MODE.colors;
+
+  const updateRow = (index: number, stop: Stop) => {
+    onChange(
+      rows.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              label: stop.label ?? row.label,
+              color: stop.color,
+              opacity: stop.opacity,
+            }
+          : row,
+      ),
+    );
+  };
+
+  return (
+    <div className="cp">
+      <div className="cp-field">
+        <PaletteSelector
+          value={selection}
+          onSelectPreset={(preset) => {
+            applyPreset(preset);
+            onChange(
+              rows.map((row, i) => ({
+                ...row,
+                color: preset.colors[i % preset.colors.length] ?? row.color,
+              })),
+            );
+          }}
+        />
+      </div>
+      <div className="cp-stops">
+        {rows.map((row, i) => (
+          <StopRow
+            key={i}
+            stop={{
+              id: i,
+              value: 0,
+              color: row.color,
+              opacity: Number.isFinite(Number(row.opacity)) ? Number(row.opacity) : 100,
+              label: row.label,
+            }}
+            colors={colors}
+            showValue={false}
+            showLabel
+            showRemove
+            removable={rows.length > 1}
+            onChange={(stop) => updateRow(i, stop)}
+            onRemove={() => onChange(rows.filter((_, j) => j !== i))}
+          />
+        ))}
+      </div>
+      <button
+        type="button"
+        className="cp-add"
+        onClick={() =>
+          onChange([
+            ...rows,
+            {
+              min: "",
+              max: "",
+              color: colors[rows.length % colors.length] ?? "#73adf5",
+              label: `Status ${rows.length + 1}`,
+              opacity: 100,
+            },
+          ])
+        }
+      >
+        <PlusIcon width={16} height={16} />
+        <span>Add Another Stop</span>
+      </button>
+    </div>
+  );
+}
+
 export default function ColorPalette({
   color,
   setColor,
@@ -742,6 +871,7 @@ export default function ColorPalette({
   value?: ColorModeConfig;
   onChange?: (next: ColorModeConfig) => void;
 }) {
+  const { hideGradientAxis } = useContext(PaletteChromeContext);
   const isSimple = variant === "simple";
   const isSwatch = variant === "swatch";
   const isStepsOnly = variant === "steps";
@@ -791,7 +921,7 @@ export default function ColorPalette({
       commit({ style: "Steps", stops: persistable(s) });
       return;
     }
-    const g = spreadStops(paletteColors, domainMin, domainMax, Math.max(3, gStops.length));
+    const g = spreadStops(paletteColors, domainMin, domainMax, Math.max(3, gStops.length), config.distribution);
     const s = spreadStops(paletteColors, domainMin, domainMax, Math.max(4, sStops.length));
     setGStops(g);
     setSStops(s);
@@ -803,7 +933,7 @@ export default function ColorPalette({
   const applyPreset = (preset: PalettePreset) => {
     const min = domainMin ?? 0;
     const max = domainMax ?? 100;
-    const g = gradientStops(preset.colors, min, max);
+    const g = gradientStops(preset.colors, min, max, config.distribution);
     const s = stepStops(preset.colors, min, max);
     setGStops(g);
     setSStops(s);
@@ -821,7 +951,9 @@ export default function ColorPalette({
     type: config.paletteFamily,
     colors: paletteColors,
   };
-  const distribution = config.distribution || "Linear";
+  const distribution = DISTRIBUTION_OPTIONS.includes(config.distribution as (typeof DISTRIBUTION_OPTIONS)[number])
+    ? config.distribution
+    : "Linear";
   const opacity = config.opacity;
   const stops = style === "Gradient" ? gStops : sStops;
   const setStops = style === "Gradient" ? setGStops : setSStops;
@@ -860,17 +992,19 @@ export default function ColorPalette({
   const removeStop = (id: number) =>
     setStops((list) => {
       if (list.length <= 2) return list;
-      const updated = list.filter((s) => s.id !== id);
+      let updated = list.filter((s) => s.id !== id);
+      if (style === "Gradient") updated = redistributeStops(updated, min, max, distribution);
       persistStops(updated);
       return updated;
     });
   const addStop = () => {
     const mid = Math.round((min + max) / 2);
     setStops((list) => {
-      const updated = [
+      let updated = [
         ...list,
         { id: nextId(), value: mid, color: paletteColors[1] ?? paletteColors[0], opacity: 100 },
       ];
+      if (style === "Gradient") updated = redistributeStops(updated, min, max, distribution);
       persistStops(updated);
       return updated;
     });
@@ -887,7 +1021,7 @@ export default function ColorPalette({
     <div className={"cp" + (isSimple || isSwatch ? " cp--simple" : "") + (isSwatch ? " cp--swatch" : "")}>
       {!isSwatch && (
         <div className="cp-field">
-          <span className="cp-label">Color palette</span>
+          {!isStepsOnly && <span className="cp-label">Color palette</span>}
           {isFull || isStepsOnly ? (
             <PaletteSelector value={isStepsOnly ? ctxSelection : paletteSelection} onSelectPreset={applyPreset} />
           ) : (
@@ -951,10 +1085,16 @@ export default function ColorPalette({
           <Field label="Distribution">
             <Dropdown
               value={distribution}
-              onChange={(v) => commit({ distribution: v })}
-              options={["Linear", "Quantile", "Quantize"].map((o) => ({ value: o, label: o }))}
+              onChange={(v) => {
+                const next = redistributeStops(sorted, min, max, v);
+                setGStops(next);
+                commit({ distribution: v, stops: persistable(next) });
+              }}
+              options={DISTRIBUTION_OPTIONS.map((o) => ({ value: o, label: o }))}
             />
           </Field>
+          {!hideGradientAxis && (
+          <div className="cp-axis-group">
           <Field label="Gradient axis">
             <div className="ia-segmented">
               {(["X", "Y"] as const).map((axis) => (
@@ -976,6 +1116,8 @@ export default function ColorPalette({
               onClick={() => commit({ gradientReverse: !config.gradientReverse })}
             />
           </Field>
+          </div>
+          )}
           <DataRangeEditor
             sorted={sorted}
             colors={paletteColors}

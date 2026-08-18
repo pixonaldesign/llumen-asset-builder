@@ -290,17 +290,14 @@ export function resolveColorMode(
   const min = stops[0].value;
   const max = stops[stops.length - 1].value;
   const span = max - min || 1;
-  const dist = (mode.distribution || "Linear").toLowerCase();
-  let x = u;
-  if (dist.startsWith("quant")) x = Math.round(u * Math.max(stops.length - 1, 1)) / Math.max(stops.length - 1, 1);
   if (mode.style === "Steps" || (mode.paletteFamily === "Categorical" && mode.style !== "Gradient")) {
     const i =
       mode.paletteFamily === "Categorical"
         ? index % Math.max(mode.colors.length || stops.length, 1)
-        : Math.min(stops.length - 1, Math.floor(x * stops.length));
+        : Math.min(stops.length - 1, Math.floor(u * stops.length));
     const color = mode.colors[i] ?? stops[i]?.color ?? mode.color;
     return withOpacity(color, stops[i]?.opacity ?? mode.opacity);
   }
   const mapped = stops.map((s) => ({ color: s.color, at: ((s.value - min) / span) * 100 }));
-  return withOpacity(rampFromStops(mapped, x), mode.opacity);
+  return withOpacity(rampFromStops(mapped, u), mode.opacity);
 }

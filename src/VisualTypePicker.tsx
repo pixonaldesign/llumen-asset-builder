@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check } from "@phosphor-icons/react";
+import { CaretDown, Check } from "@phosphor-icons/react";
 import { VISUAL_CATEGORIES, visualTypeById, visualTypesForCategory } from "./visualCatalog";
 import type { VisualCategoryId, VisualType } from "./visualCatalog";
 import VisualArtwork from "./VisualArtwork";
@@ -47,51 +47,65 @@ function VisualCard({
 
 export default function VisualTypePicker({ selectedId, onSelect }: Props) {
   const selectedVisual = selectedId ? visualTypeById(selectedId) : null;
-  const [activeTab, setActiveTab] = useState<VisualCategoryId>(
-    selectedVisual?.category ?? "chart",
-  );
-  const items = visualTypesForCategory(activeTab);
+  const [openGroups, setOpenGroups] = useState<Set<VisualCategoryId>>(() => {
+    const next = new Set<VisualCategoryId>(["chart"]);
+    if (selectedVisual?.category) next.add(selectedVisual.category);
+    return next;
+  });
+
+  const toggleGroup = (id: VisualCategoryId) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="viz-type-picker">
       <header className="viz-type-picker__head">
         <h2 className="viz-type-picker__title">Select Visualization Type</h2>
-        <div className="viz-type-picker__tabs" role="tablist" aria-label="Visualization category">
-          {VISUAL_CATEGORIES.map((category) => {
-            const selected = activeTab === category.id;
-            return (
-              <button
-                key={category.id}
-                type="button"
-                role="tab"
-                id={`viz-tab-${category.id}`}
-                aria-selected={selected}
-                aria-controls={`viz-panel-${category.id}`}
-                className={"viz-type-picker__tab" + (selected ? " is-active" : "")}
-                onClick={() => setActiveTab(category.id)}
-              >
-                {category.label}
-              </button>
-            );
-          })}
-        </div>
       </header>
 
-      <div
-        id={`viz-panel-${activeTab}`}
-        role="tabpanel"
-        aria-labelledby={`viz-tab-${activeTab}`}
-        className="viz-type-grid"
-      >
-        {items.map((visual) => (
-          <VisualCard
-            key={visual.id}
-            visual={visual}
-            selected={selectedId === visual.id}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
+      {VISUAL_CATEGORIES.map((category) => {
+        const open = openGroups.has(category.id);
+        const items = visualTypesForCategory(category.id);
+        return (
+          <section
+            key={category.id}
+            className={"viz-type-group" + (open ? " is-open" : "")}
+          >
+            <button
+              type="button"
+              className="viz-type-group__head"
+              aria-expanded={open}
+              aria-controls={`viz-group-${category.id}`}
+              onClick={() => toggleGroup(category.id)}
+            >
+              <span className="viz-type-group__label">{category.label}</span>
+              <span className="viz-type-group__rule" aria-hidden="true" />
+              <CaretDown className="viz-type-group__caret" size={16} weight="bold" aria-hidden="true" />
+            </button>
+            <div
+              id={`viz-group-${category.id}`}
+              className={"viz-type-group__panel" + (open ? " is-open" : "")}
+              hidden={!open}
+            >
+              <div className="viz-type-grid">
+                {items.map((visual) => (
+                  <VisualCard
+                    key={visual.id}
+                    visual={visual}
+                    selected={selectedId === visual.id}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

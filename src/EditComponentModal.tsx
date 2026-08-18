@@ -21,13 +21,15 @@ import { charts } from "./chartModel";
 import type { Opt } from "./chartModel";
 import {
   fieldsForVisual,
+  isFeatureTabOn,
   isFieldVisible,
   settingsNavSections,
   subCategoriesForVisual,
+  visualHasGradientAxis,
 } from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
 import ChartDataQueryPreview from "./ChartDataQueryPreview";
-import ColorPalette, { ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
+import ColorPalette, { CategoryColorMap, ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
 import { getSettingsTabIcon } from "./visualIcons";
 import Dropdown from "./Dropdown";
 import { derivePreviewSeries, mappedMeasureColumn } from "./derivePreviewSeries";
@@ -221,7 +223,7 @@ function defaultFor(o: Opt): unknown {
     case "number":
       return o.name.toLowerCase().includes("range") ? "" : "24";
     case "color":
-      return o.group === "Color mode" ? { ...DEFAULT_COLOR_MODE, stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })) } : "#3FA7A0";
+      return o.group === "Colors" ? { ...DEFAULT_COLOR_MODE, stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })) } : "#3FA7A0";
     case "colorList":
       return defaultColorList(o);
     case "colorPair":
@@ -231,9 +233,9 @@ function defaultFor(o: Opt): unknown {
     case "repeatable":
       if (o.name === "Color thresholds" || o.name.toLowerCase().includes("status")) {
         return [
-          { min: "", max: "", color: "#f87171", label: "At risk" },
-          { min: "", max: "", color: "#fbbf24", label: "Watch" },
-          { min: "", max: "", color: "#34d399", label: "On track" },
+          { min: "", max: "", color: "#f87171", label: "At risk", opacity: 100 },
+          { min: "", max: "", color: "#fbbf24", label: "Watch", opacity: 100 },
+          { min: "", max: "", color: "#34d399", label: "On track", opacity: 100 },
         ];
       }
       return DEFAULT_REPEATABLE.map((r) => ({ ...r }));
@@ -243,12 +245,15 @@ function defaultFor(o: Opt): unknown {
       return o.values[0] ?? "";
     case "field":
       if (o.level === "required") return defaultColumnForField(o.name);
-      if (o.group === "Story card KPI") {
-        if (/value field/i.test(o.name) && !/min/i.test(o.name)) return defaultColumnForField("Y axis") || "value";
+      if (o.group === "KPI Display") {
+        if (o.name === "KPI value field") return defaultColumnForField("Y axis") || "value";
         if (/unit/i.test(o.name)) return "unit";
       }
       if (o.group === "Status badge" && /color source/i.test(o.name)) {
         return defaultColumnForField("Y axis") || "value";
+      }
+      if (o.group === "Status badge" && o.name === "Column") {
+        return defaultColumnForField("Status") || "status";
       }
       return "";
     case "text":
@@ -391,6 +396,170 @@ function Chip({ label, selected, onToggle }: { label: string; selected: boolean;
   );
 }
 
+const CHIP_OVERFLOW_AT = 8;
+
+function OverflowChipSelect({
+  values,
+  selected,
+  onChange,
+}: {
+  values: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const remaining = values.filter((v) => !selected.includes(v));
+  const compact = values.length > CHIP_OVERFLOW_AT;
+  const shown = compact ? selected : values;
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 240 });
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const syncMenuPosition = useCallback(() => {
+    const el = moreRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const width = Math.max(240, rect.width);
+    let left = rect.left;
+    left = Math.min(left, window.innerWidth - width - 8);
+    left = Math.max(8, left);
+    setMenuPos({ top: rect.bottom + 8, left, width });
+  }, []);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setSearch("");
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    syncMenuPosition();
+    searchRef.current?.focus();
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (moreRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    const onLayout = () => syncMenuPosition();
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onLayout);
+    window.addEventListener("scroll", onLayout, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onLayout);
+      window.removeEventListener("scroll", onLayout, true);
+    };
+  }, [open, syncMenuPosition, close]);
+
+  useEffect(() => {
+    if (open && remaining.length === 0) close();
+  }, [open, remaining.length, close]);
+
+  const query = search.trim().toLowerCase();
+  const filtered = query ? remaining.filter((v) => v.toLowerCase().includes(query)) : remaining;
+
+  const toggle = (v: string) => {
+    onChange(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
+  };
+
+  const add = (v: string) => {
+    if (!selected.includes(v)) onChange([...selected, v]);
+  };
+
+  return (
+    <div className="ia-chips">
+      {shown.map((v) => (
+        <Chip
+          key={v}
+          label={v}
+          selected={compact || selected.includes(v)}
+          onToggle={() => toggle(v)}
+        />
+      ))}
+      {compact && remaining.length > 0 && (
+        <>
+          <button
+            ref={moreRef}
+            type="button"
+            className={"ia-chip ia-chip--more" + (open ? " is-open" : "")}
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            aria-label={`Add ${remaining.length} more columns`}
+            onClick={() => {
+              if (open) {
+                close();
+                return;
+              }
+              setSearch("");
+              syncMenuPosition();
+              setOpen(true);
+            }}
+          >
+            +{remaining.length}
+          </button>
+          {open &&
+            createPortal(
+              <div
+                ref={menuRef}
+                className="cp-picker-menu cp-picker-menu--flyout ia-chips-menu"
+                role="listbox"
+                aria-multiselectable="true"
+                aria-label="Remaining columns"
+                style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+              >
+                <div className="cp-picker-search">
+                  <input
+                    ref={searchRef}
+                    type="search"
+                    placeholder="Search columns"
+                    value={search}
+                    aria-label="Search columns"
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Escape") {
+                        close();
+                        return;
+                      }
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      if (filtered[0]) add(filtered[0]);
+                    }}
+                  />
+                  <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
+                </div>
+                <div className="cp-picker-list">
+                  {filtered.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      className="cp-picker-row"
+                      onClick={() => add(v)}
+                    >
+                      <span className="cp-picker-row-name">{v}</span>
+                    </button>
+                  ))}
+                  {!filtered.length && <div className="cp-picker-empty">No columns found</div>}
+                </div>
+              </div>,
+              document.body,
+            )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function FieldInfoTip({ desc }: { desc: string }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -428,7 +597,7 @@ function FieldInfoTip({ desc }: { desc: string }) {
           onFocus={show}
           onBlur={hide}
         >
-          <Info className="ia-field-info__icon" size={14} weight="fill" aria-hidden="true" />
+          <Info className="ia-field-info__icon" size={16} weight="fill" aria-hidden="true" />
         </button>
       </span>
       {open &&
@@ -545,9 +714,13 @@ function Control({
             placeholder={
               o.name.toLowerCase().includes("format")
                 ? ".0f"
-                : o.group === "Story card KPI"
-                  ? o.name
-                  : "Manual value"
+                : o.name === "Template"
+                  ? "{status} · {value}"
+                  : o.name === "Fallback"
+                    ? "Constant text"
+                    : o.name === "X axis label" || o.name === "Y axis label" || o.group === "KPI Display"
+                      ? o.name
+                      : "Manual value"
             }
             onChange={(e) => setVal(o, e.target.value)}
           />
@@ -555,7 +728,7 @@ function Control({
       );
 
     case "color":
-      if (o.group === "Color mode") {
+      if (o.group === "Colors") {
         const current = asColorMode(getVal(o));
         return (
           <ColorPalette
@@ -639,11 +812,7 @@ function Control({
           </>
         );
       return (
-        <div className="ia-chips">
-          {values.map((v) => (
-            <Chip key={v} label={v} selected={selected.includes(v)} onToggle={() => toggle(v)} />
-          ))}
-        </div>
+        <OverflowChipSelect values={values} selected={selected} onChange={(next) => setVal(o, next)} />
       );
     }
 
@@ -666,6 +835,9 @@ function Control({
             onChange={(next) => update(stopsToRepeatable(next.stops, rows))}
           />
         );
+      }
+      if (o.name === "Status → tile accent color") {
+        return <CategoryColorMap rows={rows} onChange={update} />;
       }
       return (
         <div className="ia-surface ia-repeat">
@@ -796,6 +968,7 @@ function Control({
           value={String(getVal(o))}
           onChange={(v) => setVal(o, v)}
           allowEmpty={o.type === "field"}
+          searchable={o.type === "field"}
           options={list}
         />
       );
@@ -813,7 +986,7 @@ function FieldBlock({
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
 }) {
-  if (o.group === "Color mode" && o.type === "color") {
+  if (o.group === "Colors" && o.type === "color") {
     return (
       <div className="ia-color-mode">
         <Control o={o} getVal={getVal} setVal={setVal} />
@@ -868,9 +1041,13 @@ function FieldBlock({
   );
 }
 
-/* Pair adjacent X / Y mapping fields so they render side-by-side. */
+/* Pair adjacent X / Y mapping fields and min / max siblings so they render side-by-side. */
 const isXField = (o: Opt) => /^x[\s-]?(axis|value|category)\b/i.test(o.name);
 const isYField = (o: Opt) => /^y[\s-]?(axis|value|category)\b/i.test(o.name);
+const minMaxPairKey = (name: string) =>
+  name.replace(/\bmin(?:imum)?\b/gi, "§").replace(/\bmax(?:imum)?\b/gi, "§");
+const isMinName = (name: string) => /\bmin(?:imum)?\b/i.test(name) && !/\bmax(?:imum)?\b/i.test(name);
+const isMaxName = (name: string) => /\bmax(?:imum)?\b/i.test(name) && !/\bmin(?:imum)?\b/i.test(name);
 function pairAxes(items: Opt[]): (Opt | [Opt, Opt])[] {
   const rows: (Opt | [Opt, Opt])[] = [];
   for (let i = 0; i < items.length; i++) {
@@ -879,7 +1056,10 @@ function pairAxes(items: Opt[]): (Opt | [Opt, Opt])[] {
     if (next && isXField(cur) && isYField(next)) {
       rows.push([cur, next]);
       i++;
-    } else if (next && cur.group === "Story card KPI" && cur.name === "Min" && next.name === "Max") {
+    } else if (next && isMinName(cur.name) && isMaxName(next.name) && minMaxPairKey(cur.name) === minMaxPairKey(next.name)) {
+      rows.push([cur, next]);
+      i++;
+    } else if (next && cur.name === "Wind speed" && next.name === "Band") {
       rows.push([cur, next]);
       i++;
     } else {
@@ -1223,7 +1403,7 @@ export default function EditComponentModal({
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
-      <ColorPaletteProvider dataRange={colorDataRange}>
+      <ColorPaletteProvider dataRange={colorDataRange} hideGradientAxis={!visualHasGradientAxis(displayVisualId)}>
       <div className="modal">
         {/* Header */}
         <header className="modal__header">
@@ -1365,6 +1545,7 @@ export default function EditComponentModal({
                             const catFields = visualFields.filter((o) => o.group === label);
                             const hasErrors = sectionHasErrors(catFields, getVal);
                             const TabIcon = getSettingsTabIcon(label);
+                            const featureOn = isFeatureTabOn(label, getValByKey);
                             return (
                               <button
                                 key={label}
@@ -1377,8 +1558,17 @@ export default function EditComponentModal({
                                   <TabIcon className="vs-tab__icon" size={16} weight="regular" aria-hidden="true" />
                                   <span className="vs-tab__label">{label}</span>
                                 </span>
-                                {hasErrors && (
-                                  <FieldAlertIcon className="vs-tab__alert" aria-label="Required fields incomplete" />
+                                {(featureOn !== null || hasErrors) && (
+                                <span className="vs-tab__meta">
+                                  {featureOn !== null && (
+                                    <span className={"vs-tab__state" + (featureOn ? " is-on" : "")}>
+                                      {featureOn ? "On" : "Off"}
+                                    </span>
+                                  )}
+                                  {hasErrors && (
+                                    <FieldAlertIcon className="vs-tab__alert" aria-label="Required fields incomplete" />
+                                  )}
+                                </span>
                                 )}
                               </button>
                             );

@@ -62,7 +62,7 @@ function tipValue(tip: MarkTip, field: string, numberFormat: string): string {
 }
 
 function markTooltip(cfg: Cfg, tip: MarkTip | undefined, fallbackLabel = "", fallbackValue?: number) {
-  if (!bool(cfg("Tooltips", "Enable tooltip", true), true)) return "";
+  if (!bool(cfg("Tooltips", "Show tooltips", true), true)) return "";
   const data: MarkTip = tip ?? {
     label: fallbackLabel,
     value: fallbackValue ?? 0,
@@ -180,7 +180,7 @@ function buildPath(pts: [number, number][], curve: string) {
 }
 
 function colorFromCfg(cfg: Cfg) {
-  return asColorMode(cfg("Color mode", "Palette", cfg("Color mode", "Single color", BRAND)));
+  return asColorMode(cfg("Colors", "Palette", cfg("Colors", "Single color", BRAND)));
 }
 
 function colorMode(
@@ -300,15 +300,15 @@ function markHover(props: Pick<RenderProps, "setHover" | "onMarkEnter" | "onMark
 }
 
 function plotBox(cfg: Cfg, decorate: boolean, extraBottom = 0, extraTop = 0, { W, H, P }: PlotMetrics) {
-  const axisOn = decorate && bool(cfg("Scaling / axes", "Show label", false), false);
+  const axisOn = decorate && bool(cfg("Scaling / axes", "Show Axes Labels", false), false);
   const ticks = asStringArray(cfg("Scaling / axes", "Show ticks / tick labels / gridlines", []));
   const showTickLabels = decorate && listHas(ticks, "Show Tick Labels");
   const legend = decorate && bool(cfg("Legend", "Show legend", false), false);
   const legendPos = str(cfg("Legend", "Position", "Top"), "Top");
-  const left = P + (showTickLabels ? 28 : 0);
-  const right = W - P;
-  const top = P + extraTop + (legend && (legendPos === "Top" || legendPos === "Left") ? 16 : 0) + (axisOn ? 4 : 0);
-  const bottom = H - P - extraBottom - (legend && (legendPos === "Bottom" || legendPos === "Right") ? 16 : 0) - (showTickLabels ? 16 : 0);
+  const left = P + (showTickLabels ? 28 : 0) + (axisOn ? 16 : 0) + (legend && legendPos === "Left" ? 16 : 0);
+  const right = W - P - (legend && legendPos === "Right" ? 16 : 0);
+  const top = P + extraTop + (legend && legendPos === "Top" ? 16 : 0);
+  const bottom = H - P - extraBottom - (legend && legendPos === "Bottom" ? 16 : 0) - (showTickLabels ? 16 : 0) - (axisOn ? 14 : 0);
   return { left, right, top, bottom, width: right - left, height: Math.max(20, bottom - top), showTickLabels, ticks, legend, legendPos, axisOn };
 }
 
@@ -330,7 +330,13 @@ function AxisChrome({
   const showTicks = listHas(box.ticks, "Show Ticks");
   const showGrid = listHas(box.ticks, "Show Grid Lines");
   const yTicks = tickMode.includes("Endpoint") ? [min, max] : [min, min + (max - min) / 2, max];
-  const axisLabel = str(cfg("Scaling / axes", "Axis label", ""), "");
+  const xLabel =
+    str(cfg("Scaling / axes", "X axis label", ""), "") || str(cfg("Mapping", "X axis", ""), "") || str(cfg("Mapping", "X value", ""), "");
+  const yLabel =
+    str(cfg("Scaling / axes", "Y axis label", ""), "") || str(cfg("Mapping", "Y axis", ""), "") || str(cfg("Mapping", "Y value", ""), "");
+  const yLabelX = box.left - (box.showTickLabels ? 34 : 16);
+  const yLabelY = (box.top + box.bottom) / 2;
+  const xLabelY = box.bottom + (box.showTickLabels ? 26 : 14);
   return (
     <g>
       {showGrid &&
@@ -361,9 +367,22 @@ function AxisChrome({
             </text>
           );
         })}
-      {box.axisOn && axisLabel && (
-        <text x={box.left} y={box.top - 6} fill={INK} fontSize={FS_CAPTION} fontWeight="500">
-          {axisLabel}
+      {box.axisOn && yLabel && (
+        <text
+          x={yLabelX}
+          y={yLabelY}
+          fill={INK}
+          fontSize={FS_CAPTION}
+          fontWeight="500"
+          textAnchor="middle"
+          transform={`rotate(-90 ${yLabelX} ${yLabelY})`}
+        >
+          {yLabel}
+        </text>
+      )}
+      {box.axisOn && xLabel && (
+        <text x={(box.left + box.right) / 2} y={xLabelY} fill={INK} fontSize={FS_CAPTION} fontWeight="500" textAnchor="middle">
+          {xLabel}
         </text>
       )}
     </g>
@@ -389,32 +408,56 @@ function Legend({
   const total = items.reduce((a, b) => a + (b.value ?? 0), 0) || 1;
   const { W, H, P } = usePlot();
   const pos = box.legendPos;
-  const y = pos === "Bottom" || pos === "Right" ? H - 14 : 12;
-  const x0 = pos === "Left" ? P : pos === "Right" ? W - 110 : P;
+  const shown = items.slice(0, 4);
+  const side = pos === "Left" || pos === "Right";
+  const rowH = 16;
+
+  const swatchAndLabel = (it: (typeof items)[number], x: number, y: number, anchor: "start" | "end") => {
+    const bits = [
+      showLabels ? it.label : "",
+      showValues && it.value != null ? formatBySpec(it.value, "") : "",
+      showPct && it.value != null ? `${Math.round((it.value / total) * 100)}%` : "",
+    ].filter(Boolean);
+    const swatchX = anchor === "end" ? x - 8 : x;
+    const textX = anchor === "end" ? x - 12 : x + 11;
+    return (
+      <g>
+        <rect x={swatchX} y={y - 7} width={8} height={8} rx={2} fill={it.color} />
+        <text x={textX} y={y} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor={anchor}>
+          {bits.join(" ") || series?.legend || "Series"}
+        </text>
+      </g>
+    );
+  };
+
+  if (side) {
+    const blockH = shown.length * rowH;
+    const y0 = (H - blockH) / 2 + rowH / 2;
+    const x = pos === "Right" ? W - P : P;
+    const anchor = pos === "Right" ? "end" : "start";
+    return (
+      <g>
+        {shown.map((it, i) => (
+          <g key={i}>{swatchAndLabel(it, x, y0 + i * rowH, anchor)}</g>
+        ))}
+      </g>
+    );
+  }
+
+  const y = pos === "Bottom" ? H - 14 : 12;
+  const x0 = P;
   return (
     <g>
-      {items.slice(0, 4).map((it, i) => {
-        const x = x0 + i * 56;
-        const bits = [
-          showLabels ? it.label : "",
-          showValues && it.value != null ? formatBySpec(it.value, "") : "",
-          showPct && it.value != null ? `${Math.round((it.value / total) * 100)}%` : "",
-        ].filter(Boolean);
-        return (
-          <g key={i}>
-            <rect x={x} y={y - 7} width={8} height={8} rx={2} fill={it.color} />
-            <text x={x + 11} y={y} fill={INK} fontSize={FS_TICK} fontWeight="500">
-              {bits.join(" ") || series?.legend || "Series"}
-            </text>
-          </g>
-        );
-      })}
+      {shown.map((it, i) => (
+        <g key={i}>{swatchAndLabel(it, x0 + i * 56, y, "start")}</g>
+      ))}
     </g>
   );
 }
 
 function Annotation({ cfg, series, box, max, min = 0 }: { cfg: Cfg; series?: PreviewSeries; box: ReturnType<typeof plotBox>; max: number; min?: number }) {
-  const source = str(cfg("Annotations / guidelines", "Source", "Average"), "Average");
+  if (!bool(cfg("Annotations", "Show annotations", false), false)) return null;
+  const source = str(cfg("Annotations", "Source", "Average"), "Average");
   const values = series?.values ?? [];
   if (!values.length) return null;
   let yVal = values.reduce((a, b) => a + b, 0) / values.length;
@@ -432,8 +475,8 @@ function Annotation({ cfg, series, box, max, min = 0 }: { cfg: Cfg; series?: Pre
     const y1 = intercept + slope * (n - 1);
     const py0 = box.bottom - ((y0 - min) / (max - min || 1)) * box.height;
     const py1 = box.bottom - ((y1 - min) / (max - min || 1)) * box.height;
-    const caption = bool(cfg("Annotations / guidelines", "Show caption on chart", true), true);
-    const label = str(cfg("Annotations / guidelines", "Label", ""), "Trend");
+    const caption = bool(cfg("Annotations", "Show caption on chart", true), true);
+    const label = str(cfg("Annotations", "Label", ""), "Trend");
     return (
       <g>
         <line x1={box.left} y1={py0} x2={box.right} y2={py1} stroke="rgba(255,255,255,.45)" strokeDasharray="4 3" />
@@ -446,8 +489,8 @@ function Annotation({ cfg, series, box, max, min = 0 }: { cfg: Cfg; series?: Pre
     );
   }
   if (source.startsWith("Manual")) {
-    const raw = str(cfg("Annotations / guidelines", "X position / Y value (manual)", ""), "");
-    const axis = str(cfg("Annotations / guidelines", "Axis (manual only)", "Y only (horizontal)"), "Y only (horizontal)");
+    const raw = str(cfg("Annotations", "X position / Y value (manual)", ""), "");
+    const axis = str(cfg("Annotations", "Axis (manual only)", "Y only (horizontal)"), "Y only (horizontal)");
     const parts = raw.split(/[/,]/).map((s) => s.trim());
     const yManual = Number(parts[1] ?? parts[0]);
     if (Number.isFinite(yManual)) yVal = yManual;
@@ -467,10 +510,10 @@ function Annotation({ cfg, series, box, max, min = 0 }: { cfg: Cfg; series?: Pre
     );
   }
   const y = box.bottom - ((yVal - min) / (max - min || 1)) * box.height;
-  const shape = str(cfg("Annotations / guidelines", "Line shape (avg/max/min)", "Straight (full width)"), "Straight");
-  const unit = str(cfg("Annotations / guidelines", "Unit", ""), "");
-  const label = str(cfg("Annotations / guidelines", "Label", ""), source);
-  const caption = bool(cfg("Annotations / guidelines", "Show caption on chart", true), true);
+  const shape = str(cfg("Annotations", "Line shape (avg/max/min)", "Straight (full width)"), "Straight");
+  const unit = str(cfg("Annotations", "Unit", ""), "");
+  const label = str(cfg("Annotations", "Label", ""), source);
+  const caption = bool(cfg("Annotations", "Show caption on chart", true), true);
   if (shape.toLowerCase().includes("follow") && series?.values) {
     const pts: [number, number][] = series.values.map((v, i) => [
       box.left + (i / Math.max(series.values!.length - 1, 1)) * box.width,
@@ -722,9 +765,13 @@ function PieDonut({ cfg, chartId, minimal, compact, series, decorate, setHover, 
   const total = data.reduce((a, b) => a + b, 0) || 1;
   const fmt = str(cfg("Pie / Donut", "Label format", "Percentage"), "Percentage");
   const isDonut = chartId !== "pie" || true;
-  const cx = W / 2;
-  const cy = H / 2 + (decorate ? 4 : 0);
-  const rO = Math.min(W, H) * 0.32;
+  const legendOn = !!decorate && bool(cfg("Legend", "Show legend", false), false);
+  const legendPos = str(cfg("Legend", "Position", "Left"), "Left");
+  const sideLegend = legendOn && (legendPos === "Left" || legendPos === "Right");
+  const shift = sideLegend ? Math.min(40, W * 0.1) : 0;
+  const cx = W / 2 + (legendPos === "Left" ? shift : legendPos === "Right" ? -shift : 0);
+  const cy = H / 2 + (decorate && !sideLegend ? 4 : 0);
+  const rO = Math.min(W, H) * (sideLegend ? 0.28 : 0.32);
   const rI = isDonut ? rO * 0.54 : 0;
   let cursor = -90;
   const showLabels = !minimal && !compact && bool(cfg("Layout & visibility", "Show data labels", false), false);
@@ -769,15 +816,14 @@ function PieDonut({ cfg, chartId, minimal, compact, series, decorate, setHover, 
   );
 }
 
-function PolarRose({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
-  const { W, H, P } = usePlot();
+function PolarRose({ cfg, series, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const { W, H } = usePlot();
   const bands = series?.polar ?? [];
   const dirs = bands.length ? bands : [{ direction: "N", speed: 8, frequency: 4 }];
   const cx = W / 2;
   const cy = H / 2 + 4;
   const max = Math.max(...dirs.map((d) => d.frequency), 1);
-  const ramp = asRepeatable(cfg("Intensity color ramp", "Ramp colors (low→high)", undefined));
-  const legendLabel = str(cfg("Intensity color ramp", "Change Intensity legend label", ""), "Intensity");
+  const maxSpeed = Math.max(...dirs.map((d) => d.speed), 1);
   const ring = Math.min(W, H) * 0.32;
   return (
     <>
@@ -787,7 +833,10 @@ function PolarRose({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }
       {dirs.map((d, i) => {
         const ang = (i / dirs.length) * 360;
         const r = ring * 0.25 + (d.frequency / max) * ring * 0.75;
-        const color = ramp[Math.min(ramp.length - 1, Math.round((d.speed / 20) * (ramp.length - 1)))]?.color ?? colorMode(cfg, i, d.frequency, max, d.direction, dirs.length);
+        const color = colorMode(cfg, i, d.speed, maxSpeed, d.direction, dirs.length, {
+          x: i / Math.max(dirs.length - 1, 1),
+          y: d.speed / maxSpeed,
+        });
         const [x, y] = polar(cx, cy, r, ang);
         return (
           <g key={d.direction} {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}>
@@ -799,21 +848,16 @@ function PolarRose({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }
           </g>
         );
       })}
-      {decorate && (
-        <text x={P} y={H - 6} fill={INK} fontSize={FS_CAPTION} fontWeight="500">
-          {legendLabel}
-        </text>
-      )}
     </>
   );
 }
 
 function Gauge({ cfg, minimal, compact, series, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
-  const zonesOn = minimal && !series ? true : bool(cfg("Gauge — zone colors", "Color zones on dial", true), true);
-  const showCenter = !minimal && !compact && bool(cfg("Gauge — meter & labels", "Show center value", true), true);
-  const base = colorFromCfg(cfg).color;
-  const ticksN = Math.round(sliderMapped(cfg("Gauge — meter & labels", "Tick subdivisions", 40), 12, 120, 36));
-  const movement = str(cfg("Gauge — meter & labels", "Movement state", "Rising"), "Rising");
+  const mode = colorFromCfg(cfg);
+  const showCenter = !minimal && !compact && bool(cfg("Meter & Labels", "Show center value", true), true);
+  const base = mode.color;
+  const ticksN = Math.round(sliderMapped(cfg("Meter & Labels", "Tick subdivisions", 40), 12, 120, 36));
+  const movement = str(cfg("Meter & Labels", "Movement state", "Rising"), "Rising");
   const a0 = -180;
   const a1 = 0;
   const { W, H } = usePlot();
@@ -823,15 +867,17 @@ function Gauge({ cfg, minimal, compact, series, setHover, onMarkEnter, onMarkLea
   const value = series?.gaugeValue ?? 72;
   const va = a0 + ((a1 - a0) * value) / 100;
   const [nx, ny] = polar(cx, cy, r - 12, va);
-  const zones = ["#34d399", "#fbbf24", "#f87171"];
+  const paletteZones = (mode.colors?.length ? mode.colors : mode.stops.map((s) => s.color)).filter(Boolean);
+  const zones = paletteZones.length >= 2 ? paletteZones.slice(0, 5) : ["#34d399", "#fbbf24", "#f87171"];
+  const zonesOn = (minimal && !series) || mode.style !== "Single";
 
   return (
     <g {...markHover({ setHover, onMarkEnter, onMarkLeave }, 0)}>
       <path d={arcStroke(cx, cy, r, a0, a1)} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="10" strokeLinecap="round" />
       {zonesOn ? (
         zones.map((c, i) => {
-          const z0 = a0 + ((a1 - a0) * i) / 3;
-          const z1 = a0 + ((a1 - a0) * (i + 1)) / 3;
+          const z0 = a0 + ((a1 - a0) * i) / zones.length;
+          const z1 = a0 + ((a1 - a0) * (i + 1)) / zones.length;
           return <path key={i} d={arcStroke(cx, cy, r, z0, z1)} fill="none" stroke={c} strokeWidth="10" strokeLinecap="round" />;
         })
       ) : (
@@ -858,8 +904,8 @@ function Gauge({ cfg, minimal, compact, series, setHover, onMarkEnter, onMarkLea
 }
 
 function Scatter({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
-  const radiusMin = sliderMapped(cfg("Scatter", "Min / max bubble radius", 30), 1, 20, 4);
-  const radiusMax = sliderMapped(cfg("Scatter", "Min / max bubble radius", 30), 10, 100, 18);
+  const radiusMin = sliderMapped(cfg("Scatter", "Min bubble radius", 16), 1, 20, 4);
+  const radiusMax = sliderMapped(cfg("Scatter", "Max bubble radius", 9), 10, 100, 18);
   const points = series?.scatterPoints;
   const plot = plotBox(cfg, !!decorate, 0, 0, usePlot());
   const xs = points?.map((p) => p.x) ?? [];
@@ -939,7 +985,9 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
   }
   const data = paired.map((p) => p.value);
   const labels = paired.map((p) => p.label);
+  const minTotal = series?.minTotal ?? 0;
   const maxTotal = series?.maxTotal ?? Math.max(...data, 1);
+  const span = maxTotal - minTotal || 1;
   const n = data.length;
   const cartesian = layout === "Cartesian" && chartId === "horizontalBar";
   const labelW = cartesian ? 58 : 0;
@@ -964,7 +1012,7 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
     <>
       {gradFill && (
         <defs>
-          <GradientPaint id={gradId} mode={mode} box={plotBoxH} min={0} max={maxTotal} />
+          <GradientPaint id={gradId} mode={mode} box={plotBoxH} min={minTotal} max={maxTotal} />
         </defs>
       )}
       {data.map((v, i) => {
@@ -972,10 +1020,10 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
         const color =
           gradFill ||
           colorMode(cfg, i, v, maxTotal, labels[i], n, {
-            x: v / (maxTotal || 1),
+            x: (v - minTotal) / span,
             y: i / Math.max(n - 1, 1),
           });
-        const pct = v / (maxTotal || 1);
+        const pct = Math.max(0, Math.min(1, (v - minTotal) / span));
         const w = Math.max(2, pct * plotW);
         const label = kpiMode === "Value of total" ? `${formatBySpec(v, "")} / ${formatBySpec(maxTotal, "")}` : `${Math.round(pct * 100)}%`;
         return (
@@ -1122,7 +1170,12 @@ function KpiGrid({ cfg, series }: RenderProps) {
   const showPill = bool(cfg("KPI Grid", "Show status pill", true), true);
   const glow = bool(cfg("KPI Grid", "Highlight critical tiles (glow)", false), false);
   const accents = asRecord(
-    Object.fromEntries(asRepeatable(cfg("Status", "Status → tile accent color", undefined)).map((r) => [r.label, r.color])),
+    Object.fromEntries(
+      asRepeatable(cfg("Status", "Status → tile accent color", undefined)).map((r) => [
+        r.label,
+        withOpacity(r.color, r.opacity ?? 100),
+      ]),
+    ),
   );
   const gap = 8;
   const cardW = (W - 2 * P - gap) / 2;
@@ -1356,8 +1409,7 @@ export default function ChartPreview({
   const showBadge =
     decorate &&
     Boolean(series?.badge) &&
-    (bool(cfg("Status badge", "Show status badge", true), true) ||
-      bool(cfg("Gauge — meter & labels", "Show status badge", false), false));
+    bool(cfg("Status badge", "Show status badge", true), true);
 
   const badgeStyle = series?.badge?.color ? { background: series.badge.color, color: "#0b1220" } : undefined;
 

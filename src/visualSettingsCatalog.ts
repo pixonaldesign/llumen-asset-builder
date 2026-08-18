@@ -109,6 +109,8 @@ const COLOR_MODE: NotionVisualType[] = [
   "Area",
   "Scatter",
   "Pie/Donut",
+  "Gauge",
+  "Polar",
   "Availability",
 ];
 const LEGEND: NotionVisualType[] = [
@@ -136,7 +138,6 @@ const BADGE: NotionVisualType[] = [
   "Availability",
   "KPI Card",
 ];
-const BADGE_COLOR: NotionVisualType[] = BADGE.filter((t) => t !== "Gauge");
 const TOOLTIPS: NotionVisualType[] = [
   "Vertical Bar",
   "Horizontal Bar",
@@ -156,8 +157,8 @@ const MAP_TOOLTIPS: NotionVisualType[] = ["Arcs", "Discs", "Fences", "Heatmap", 
 
 export const SUBCATEGORY_ORDER = [
   "Mapping",
-  "Story card KPI",
-  "Color mode",
+  "KPI Display",
+  "Colors",
   "Layout & visibility",
   "Legend",
   "Status badge",
@@ -166,17 +167,15 @@ export const SUBCATEGORY_ORDER = [
   "Area styling",
   "Scatter",
   "Pie / Donut",
-  "Gauge — zone colors",
-  "Gauge — meter & labels",
+  "Meter & Labels",
   "Track & marker styling",
-  "Intensity color ramp",
   "Bar gradient",
   "KPI card",
   "KPI Grid",
   "Status",
   "Scaling / axes",
   "Tooltips",
-  "Annotations / guidelines",
+  "Annotations",
   "Colors & Opacity",
   "Line Customization",
   "Height",
@@ -223,15 +222,6 @@ const f = (
 
 const FIELDS: FieldDef[] = [
   /* ---- Mapping (shared + per type) ---- */
-  f("Aggregation", "dropdown", "Mapping", ["All Charts & KPIs"], {
-    desc: "How to combine rows: None (raw), Sum, Average, Min, Max, Count.",
-    values: ["None (raw value)", "Sum", "Average", "Min", "Max", "Count"],
-    defaultValue: "None (raw value)",
-  }),
-  f("Y-axis values (ML only)", "segmented", "Mapping", ["All Charts & KPIs"], {
-    desc: "For ML-prediction sources: Predicted only / Actual only / Actual vs predicted.",
-    values: ["Predicted only", "Actual only", "Actual vs predicted"],
-  }),
   f("X axis", "field", "Mapping", ["Vertical Bar", "Line", "Area", "Range"], {
     desc: "Categorical, datetime or numeric column.",
     required: true,
@@ -268,9 +258,19 @@ const FIELDS: FieldDef[] = [
   }),
   f("Unit", "field", "Mapping", ["Gauge", "KPI Card", "KPI Grid"]),
   f("Status", "field", "Mapping", ["Gauge", "KPI Grid"]),
-  f("Min/Max", "number", "Mapping", ["Gauge"], {
-    desc: "Fallback numbers when min/max fields are empty.",
-    defaultValue: "0 / 100",
+  f("Min field", "field", "Mapping", ["Gauge"], {
+    desc: "Numeric column for the gauge minimum. Empty uses the Min fallback.",
+  }),
+  f("Max field", "field", "Mapping", ["Gauge"], {
+    desc: "Numeric column for the gauge maximum. Empty uses the Max fallback.",
+  }),
+  f("Min", "number", "Mapping", ["Gauge"], {
+    desc: "Fallback minimum when Min field is empty.",
+    defaultValue: "0",
+  }),
+  f("Max", "number", "Mapping", ["Gauge"], {
+    desc: "Fallback maximum when Max field is empty.",
+    defaultValue: "100",
   }),
   f("Value calculation", "dropdown", "Mapping", ["KPI Card"], {
     values: ["First row", "Last row", "Maximum", "Minimum", "Sum"],
@@ -283,7 +283,10 @@ const FIELDS: FieldDef[] = [
   f("Low value", "field", "Mapping", ["Range"], { required: true }),
   f("High value", "field", "Mapping", ["Range"], { required: true }),
   f("Direction", "field", "Mapping", ["Polar"], { required: true }),
-  f("Wind speed / band", "field", "Mapping", ["Polar"], { required: true }),
+  f("Wind speed", "field", "Mapping", ["Polar"], { required: true }),
+  f("Band", "field", "Mapping", ["Polar"], {
+    desc: "Optional speed-band or category column.",
+  }),
   f("Frequency", "field", "Mapping", ["Polar"], {
     desc: "Unmapped — each row counts as 1.",
   }),
@@ -329,42 +332,54 @@ const FIELDS: FieldDef[] = [
   f("Intensity Value Field", "field", "Mapping", ["Heatmap"]),
   f("U Component (Eastward)", "field", "Mapping", ["Wind"]),
   f("V Component (Northward)", "field", "Mapping", ["Wind"]),
+  f("Aggregation", "dropdown", "Mapping", ["All Charts & KPIs"], {
+    desc: "How to combine rows: None (raw), Sum, Average, Min, Max, Count.",
+    values: ["None (raw value)", "Sum", "Average", "Min", "Max", "Count"],
+    defaultValue: "None (raw value)",
+  }),
+  f("Y-axis values (ML only)", "segmented", "Mapping", ["All Charts & KPIs"], {
+    desc: "For ML-prediction sources: Predicted only / Actual only / Actual vs predicted.",
+    values: ["Predicted only", "Actual only", "Actual vs predicted"],
+  }),
 
-  /* ---- Story card KPI ---- */
-  f("KPI value field", "field", "Story card KPI", STORY_KPI, {
+  /* ---- KPI Display ---- */
+  f("KPI value field", "field", "KPI Display", STORY_KPI, {
     desc: "Numeric column for the headline number.",
   }),
-  f("KPI value calculation", "dropdown", "Story card KPI", STORY_KPI, {
+  f("KPI value calculation", "dropdown", "KPI Display", STORY_KPI, {
     values: ["Hidden unless manual value is set", "Last row", "First row", "Maximum", "Minimum", "Sum"],
     defaultValue: "Sum",
   }),
-  f("KPI unit field", "field", "Story card KPI", STORY_KPI),
-  f("KPI min / max value fields", "field", "Story card KPI", STORY_KPI, {
-    desc: "Columns for range context. On Score Indicator these also define the gradient bar's scale.",
+  f("KPI unit field", "field", "KPI Display", STORY_KPI),
+  f("KPI min value field", "field", "KPI Display", STORY_KPI, {
+    desc: "Column for the range minimum. On Score Indicator this also sets the gradient bar's low end.",
   }),
-  f("Manual override", "toggle", "Story card KPI", STORY_KPI, {
+  f("KPI max value field", "field", "KPI Display", STORY_KPI, {
+    desc: "Column for the range maximum. On Score Indicator this also sets the gradient bar's high end.",
+  }),
+  f("Manual override", "toggle", "KPI Display", STORY_KPI, {
     desc: "Replace mapped KPI value, range, and unit with static values.",
     def: false,
   }),
-  f("Value", "text", "Story card KPI", STORY_KPI, {
+  f("Value", "text", "KPI Display", STORY_KPI, {
     desc: "Headline number shown on the story card.",
-    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
+    visibleWhen: { group: "KPI Display", name: "Manual override", is: "true" },
   }),
-  f("Min", "text", "Story card KPI", STORY_KPI, {
+  f("Min", "text", "KPI Display", STORY_KPI, {
     desc: "Manual minimum for range context and score scale.",
-    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
+    visibleWhen: { group: "KPI Display", name: "Manual override", is: "true" },
   }),
-  f("Max", "text", "Story card KPI", STORY_KPI, {
+  f("Max", "text", "KPI Display", STORY_KPI, {
     desc: "Manual maximum for range context and score scale.",
-    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
+    visibleWhen: { group: "KPI Display", name: "Manual override", is: "true" },
   }),
-  f("Unit", "text", "Story card KPI", STORY_KPI, {
+  f("Unit", "text", "KPI Display", STORY_KPI, {
     desc: "Unit label, e.g. % or M AED.",
-    visibleWhen: { group: "Story card KPI", name: "Manual override", is: "true" },
+    visibleWhen: { group: "KPI Display", name: "Manual override", is: "true" },
   }),
 
-  /* ---- Color mode ---- */
-  f("Palette", "color", "Color mode", COLOR_MODE, {
+  /* ---- Colors ---- */
+  f("Palette", "color", "Colors", COLOR_MODE, {
     desc: "Pick a palette, then apply it as a single color, a gradient, or discrete steps.",
   }),
 
@@ -385,7 +400,6 @@ const FIELDS: FieldDef[] = [
   f("Position", "segmented", "Legend", LEGEND, {
     values: ["Top", "Bottom"],
     valuesByType: { "Pie/Donut": ["Left", "Right"] },
-    defaultValue: "Top",
     visibleWhen: { group: "Legend", name: "Show legend", is: "true" },
   }),
   f("Content", "multi", "Legend", LEGEND, {
@@ -399,17 +413,30 @@ const FIELDS: FieldDef[] = [
     desc: "One toggle fans out to the renderer and KPI-card paths.",
   }),
   f("Text source", "dropdown", "Status badge", BADGE, {
-    values: ["Mapped status field", "Specific column", "Manual text", "Template"],
-    defaultValue: "Mapped status field",
+    values: ["Specific column", "Manual text", "Template"],
+    defaultValue: "Specific column",
+    visibleWhen: { group: "Status badge", name: "Show status badge", is: "true" },
   }),
-  f("Column / Manual / Template / Fallback", "text", "Status badge", BADGE, {
-    desc: "Source-specific inputs; template supports tokens like {status}, {value}, {columnName}.",
-  }),
-  f("Color source field", "field", "Status badge", BADGE_COLOR, {
+  f("Color Source", "field", "Status badge", BADGE, {
     desc: "Numeric column → thresholds, text column → value map.",
+    visibleWhen: { group: "Status badge", name: "Show status badge", is: "true" },
   }),
-  f("Color thresholds", "repeatable", "Status badge", BADGE_COLOR, {
-    desc: "min/max → color, first match wins, inclusive bounds. Shown when the color source is numeric.",
+  f("Color thresholds", "repeatable", "Status badge", BADGE, {
+    desc: "min/max → color, first match wins, inclusive bounds.",
+    visibleWhen: { group: "Status badge", name: "Show status badge", is: "true" },
+  }),
+  f("Column", "field", "Status badge", BADGE, {
+    desc: "Column that supplies the badge text.",
+    visibleWhen: { group: "Status badge", name: "Text source", is: "Specific column" },
+  }),
+  f("Template", "text", "Status badge", BADGE, {
+    desc: "Supports tokens like {status}, {value}, {columnName}.",
+    defaultValue: "{status} · {value}",
+    visibleWhen: { group: "Status badge", name: "Text source", is: "Template" },
+  }),
+  f("Fallback", "text", "Status badge", BADGE, {
+    desc: "Constant badge text used when Text source is Manual text.",
+    visibleWhen: { group: "Status badge", name: "Text source", is: "Manual text" },
   }),
 
   /* ---- Bar ---- */
@@ -450,30 +477,27 @@ const FIELDS: FieldDef[] = [
   f("Fill opacity", "slider", "Area styling", ["Area"], {
     desc: "0–1.",
   }),
-  f("Min / max bubble radius", "slider", "Scatter", ["Scatter"], {
-    desc: "min 1–20 / max 10–100 px.",
+  f("Min bubble radius", "slider", "Scatter", ["Scatter"], {
+    desc: "1–20 px. Default 4.",
+  }),
+  f("Max bubble radius", "slider", "Scatter", ["Scatter"], {
+    desc: "10–100 px. Default 18.",
   }),
   f("Label format", "segmented", "Pie / Donut", ["Pie/Donut"], {
     values: ["Percentage", "Value", "Both"],
   }),
 
   /* ---- Gauge / Score / Polar / Range ---- */
-  f("Color zones on dial", "toggle", "Gauge — zone colors", ["Gauge"]),
-  f("Movement state", "dropdown", "Gauge — meter & labels", ["Gauge"], {
+  f("Movement state", "dropdown", "Meter & Labels", ["Gauge"], {
     values: ["Rising", "Falling", "Stabilizing"],
     defaultValue: "Rising",
   }),
-  f("Show status badge", "toggle", "Gauge — meter & labels", ["Gauge"], { def: false }),
-  f("Show center value", "toggle", "Gauge — meter & labels", ["Gauge"]),
-  f("Tick subdivisions", "slider", "Gauge — meter & labels", ["Gauge"], {
+  f("Show center value", "toggle", "Meter & Labels", ["Gauge"]),
+  f("Tick subdivisions", "slider", "Meter & Labels", ["Gauge"], {
     desc: "12–120.",
   }),
   f("Show marker", "toggle", "Track & marker styling", ["Score Indicator"]),
   f("Fill track to marker", "toggle", "Track & marker styling", ["Score Indicator"], { def: false }),
-  f("Change Intensity legend label", "text", "Intensity color ramp", ["Polar"]),
-  f("Ramp colors (low→high)", "repeatable", "Intensity color ramp", ["Polar"], {
-    desc: "Low→high intensity colors; add/remove rows.",
-  }),
   f("Bar gradient", "gradient", "Bar gradient", ["Range"], {
     desc: "Value-mapped gradient editor.",
   }),
@@ -489,14 +513,18 @@ const FIELDS: FieldDef[] = [
   f("Show status pill", "toggle", "KPI Grid", ["KPI Grid"]),
   f("Highlight critical tiles (glow)", "toggle", "KPI Grid", ["KPI Grid"], { def: false }),
   f("Status → tile accent color", "repeatable", "Status", ["KPI Grid"], {
-    desc: "Repeatable color rows per status.",
+    desc: "Map each status string to a tile accent color.",
   }),
 
   /* ---- Scaling / axes ---- */
-  f("Show label", "toggle", "Scaling / axes", AXIS_CHARTS, { def: false }),
-  f("Axis label", "text", "Scaling / axes", AXIS_CHARTS, {
-    desc: "Override; empty uses the mapped field name.",
-    visibleWhen: { group: "Scaling / axes", name: "Show label", is: "true" },
+  f("Show Axes Labels", "toggle", "Scaling / axes", AXIS_CHARTS, { def: false }),
+  f("X axis label", "text", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Caption under the X axis. Empty uses the mapped field name.",
+    visibleWhen: { group: "Scaling / axes", name: "Show Axes Labels", is: "true" },
+  }),
+  f("Y axis label", "text", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Caption along the Y axis. Empty uses the mapped field name.",
+    visibleWhen: { group: "Scaling / axes", name: "Show Axes Labels", is: "true" },
   }),
   f("Format", "text", "Scaling / axes", AXIS_CHARTS, {
     desc: "D3 number format for ticks (e.g. .2f, $,.0f, %).",
@@ -514,40 +542,52 @@ const FIELDS: FieldDef[] = [
   }),
 
   /* ---- Tooltips / Annotations ---- */
-  f("Enable tooltip", "toggle", "Tooltips", TOOLTIPS),
+  f("Show tooltips", "toggle", "Tooltips", TOOLTIPS),
   f("Tooltip format", "text", "Tooltips", ["Vertical Bar", "Horizontal Bar", "Line", "Area", "Scatter", "Pie/Donut"], {
     desc: "D3 number format for the value (e.g. .0f), or a template with {value}, {category}, {timestamp}, {unit}, {status}.",
     defaultValue: ".0f",
+    visibleWhen: { group: "Tooltips", name: "Show tooltips", is: "true" },
   }),
   f("Tooltip content fields", "multi", "Tooltips", TOOLTIPS, {
     desc: "Hover shows these mock-data columns: value, category, timestamp, unit, status.",
     values: ["value", "category", "timestamp", "unit", "status"],
     defaultValue: ["value", "category", "timestamp"],
+    visibleWhen: { group: "Tooltips", name: "Show tooltips", is: "true" },
   }),
-  f("Source", "dropdown", "Annotations / guidelines", AXIS_CHARTS, {
+  f("Show annotations", "toggle", "Annotations", AXIS_CHARTS, {
+    desc: "Reference lines and captions on the plot.",
+    def: false,
+  }),
+  f("Source", "dropdown", "Annotations", AXIS_CHARTS, {
     values: ["Average", "Maximum", "Minimum", "Linear trend (OLS)", "Manual position"],
     defaultValue: "Average",
+    visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
   }),
-  f("Axis (manual only)", "dropdown", "Annotations / guidelines", AXIS_CHARTS, {
+  f("Axis (manual only)", "dropdown", "Annotations", AXIS_CHARTS, {
     values: ["X only (vertical)", "Y only (horizontal)", "X and Y (cross)"],
     defaultValue: "Y only (horizontal)",
-    visibleWhen: { group: "Annotations / guidelines", name: "Source", is: "Manual position" },
+    visibleWhen: { group: "Annotations", name: "Source", is: "Manual position" },
   }),
-  f("X position / Y value (manual)", "text", "Annotations / guidelines", AXIS_CHARTS, {
+  f("X position / Y value (manual)", "text", "Annotations", AXIS_CHARTS, {
     desc: "X: band/category key · Y: number.",
-    visibleWhen: { group: "Annotations / guidelines", name: "Source", is: "Manual position" },
+    visibleWhen: { group: "Annotations", name: "Source", is: "Manual position" },
   }),
-  f("Line shape (avg/max/min)", "dropdown", "Annotations / guidelines", AXIS_CHARTS, {
+  f("Line shape (avg/max/min)", "dropdown", "Annotations", AXIS_CHARTS, {
     values: ["Straight (full width)", "Follow categories (line)"],
     defaultValue: "Straight (full width)",
+    visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
   }),
-  f("Label", "text", "Annotations / guidelines", AXIS_CHARTS, {
+  f("Label", "text", "Annotations", AXIS_CHARTS, {
     desc: "Caption text.",
+    visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
   }),
-  f("Unit", "text", "Annotations / guidelines", AXIS_CHARTS, {
+  f("Unit", "text", "Annotations", AXIS_CHARTS, {
     desc: "Appended after the value.",
+    visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
   }),
-  f("Show caption on chart", "toggle", "Annotations / guidelines", AXIS_CHARTS),
+  f("Show caption on chart", "toggle", "Annotations", AXIS_CHARTS, {
+    visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
+  }),
 
   /* ---- Map: Colors & Opacity ---- */
   f("Color Mode", "segmented", "Colors & Opacity", MAP_COLOR, {
@@ -684,6 +724,12 @@ export function notionTypeForVisual(visualId: string): NotionVisualType | undefi
   return NOTION_TYPE_BY_VISUAL_ID[visualId];
 }
 
+/** Gradient X/Y axis only applies to cartesian plots with an X and Y scale. */
+export function visualHasGradientAxis(visualId: string): boolean {
+  const notionType = NOTION_TYPE_BY_VISUAL_ID[visualId];
+  return notionType != null && (AXIS_CHARTS as readonly string[]).includes(notionType);
+}
+
 export function fieldsForVisual(visualId: string): Opt[] {
   const notionType = NOTION_TYPE_BY_VISUAL_ID[visualId];
   if (!notionType) return [];
@@ -698,7 +744,28 @@ export function subCategoriesForVisual(visualId: string): string[] {
 }
 
 /** Always-on mapping / appearance tabs. Everything else sits under Extra. */
-export const SETTINGS_NAV_CORE = ["Mapping", "Story card KPI", "Color mode"] as const;
+export const SETTINGS_NAV_CORE = ["Mapping", "KPI Display", "Colors"] as const;
+
+/** Extra tabs whose first control is a master show/hide toggle. */
+export const FEATURE_TAB_MASTERS: Record<string, string> = {
+  Legend: "Show legend",
+  "Status badge": "Show status badge",
+  Tooltips: "Show tooltips",
+  "Annotations": "Show annotations",
+};
+
+function isToggleOn(value: unknown): boolean {
+  return value === true || value === "true";
+}
+
+export function isFeatureTabOn(
+  group: string,
+  getValByKey: (group: string, name: string) => unknown,
+): boolean | null {
+  const master = FEATURE_TAB_MASTERS[group];
+  if (!master) return null;
+  return isToggleOn(getValByKey(group, master));
+}
 
 export type SettingsNavSection = {
   id: "core" | "extra";
@@ -711,13 +778,18 @@ export function settingsNavSections(visualId: string): SettingsNavSection[] {
   const coreSet = new Set<string>(SETTINGS_NAV_CORE);
   const core = tabs.filter((name) => coreSet.has(name));
   const extra = tabs.filter((name) => !coreSet.has(name));
+  const extraPlain = extra.filter((name) => !FEATURE_TAB_MASTERS[name]);
+  const extraToggles = extra.filter((name) => FEATURE_TAB_MASTERS[name]);
+  const extraOrdered = [...extraPlain, ...extraToggles];
   const sections: SettingsNavSection[] = [];
   if (core.length) sections.push({ id: "core", label: "Core", tabs: core });
-  if (extra.length) sections.push({ id: "extra", label: "Extra", tabs: extra });
+  if (extraOrdered.length) sections.push({ id: "extra", label: "Extra", tabs: extraOrdered });
   return sections;
 }
 
 export function isFieldVisible(o: Opt, getValByKey: (group: string, name: string) => unknown): boolean {
+  const master = FEATURE_TAB_MASTERS[o.group];
+  if (master && o.name !== master && !isToggleOn(getValByKey(o.group, master))) return false;
   if (!o.visibleWhen) return true;
   const current = String(getValByKey(o.visibleWhen.group, o.visibleWhen.name) ?? "");
   const expected = o.visibleWhen.is;

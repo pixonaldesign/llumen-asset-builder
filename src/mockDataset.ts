@@ -173,7 +173,7 @@ export function defaultColumnForField(fieldName: string, dataset: MockDataset = 
     "Low value": "incidents",
     "High value": "value",
     Direction: "direction",
-    "Wind speed / band": "wind_speed",
+    "Wind speed": "wind_speed",
     Origin: "origin",
     Destination: "destination",
     "Geometry Column": "geometry",

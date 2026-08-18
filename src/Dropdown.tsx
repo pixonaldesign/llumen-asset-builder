@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDownIcon } from "./icons";
+import { ChevronDownIcon, SearchIcon } from "./icons";
 
 export type DropdownOption = {
   value: string;
@@ -14,6 +14,7 @@ type DropdownProps = {
   placeholder?: string;
   emptyLabel?: string;
   allowEmpty?: boolean;
+  searchable?: boolean;
   ariaLabel?: string;
   className?: string;
   compact?: boolean;
@@ -26,14 +27,17 @@ export default function Dropdown({
   placeholder = "Select…",
   emptyLabel = "None",
   allowEmpty = false,
+  searchable = false,
   ariaLabel,
   className,
   compact = false,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const syncMenuPosition = useCallback(() => {
     const el = triggerRef.current;
@@ -46,14 +50,20 @@ export default function Dropdown({
     });
   }, []);
 
+  const close = useCallback(() => {
+    setOpen(false);
+    setSearch("");
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     syncMenuPosition();
+    if (searchable) searchRef.current?.focus();
     const onPointer = (e: MouseEvent) => {
       const target = e.target as Node;
       if (triggerRef.current?.contains(target)) return;
       if (menuRef.current?.contains(target)) return;
-      setOpen(false);
+      close();
     };
     const onLayout = () => syncMenuPosition();
     document.addEventListener("mousedown", onPointer);
@@ -64,7 +74,7 @@ export default function Dropdown({
       window.removeEventListener("resize", onLayout);
       window.removeEventListener("scroll", onLayout, true);
     };
-  }, [open, syncMenuPosition]);
+  }, [open, searchable, syncMenuPosition, close]);
 
   const selected = options.find((o) => o.value === value);
   const isEmptyChoice = allowEmpty && value === "";
@@ -72,9 +82,17 @@ export default function Dropdown({
   const displayLabel =
     isEmptyChoice ? emptyLabel : selected?.label ?? (value || placeholder);
 
+  const query = search.trim().toLowerCase();
+  const filtered = query
+    ? options.filter(
+        (o) => o.label.toLowerCase().includes(query) || o.value.toLowerCase().includes(query),
+      )
+    : options;
+  const showEmpty = allowEmpty && (!query || emptyLabel.toLowerCase().includes(query));
+
   const pick = (next: string) => {
     onChange(next);
-    setOpen(false);
+    close();
   };
 
   return (
@@ -93,9 +111,10 @@ export default function Dropdown({
         aria-label={ariaLabel}
         onClick={() => {
           if (open) {
-            setOpen(false);
+            close();
             return;
           }
+          setSearch("");
           syncMenuPosition();
           setOpen(true);
         }}
@@ -119,8 +138,32 @@ export default function Dropdown({
               } as CSSProperties
             }
           >
+            {searchable && (
+              <div className="cp-picker-search">
+                <input
+                  ref={searchRef}
+                  type="search"
+                  placeholder="Search columns"
+                  value={search}
+                  aria-label="Search columns"
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Escape") {
+                      close();
+                      return;
+                    }
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    if (filtered[0]) pick(filtered[0].value);
+                    else if (showEmpty) pick("");
+                  }}
+                />
+                <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
+              </div>
+            )}
             <div className="cp-picker-list">
-              {allowEmpty && (
+              {showEmpty && (
                 <button
                   type="button"
                   role="option"
@@ -131,7 +174,7 @@ export default function Dropdown({
                   <span className="cp-picker-row-name">{emptyLabel}</span>
                 </button>
               )}
-              {options.map((opt) => (
+              {filtered.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -143,6 +186,9 @@ export default function Dropdown({
                   <span className="cp-picker-row-name">{opt.label}</span>
                 </button>
               ))}
+              {searchable && !filtered.length && !showEmpty && (
+                <div className="cp-picker-empty">No columns found</div>
+              )}
             </div>
           </div>,
           document.body,

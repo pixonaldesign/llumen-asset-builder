@@ -102,6 +102,7 @@ export function mappedMeasureColumn(config: Config, fallback = "value"): string 
     mapped(config, "Y value") ||
     mapped(config, "High value") ||
     mapped(config, "Intensity Value Field") ||
+    mapped(config, "Wind speed") ||
     mapped(config, "Wind speed / band") ||
     mapped(config, "Low value") ||
     fallback
@@ -158,28 +159,28 @@ function calcFromNums(nums: number[], calc: string): number {
 }
 
 function buildBadge(config: Config, rows: MockRow[], statusCol: string, value: number): PreviewSeries["badge"] {
-  if (cfgBool(config, "Status badge", "Show status badge") === false &&
-      cfgBool(config, "Gauge — meter & labels", "Show status badge") === false) {
+  if (cfgBool(config, "Status badge", "Show status badge") === false) {
     return undefined;
   }
-  const source = cfgStr(config, "Status badge", "Text source") || "Mapped status field";
-  const extra = cfgStr(config, "Status badge", "Column / Manual / Template / Fallback");
-  let text = strCell(rows[0] ?? {}, statusCol);
-  if (source.includes("Specific") && extra) text = strCell(rows[0] ?? {}, extra) || extra;
-  else if (source.includes("Manual")) text = extra || text;
+  const source = cfgStr(config, "Status badge", "Text source") || "Specific column";
+  const column = cfgStr(config, "Status badge", "Column") || statusCol;
+  const template = cfgStr(config, "Status badge", "Template");
+  const fallback = cfgStr(config, "Status badge", "Fallback");
+  let text = strCell(rows[0] ?? {}, column || statusCol);
+  if (source.includes("Manual")) text = fallback || text;
   else if (source.includes("Template")) {
-    text = (extra || "{status} · {value}")
-      .replace(/\{status\}/g, strCell(rows[0] ?? {}, statusCol))
+    text = (template || "{status} · {value}")
+      .replace(/\{status\}/g, strCell(rows[0] ?? {}, column || statusCol))
       .replace(/\{value\}/g, formatBySpec(value, ""))
       .replace(/\{(\w+)\}/g, (_m: string, col: string) => strCell(rows[0] ?? {}, col));
   }
-  const colorField = cfgStr(config, "Status badge", "Color source field") || measureColumn(config, "value");
+  const colorField = cfgStr(config, "Status badge", "Color Source") || measureColumn(config, "value");
   const thresholds = asRepeatable(config["Status badge::Color thresholds"]);
   const nums = rows.map((r) => numCell(r, colorField));
   const lo = Math.min(...thresholds.map((t) => Number(t.min)));
   const hi = Math.max(...thresholds.map((t) => Number(t.max) || Number(t.min)));
   let n = value;
-  const kpiCalc = cfgStr(config, "Story card KPI", "KPI value calculation");
+  const kpiCalc = cfgStr(config, "KPI Display", "KPI value calculation");
   if (kpiCalc && !kpiCalc.toLowerCase().startsWith("hidden")) {
     n = calcFromNums(nums, kpiCalc);
   }
@@ -199,18 +200,18 @@ function buildBadge(config: Config, rows: MockRow[], statusCol: string, value: n
 }
 
 function buildStoryKpi(config: Config, rows: MockRow[]): PreviewSeries["storyKpi"] {
-  const calc = cfgStr(config, "Story card KPI", "KPI value calculation");
-  const override = cfgBool(config, "Story card KPI", "Manual override");
+  const calc = cfgStr(config, "KPI Display", "KPI value calculation");
+  const override = cfgBool(config, "KPI Display", "Manual override");
   const field =
-    cfgStr(config, "Story card KPI", "KPI value field") ||
+    cfgStr(config, "KPI Display", "KPI value field") ||
     mapped(config, "Y axis") ||
     mapped(config, "Value") ||
     mapped(config, "X value") ||
     "value";
-  const unitField = cfgStr(config, "Story card KPI", "KPI unit field") || mapped(config, "Unit", "unit");
+  const unitField = cfgStr(config, "KPI Display", "KPI unit field") || mapped(config, "Unit", "unit");
   if (override) {
-    const value = cfgStr(config, "Story card KPI", "Value");
-    const unit = cfgStr(config, "Story card KPI", "Unit") || strCell(rows[0] ?? {}, unitField);
+    const value = cfgStr(config, "KPI Display", "Value");
+    const unit = cfgStr(config, "KPI Display", "Unit") || strCell(rows[0] ?? {}, unitField);
     if (value) return { value, unit };
   }
   if (!calc || calc.toLowerCase().startsWith("hidden")) return undefined;
@@ -265,11 +266,18 @@ export function derivePreviewSeries({
 
   const refCol = mapped(config, "Reference value");
   if (refCol) out.reference = aggregate(rows.map((r) => numCell(r, refCol)), "Average");
-  const maxCol = mapped(config, "Max/Total") || mapped(config, "Max value");
+  const maxCol =
+    mapped(config, "Max/Total") ||
+    mapped(config, "Max value") ||
+    cfgStr(config, "KPI Display", "KPI max value field");
+  const minCol = cfgStr(config, "KPI Display", "KPI min value field");
   if (maxCol) out.maxTotal = aggregate(rows.map((r) => numCell(r, maxCol)), "Average");
-  if (cfgBool(config, "Story card KPI", "Manual override")) {
-    const manMax = Number(cfgStr(config, "Story card KPI", "Max"));
+  if (minCol) out.minTotal = aggregate(rows.map((r) => numCell(r, minCol)), "Average");
+  if (cfgBool(config, "KPI Display", "Manual override")) {
+    const manMax = Number(cfgStr(config, "KPI Display", "Max"));
+    const manMin = Number(cfgStr(config, "KPI Display", "Min"));
     if (Number.isFinite(manMax) && manMax > 0) out.maxTotal = manMax;
+    if (Number.isFinite(manMin)) out.minTotal = manMin;
   }
 
   const isMap = [
@@ -331,7 +339,25 @@ export function derivePreviewSeries({
     const valueCol = mapped(config, "Value", "completion_rate");
     const nums = rows.map((r) => numCell(r, valueCol));
     const value = aggregate(nums, agg.startsWith("None") ? "Average" : agg);
-    const [min, max] = parseMinMax(config["Mapping::Min/Max"], [0, 100]);
+    const minCol = mapped(config, "Min field");
+    const maxCol = mapped(config, "Max field");
+    const legacy = parseMinMax(config["Mapping::Min/Max"], [NaN, NaN]);
+    const minFallback = Number(cfgStr(config, "Mapping", "Min"));
+    const maxFallback = Number(cfgStr(config, "Mapping", "Max"));
+    const min = minCol
+      ? aggregate(rows.map((r) => numCell(r, minCol)), agg.startsWith("None") ? "Average" : agg)
+      : Number.isFinite(minFallback)
+        ? minFallback
+        : Number.isFinite(legacy[0])
+          ? legacy[0]
+          : 0;
+    const max = maxCol
+      ? aggregate(rows.map((r) => numCell(r, maxCol)), agg.startsWith("None") ? "Average" : agg)
+      : Number.isFinite(maxFallback)
+        ? maxFallback
+        : Number.isFinite(legacy[1])
+          ? legacy[1]
+          : 100;
     const scaled = ((value - min) / (max - min || 1)) * 100;
     out.gaugeValue = Math.max(0, Math.min(100, scaled));
     out.values = [value];
@@ -358,7 +384,8 @@ export function derivePreviewSeries({
 
   if (chartId === "polar" && !isMap) {
     const dirCol = mapped(config, "Direction", "direction");
-    const speedCol = mapped(config, "Wind speed / band", "wind_speed");
+    const speedCol = mapped(config, "Wind speed") || mapped(config, "Wind speed / band", "wind_speed");
+    const bandCol = mapped(config, "Band");
     const freqCol = mapped(config, "Frequency");
     const groups = groupRows(rows, dirCol);
     out.polar = groups.map((g) => ({
@@ -372,6 +399,7 @@ export function derivePreviewSeries({
       ...markTipFromGroup(g, speedCol, "Average"),
       label: g.label,
       value: out.polar![i]?.frequency ?? 0,
+      category: bandCol ? strCell(g.rows[0] ?? {}, bandCol) : strCell(g.rows[0] ?? {}, "category"),
     }));
     return out;
   }
