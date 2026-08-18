@@ -47,7 +47,7 @@ export default function CreateComponentPopup({ onClose, onEditComponent }: Props
 
           <div className="create-popup__footer">
             <button type="submit" className="btn btn--primary">
-              Edit Asset
+              Create Asset
             </button>
           </div>
         </form>

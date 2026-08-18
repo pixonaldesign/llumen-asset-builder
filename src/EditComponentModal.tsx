@@ -1021,11 +1021,13 @@ export default function EditComponentModal({
   componentName,
   componentCategory,
   startAtVisualPicker = false,
+  creating = false,
 }: {
   onClose?: () => void;
   componentName?: string;
   componentCategory?: string;
   startAtVisualPicker?: boolean;
+  creating?: boolean;
 }) {
   const [activeChart, setActiveChart] = useState("bar");
   const [selectedVisualId, setSelectedVisualId] = useState<string | null>(
@@ -1226,7 +1228,7 @@ export default function EditComponentModal({
         {/* Header */}
         <header className="modal__header">
           <div className="modal__heading">
-            <h2 className="modal__title">Edit Asset</h2>
+            <h2 className="modal__title">{creating ? "Create Asset" : "Edit Asset"}</h2>
             {(generalInfo.name || generalInfo.category) && (
               <p className="modal__subtitle">
                 {[generalInfo.name, generalInfo.category].filter(Boolean).join(" · ")}

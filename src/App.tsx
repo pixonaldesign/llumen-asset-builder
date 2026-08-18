@@ -163,6 +163,7 @@ export default function App() {
         <EditComponentModal
           componentName={draftComponent?.name}
           startAtVisualPicker={draftComponent !== null}
+          creating={draftComponent !== null}
           onClose={() => {
             setEditModalOpen(false);
             setDraftComponent(null);
