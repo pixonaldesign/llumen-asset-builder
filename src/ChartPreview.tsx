@@ -97,9 +97,14 @@ const MAP_TIP_FIELDS = ["name", "value", "type", "status"] as const;
 
 function mapTooltip(cfg: Cfg, tip: MarkTip | undefined) {
   if (!tip) return "";
-  const selected = asStringArray(cfg("Tooltip Fields", "Tooltip fields", ["name", "value", "type"])).filter((f) =>
-    (MAP_TIP_FIELDS as readonly string[]).includes(f),
-  );
+  if (!bool(cfg("Tooltips", "Show tooltips", true), true)) return "";
+  const selected = asStringArray(
+    cfg(
+      "Tooltips",
+      "Tooltip content fields",
+      cfg("Tooltip Fields", "Tooltip fields", ["name", "value", "type"]),
+    ),
+  ).filter((f) => (MAP_TIP_FIELDS as readonly string[]).includes(f));
   const fields = selected.length ? selected : ["name", "value"];
   const numberFormat = str(cfg("Tooltips", "Tooltip format", ".0f"), ".0f");
   return fields

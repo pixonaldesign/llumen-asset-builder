@@ -864,12 +864,14 @@ export default function ColorPalette({
   variant = "full",
   value,
   onChange,
+  styles,
 }: {
   color: string;
   setColor: (c: string) => void;
   variant?: "full" | "simple" | "swatch" | "steps";
   value?: ColorModeConfig;
   onChange?: (next: ColorModeConfig) => void;
+  styles?: PaletteStyle[];
 }) {
   const { hideGradientAxis } = useContext(PaletteChromeContext);
   const isSimple = variant === "simple";
@@ -906,7 +908,12 @@ export default function ColorPalette({
         ? ctxSelection.colors
         : config.colors
       : DEFAULT_COLOR_MODE.colors;
-  const style = isStepsOnly ? "Steps" : config.style;
+  const allowedStyles = styles ?? (["Single", "Gradient", "Steps"] as PaletteStyle[]);
+  const style = isStepsOnly
+    ? "Steps"
+    : allowedStyles.includes(config.style)
+      ? config.style
+      : allowedStyles[0];
 
   useEffect(() => {
     if (domainMin == null || domainMax == null) return;
@@ -1047,8 +1054,9 @@ export default function ColorPalette({
       {isFull && (
         <Field label="Palette type">
           <div className="cp-type">
-            {(["Single", "Gradient", "Steps"] as PaletteStyle[]).map((s) => {
+            {(allowedStyles).map((s) => {
               const Icon = s === "Single" ? SinglePillIcon : s === "Gradient" ? GradientPillIcon : StepsDotsIcon;
+              const label = s === "Single" && styles ? "Solid" : s;
               return (
                 <button
                   key={s}
@@ -1057,7 +1065,7 @@ export default function ColorPalette({
                   aria-pressed={style === s}
                   onClick={() => setStyle(s)}
                 >
-                  <span>{s}</span>
+                  <span>{label}</span>
                   <Icon className="cp-type__icon" />
                 </button>
               );

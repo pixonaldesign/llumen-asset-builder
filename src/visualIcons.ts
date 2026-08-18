@@ -18,7 +18,6 @@ import {
   Cube,
   Diamond,
   Drop,
-  DropHalf,
   Fire,
   FlagBanner,
   Gauge,
@@ -27,6 +26,7 @@ import {
   Layout,
   LineSegment,
   ListBullets,
+  MagnifyingGlass,
   MapPin,
   MapTrifold,
   Mountains,
@@ -46,7 +46,6 @@ import {
   Stack,
   Table,
   Target,
-  TextT,
   Wind,
 } from "@phosphor-icons/react";
 
@@ -90,6 +89,7 @@ export const SETTINGS_TAB_ICONS: Record<string, Icon> = {
   Mapping: Table,
   "KPI Display": PresentationChart,
   "Colors": Palette,
+  Color: Palette,
   "Layout & visibility": Layout,
   Legend: ListBullets,
   "Status badge": CheckCircle,
@@ -107,7 +107,6 @@ export const SETTINGS_TAB_ICONS: Record<string, Icon> = {
   "Scaling / axes": Ruler,
   Tooltips: ChatTeardropText,
   Annotations: PencilLine,
-  "Colors & Opacity": DropHalf,
   "Line Customization": LineSegment,
   Height: ArrowsVertical,
   Size: ArrowsOut,
@@ -122,9 +121,9 @@ export const SETTINGS_TAB_ICONS: Record<string, Icon> = {
   Extrusion: Cube,
   "Opacity source": Drop,
   Animation: Play,
+  "Zoom Scaling": MagnifyingGlass,
   Advanced: GearSix,
   "Map Legend": MapTrifold,
-  "Tooltip Fields": TextT,
 };
 
 export function getSettingsTabIcon(label: string): Icon {

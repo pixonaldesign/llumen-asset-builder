@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CaretDown, Check } from "@phosphor-icons/react";
-import { VISUAL_CATEGORIES, visualTypeById, visualTypesForCategory } from "./visualCatalog";
+import { VISUAL_CATEGORIES, visualTypesForCategory } from "./visualCatalog";
 import type { VisualCategoryId, VisualType } from "./visualCatalog";
 import VisualArtwork from "./VisualArtwork";
 
@@ -46,12 +46,9 @@ function VisualCard({
 }
 
 export default function VisualTypePicker({ selectedId, onSelect }: Props) {
-  const selectedVisual = selectedId ? visualTypeById(selectedId) : null;
-  const [openGroups, setOpenGroups] = useState<Set<VisualCategoryId>>(() => {
-    const next = new Set<VisualCategoryId>(["chart"]);
-    if (selectedVisual?.category) next.add(selectedVisual.category);
-    return next;
-  });
+  const [openGroups, setOpenGroups] = useState<Set<VisualCategoryId>>(
+    () => new Set<VisualCategoryId>(["chart", "map-layer"]),
+  );
 
   const toggleGroup = (id: VisualCategoryId) => {
     setOpenGroups((prev) => {

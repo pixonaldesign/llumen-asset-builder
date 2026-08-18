@@ -4,10 +4,12 @@ import type { PreviewSeries } from "./componentPreviewProfiles";
 import {
   BRAND,
   PALETTE,
-  asGradient,
+  asColorMode,
   asRecord,
   asRepeatable,
-  rampFromStops,
+  asZoomScaling,
+  resolveColorMode,
+  sampleZoomScale,
   sequentialRamp,
   sliderMapped,
 } from "./previewTheme";
@@ -21,23 +23,23 @@ const P = 16;
 const str = (v: unknown, d: string) => (typeof v === "string" && v ? v : d);
 const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 
+function mapPalette(cfg: Cfg) {
+  return asColorMode(cfg("Color", "Palette", cfg("Color", "Solid color", BRAND)));
+}
+
 function mapColor(cfg: Cfg, value: number, max: number, category: string, index: number): string {
-  const mode = str(cfg("Colors & Opacity", "Color Mode", "Solid"), "Solid");
-  const solid = str(cfg("Colors & Opacity", "Solid color", BRAND), BRAND);
-  const marker = str(cfg("Colors & Opacity", "Marker color", solid), solid);
-  const catMap = asRecord(cfg("Colors & Opacity", "Categorical color stops + Other", {}));
+  const catMap = asRecord(cfg("Color", "Categorical color stops + Other", {}));
   if (category && catMap[category]) return catMap[category];
-  if (mode === "Solid") return marker || PALETTE(solid)[index % 6] || solid;
-  const stops = asGradient(cfg("Colors & Opacity", "Color stops", undefined));
+  const mode = mapPalette(cfg);
   const t = max ? value / max : 0;
-  const dist = str(cfg("Colors & Opacity", "Distribution", "Linear"), "Linear");
+  const dist = str(cfg("Color", "Distribution", "Linear"), "Linear");
   const stepped = dist === "Quantize" ? Math.round(t * 4) / 4 : dist === "Quantile" ? Math.ceil(t * 3) / 3 : t;
-  return rampFromStops(stops, stepped);
+  return resolveColorMode(mode, stepped, index);
 }
 
 function catColor(cfg: Cfg, category: string, fallback: string, index: number) {
   const map = {
-    ...asRecord(cfg("Colors & Opacity", "Categorical color stops + Other", {})),
+    ...asRecord(cfg("Color", "Categorical color stops + Other", {})),
     ...asRecord(cfg("Marker Shape", "Icon category field + mapping", {})),
   };
   if (category && map[category]) return map[category];
@@ -100,7 +102,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
   const points = series?.mapPoints ?? [];
   const arcs = series?.mapArcs ?? [];
   const max = Math.max(...points.map((p) => p.value), 1);
-  const solid = str(cfg("Colors & Opacity", "Solid color", BRAND), BRAND);
+  const solid = mapPalette(cfg).color;
   const showLegend = !compact && bool(cfg("Map Legend", "Show legend in Map Data", true), true);
   const lod = sliderMapped(cfg("Advanced", "Level of distance (zoom visibility)", 0), 0, 100, 0);
   const visible = lod <= 0 ? points : points.filter((_, i) => i % Math.max(1, Math.round(lod / 25 + 1)) === 0);
@@ -111,11 +113,11 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
   let layer: React.ReactNode = null;
 
   if (visualId === "arcs") {
-    const stroke = sliderMapped(cfg("Colors & Opacity", "Border Thickness", 40), 0, 10, 3);
+    const stroke = sliderMapped(cfg("Color", "Border Thickness", 40), 0, 10, 3);
     const ends = bool(cfg("Disc ring", "Show endpoint discs", false), false);
-    const indicator = str(cfg("Line Customization", "Source → Destination Indicator", ""), "");
-    const endScale = asRepeatable(cfg("Disc ring", "Endpoint disc scaling", undefined));
-    const endR = 6 + endScale.length * 2;
+    const indicator = bool(cfg("Line Customization", "Source → Destination Indicator", false), false);
+    const endScale = sliderMapped(cfg("Disc ring", "Endpoint disc scaling", 30), 0.2, 4, 1.2);
+    const endR = 6 * endScale;
     layer = (
       <>
         <Ground cfg={cfg} />
@@ -128,15 +130,23 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
           const x2 = P + to.x * (W - 2 * P);
           const y2 = P + to.y * (H - 2 * P);
           const color = mapColor(cfg, a.value, max, from.category, i);
+          const d = `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${Math.min(y1, y2) - 28} ${x2} ${y2}`;
+          const sw = Math.max(1, stroke);
           return (
             <g key={i} {...hit(orig(from))}>
-              <path
-                d={`M ${x1} ${y1} Q ${(x1 + x2) / 2} ${Math.min(y1, y2) - 28} ${x2} ${y2}`}
-                fill="none"
-                stroke={color}
-                strokeWidth={Math.max(1, stroke)}
-                strokeLinecap="round"
-              />
+              <path d={d} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+              {indicator && (
+                <path
+                  className="map-arc-shimmer"
+                  d={d}
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth={Math.max(1.5, sw * 0.7)}
+                  strokeLinecap="round"
+                  strokeDasharray="14 72"
+                  opacity="0.85"
+                />
+              )}
               {ends && (
                 <>
                   <circle cx={x1} cy={y1} r={endR} fill={color} opacity={0.85} />
@@ -146,18 +156,15 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
             </g>
           );
         })}
-        {indicator && (
-          <text x={W / 2} y={22} fill="rgba(255,255,255,.55)" fontSize="8" textAnchor="middle">
-            {indicator}
-          </text>
-        )}
       </>
     );
   } else if (visualId === "fences") {
     const exaggerate = bool(cfg("Height", "Height Exaggeration", false), false);
     const h = sliderMapped(cfg("Height", "Fence height", 40), 0, 5000, 2000);
-    const zoom = asRepeatable(cfg("Advanced", "Fence zoom scaling", undefined));
-    const width = (exaggerate ? 10 : 6) + h / 900 + zoom.length;
+    const zoom = asZoomScaling(
+      cfg("Zoom Scaling", "Fence zoom scaling", cfg("Advanced", "Fence zoom scaling", undefined)),
+    );
+    const width = (exaggerate ? 10 : 6) + h / 900 + sampleZoomScale(zoom, 350) * 0.35;
     const d = visible
       .map((p, i) => `${i ? "L" : "M"} ${P + p.x * (W - 2 * P)} ${P + p.y * (H - 2 * P)}`)
       .join(" ");
@@ -179,32 +186,38 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     );
   } else if (visualId === "pillars") {
     const maxH = sliderMapped(cfg("Size", "Max Height", 38), 0, 8000, 3000);
-    const normalize = bool(cfg("Colors & Opacity", "Normalize values", true), true);
+    const zoom = asZoomScaling(cfg("Size", "Zoom scaling", undefined));
+    const zScale = sampleZoomScale(zoom, 350);
+    const normalize = bool(cfg("Color", "Normalize values", true), true);
     const peak = normalize ? max : Math.max(max, 80);
     layer = (
       <>
         <Ground cfg={cfg} />
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
-          const bh = (p.value / peak) * (28 + maxH / 220);
+          const bh = (p.value / peak) * (28 + maxH / 220 + zScale * 0.4);
           const color = mapColor(cfg, p.value, max, p.category, i);
           return <rect key={p.id} x={x - 7} y={H - 32 - bh} width={14} height={bh} rx={3} fill={color} opacity={0.86} {...hit(orig(p))} />;
         })}
       </>
     );
   } else if (visualId === "discs") {
-    const fill = str(cfg("Disc ring", "Fill style", "Solid"), "Solid");
-    const base = str(cfg("Disc ring", "Disc base color", solid), solid);
-    const mult = sliderMapped(cfg("Disc ring", "Disc radius multiplier", 30), 0.2, 4, 1.2);
-    const scaleRows = asRepeatable(cfg("Disc Scaling", "Disc scaling", undefined));
+    const mult = sliderMapped(
+      cfg("Disc Scaling", "Disc radius multiplier", cfg("Disc ring", "Disc radius multiplier", 30)),
+      0.2,
+      4,
+      1.2,
+    );
+    const zoom = asZoomScaling(cfg("Disc Scaling", "Disc scaling", undefined));
+    const zScale = sampleZoomScale(zoom, 350);
     layer = (
       <>
         <Ground cfg={cfg} />
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
           const y = P + p.y * (H - 2 * P);
-          const r = (6 + (p.value / max) * 16 + scaleRows.length) * mult;
-          const color = mapColor(cfg, p.value, max, p.category, i) || base;
+          const r = (6 + (p.value / max) * 16 + zScale * 0.35) * mult;
+          const color = mapColor(cfg, p.value, max, p.category, i);
           return (
             <ellipse
               key={p.id}
@@ -212,9 +225,8 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
               cy={y}
               rx={r}
               ry={r * 0.38}
-              fill={fill === "None" ? "none" : color}
+              fill={color}
               stroke={color}
-              strokeWidth={fill === "None" ? 2 : 0}
               opacity={0.7}
               {...hit(orig(p))}
             />
@@ -265,7 +277,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     const gap = (1 - coverage) * 6;
     const cellW = (W - 2 * P - gap * (cols - 1)) / cols;
     const cellH = (H - 2 * P - gap * (rowsN - 1)) / rowsN;
-    const stops = asGradient(cfg("Colors & Opacity", "Color stops", undefined));
+    const palette = mapPalette(cfg);
     layer = (
       <>
         {Array.from({ length: rowsN * cols }).map((_, i) => {
@@ -287,7 +299,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
             { i: 0, d: Infinity },
           ).i;
           const t = Math.max(0, Math.min(1, heat));
-          const color = gradFill ? rampFromStops(stops, t) : mixOrSolid(solid, t);
+          const color = gradFill ? resolveColorMode(palette, t, i) : mixOrSolid(solid, t);
           const hLift = extrude ? t * (elev / 80) : 0;
           if (style === "Contour") {
             const band = Math.round(t * bands);

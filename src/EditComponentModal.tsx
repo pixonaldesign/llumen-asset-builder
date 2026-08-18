@@ -30,6 +30,7 @@ import {
 import ChartPreview from "./ChartPreview";
 import ChartDataQueryPreview from "./ChartDataQueryPreview";
 import ColorPalette, { CategoryColorMap, ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
+import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
 import Dropdown from "./Dropdown";
 import { derivePreviewSeries, mappedMeasureColumn } from "./derivePreviewSeries";
@@ -38,6 +39,7 @@ import {
   DEFAULT_COLOR_MODE,
   DEFAULT_GRADIENT,
   DEFAULT_REPEATABLE,
+  DEFAULT_ZOOM_SCALING,
   asColorMode,
   asGradient,
   asRepeatable,
@@ -207,6 +209,10 @@ function defaultSlider(o: Opt): number {
   return 50;
 }
 
+function isZoomScalingField(o: Opt) {
+  return /zoom scaling/i.test(o.name) || o.name === "Disc scaling";
+}
+
 function defaultFor(o: Opt): unknown {
   if (o.defaultValue !== undefined) return o.defaultValue;
   switch (o.type) {
@@ -223,7 +229,9 @@ function defaultFor(o: Opt): unknown {
     case "number":
       return o.name.toLowerCase().includes("range") ? "" : "24";
     case "color":
-      return o.group === "Colors" ? { ...DEFAULT_COLOR_MODE, stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })) } : "#3FA7A0";
+      return o.group === "Colors" || o.group === "Color"
+        ? { ...DEFAULT_COLOR_MODE, stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })) }
+        : "#3FA7A0";
     case "colorList":
       return defaultColorList(o);
     case "colorPair":
@@ -231,6 +239,7 @@ function defaultFor(o: Opt): unknown {
     case "multi":
       return defaultMulti(o);
     case "repeatable":
+      if (isZoomScalingField(o)) return { ...DEFAULT_ZOOM_SCALING, stops: DEFAULT_ZOOM_SCALING.stops.map((s) => ({ ...s })) };
       if (o.name === "Color thresholds" || o.name.toLowerCase().includes("status")) {
         return [
           { min: "", max: "", color: "#f87171", label: "At risk", opacity: 100 },
@@ -728,7 +737,7 @@ function Control({
       );
 
     case "color":
-      if (o.group === "Colors") {
+      if (o.group === "Colors" || o.group === "Color") {
         const current = asColorMode(getVal(o));
         return (
           <ColorPalette
@@ -737,6 +746,7 @@ function Control({
             setColor={() => {}}
             value={current}
             onChange={(next) => setVal(o, next)}
+            styles={o.group === "Color" ? ["Single", "Gradient", "Steps"] : undefined}
           />
         );
       }
@@ -817,6 +827,9 @@ function Control({
     }
 
     case "repeatable": {
+      if (isZoomScalingField(o)) {
+        return <ZoomScalingControl value={getVal(o)} onChange={(next) => setVal(o, next)} />;
+      }
       const rows = asRepeatable(getVal(o));
       const update = (next: RepeatableRow[]) => setVal(o, next);
       if (o.name === "Color thresholds") {
@@ -986,7 +999,7 @@ function FieldBlock({
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
 }) {
-  if (o.group === "Colors" && o.type === "color") {
+  if ((o.group === "Colors" || o.group === "Color") && o.type === "color") {
     return (
       <div className="ia-color-mode">
         <Control o={o} getVal={getVal} setVal={setVal} />
@@ -1545,7 +1558,7 @@ export default function EditComponentModal({
                             const catFields = visualFields.filter((o) => o.group === label);
                             const hasErrors = sectionHasErrors(catFields, getVal);
                             const TabIcon = getSettingsTabIcon(label);
-                            const featureOn = isFeatureTabOn(label, getValByKey);
+                            const featureOn = isFeatureTabOn(label, getValByKey, catFields);
                             return (
                               <button
                                 key={label}

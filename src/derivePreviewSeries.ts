@@ -426,11 +426,11 @@ export function derivePreviewSeries({
     const valCol =
       mapped(config, "Value") ||
       mapped(config, "Intensity Value Field") ||
-      cfgStr(config, "Colors & Opacity", "Data Field") ||
+      cfgStr(config, "Color", "Data Field") ||
       "value";
     const catCol =
       mapped(config, "Type") ||
-      cfgStr(config, "Colors & Opacity", "Color by category field") ||
+      cfgStr(config, "Color", "Color by category field") ||
       "category";
     const groups = groupRows(rows, locCol);
     out.mapPoints = groups.map((g, i) => {

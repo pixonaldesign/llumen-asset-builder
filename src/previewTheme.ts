@@ -102,6 +102,125 @@ export function asRepeatable(v: unknown): RepeatableRow[] {
   return DEFAULT_REPEATABLE;
 }
 
+export const ZOOM_RATES = ["Linear", "Exponential", "Custom"] as const;
+export type ZoomRate = (typeof ZOOM_RATES)[number];
+
+export type ZoomScalingStop = { zoom: string; scale: string };
+
+export type ZoomScalingValue = {
+  rate: ZoomRate;
+  styleAcrossZoom: boolean;
+  stops: ZoomScalingStop[];
+};
+
+export const DEFAULT_ZOOM_SCALING: ZoomScalingValue = {
+  rate: "Linear",
+  styleAcrossZoom: false,
+  stops: [
+    { zoom: "194", scale: "1" },
+    { zoom: "300", scale: "5" },
+    { zoom: "350", scale: "10" },
+    { zoom: "600", scale: "20" },
+  ],
+};
+
+export type ParsedZoomStop = { zoom: number; scale: number };
+
+function isZoomRate(v: unknown): v is ZoomRate {
+  return v === "Linear" || v === "Exponential" || v === "Custom";
+}
+
+function cloneZoomScaling(v: ZoomScalingValue): ZoomScalingValue {
+  return {
+    rate: v.rate,
+    styleAcrossZoom: v.styleAcrossZoom,
+    stops: v.stops.map((s) => ({ zoom: s.zoom, scale: s.scale })),
+  };
+}
+
+function parseStopPair(zoom: unknown, scale: unknown): ZoomScalingStop {
+  return { zoom: String(zoom ?? ""), scale: String(scale ?? "") };
+}
+
+function fromLegacyRepeatable(rows: RepeatableRow[]): ZoomScalingStop[] {
+  const isStockDefault =
+    rows.length === DEFAULT_REPEATABLE.length &&
+    rows.every(
+      (r, i) =>
+        r.min === DEFAULT_REPEATABLE[i].min &&
+        r.max === DEFAULT_REPEATABLE[i].max &&
+        r.label === DEFAULT_REPEATABLE[i].label,
+    );
+  if (isStockDefault) return DEFAULT_ZOOM_SCALING.stops.map((s) => ({ ...s }));
+  return rows.map((r) => parseStopPair(r.min, r.max));
+}
+
+export function asZoomScaling(v: unknown): ZoomScalingValue {
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Partial<ZoomScalingValue> & { stops?: unknown };
+    if (Array.isArray(o.stops) && o.stops.length) {
+      return {
+        rate: isZoomRate(o.rate) ? o.rate : "Linear",
+        styleAcrossZoom: o.styleAcrossZoom === true,
+        stops: o.stops.map((s, i) => {
+          const row = (s ?? {}) as Partial<ZoomScalingStop> & Partial<RepeatableRow>;
+          return parseStopPair(row.zoom ?? row.min ?? i, row.scale ?? row.max ?? "");
+        }),
+      };
+    }
+  }
+  if (Array.isArray(v) && v.length) {
+    const first = v[0] as Partial<ZoomScalingStop> & Partial<RepeatableRow>;
+    if (first && typeof first === "object" && ("zoom" in first || "scale" in first)) {
+      return {
+        rate: "Linear",
+        styleAcrossZoom: false,
+        stops: v.map((s, i) => {
+          const row = (s ?? {}) as Partial<ZoomScalingStop> & Partial<RepeatableRow>;
+          return parseStopPair(row.zoom ?? row.min ?? i, row.scale ?? row.max ?? "");
+        }),
+      };
+    }
+    return {
+      ...cloneZoomScaling(DEFAULT_ZOOM_SCALING),
+      stops: fromLegacyRepeatable(asRepeatable(v)),
+    };
+  }
+  return cloneZoomScaling(DEFAULT_ZOOM_SCALING);
+}
+
+export function parsedZoomStops(value: ZoomScalingValue): ParsedZoomStop[] {
+  return value.stops
+    .map((s) => ({ zoom: Number(s.zoom), scale: Number(s.scale) }))
+    .filter((s) => Number.isFinite(s.zoom) && Number.isFinite(s.scale))
+    .sort((a, b) => a.zoom - b.zoom);
+}
+
+export function sampleZoomScale(value: ZoomScalingValue, zoom: number): number {
+  const pts = parsedZoomStops(value);
+  if (!pts.length) return 1;
+  if (pts.length === 1) return pts[0].scale;
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  if (zoom <= first.zoom) return first.scale;
+  if (zoom >= last.zoom) return last.scale;
+
+  if (value.rate === "Custom") {
+    for (let i = 1; i < pts.length; i++) {
+      if (zoom <= pts[i].zoom) {
+        const span = pts[i].zoom - pts[i - 1].zoom || 1;
+        const t = (zoom - pts[i - 1].zoom) / span;
+        return pts[i - 1].scale + (pts[i].scale - pts[i - 1].scale) * t;
+      }
+    }
+    return last.scale;
+  }
+
+  const t = (zoom - first.zoom) / (last.zoom - first.zoom || 1);
+  const eased = value.rate === "Exponential" ? (8 ** t - 1) / 7 : t;
+  return first.scale + (last.scale - first.scale) * eased;
+}
+
 export function repeatableToStops(rows: RepeatableRow[]): ColorStop[] {
   const sorted = [...rows].sort((a, b) => (Number(a.min) || 0) - (Number(b.min) || 0));
   const stops: ColorStop[] = sorted.map((r) => ({

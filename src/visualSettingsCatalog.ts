@@ -159,6 +159,7 @@ export const SUBCATEGORY_ORDER = [
   "Mapping",
   "KPI Display",
   "Colors",
+  "Color",
   "Layout & visibility",
   "Legend",
   "Status badge",
@@ -176,7 +177,6 @@ export const SUBCATEGORY_ORDER = [
   "Scaling / axes",
   "Tooltips",
   "Annotations",
-  "Colors & Opacity",
   "Line Customization",
   "Height",
   "Size",
@@ -191,9 +191,9 @@ export const SUBCATEGORY_ORDER = [
   "Extrusion",
   "Opacity source",
   "Animation",
+  "Zoom Scaling",
   "Advanced",
   "Map Legend",
-  "Tooltip Fields",
 ] as const;
 
 type VisibleWhen = { group: string; name: string; is: string | string[] };
@@ -542,7 +542,7 @@ const FIELDS: FieldDef[] = [
   }),
 
   /* ---- Tooltips / Annotations ---- */
-  f("Show tooltips", "toggle", "Tooltips", TOOLTIPS),
+  f("Show tooltips", "toggle", "Tooltips", TOOLTIPS.concat(MAP_TOOLTIPS)),
   f("Tooltip format", "text", "Tooltips", ["Vertical Bar", "Horizontal Bar", "Line", "Area", "Scatter", "Pie/Donut"], {
     desc: "D3 number format for the value (e.g. .0f), or a template with {value}, {category}, {timestamp}, {unit}, {status}.",
     defaultValue: ".0f",
@@ -589,40 +589,40 @@ const FIELDS: FieldDef[] = [
     visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
   }),
 
-  /* ---- Map: Colors & Opacity ---- */
-  f("Color Mode", "segmented", "Colors & Opacity", MAP_COLOR, {
-    values: ["Solid", "Gradient"],
-    defaultValue: "Solid",
+  /* ---- Map: Color ---- */
+  f("Palette", "color", "Color", MAP_COLOR, {
+    desc: "Pick a palette, then apply it as a single color, a gradient, or discrete steps.",
   }),
-  f("Solid color", "color", "Colors & Opacity", MAP_COLOR, {
-    defaultValue: "#1FCE7A",
-    visibleWhen: { group: "Colors & Opacity", name: "Color Mode", is: "Solid" },
-  }),
-  f("Data Field", "field", "Colors & Opacity", MAP_COLOR),
-  f("Distribution", "dropdown", "Colors & Opacity", ["Arcs", "Discs", "Fences", "Heatmap", "Wind", "Areas"], {
+  f("Data Field", "field", "Color", MAP_COLOR),
+  f("Distribution", "dropdown", "Color", ["Arcs", "Discs", "Fences", "Heatmap", "Wind", "Areas"], {
     values: ["Linear", "Quantile", "Quantize"],
     defaultValue: "Linear",
   }),
-  f("Color stops", "gradient", "Colors & Opacity", MAP_COLOR, {
-    visibleWhen: { group: "Colors & Opacity", name: "Color Mode", is: "Gradient" },
-  }),
-  f("Categorical color stops + Other", "colorList", "Colors & Opacity", ["Points", "Areas"]),
-  f("Color by category field", "field", "Colors & Opacity", ["Points"]),
-  f("Marker color", "color", "Colors & Opacity", ["Points"]),
-  f("Normalize values", "toggle", "Colors & Opacity", ["Pillars"]),
-  f("Border Thickness", "slider", "Colors & Opacity", ["Arcs"], { desc: "0–10 px." }),
+  f("Categorical color stops + Other", "colorList", "Color", ["Points", "Areas"]),
+  f("Color by category field", "field", "Color", ["Points"]),
+  f("Marker color", "color", "Color", ["Points"]),
+  f("Normalize values", "toggle", "Color", ["Pillars"]),
+  f("Border Thickness", "slider", "Color", ["Arcs"], { desc: "0–10 px." }),
 
   /* ---- Map type-specific ---- */
-  f("Source → Destination Indicator", "text", "Line Customization", ["Arcs"]),
+  f("Source → Destination Indicator", "toggle", "Line Customization", ["Arcs"], {
+    desc: "Play a shimmer along each arc from source to destination.",
+    def: false,
+  }),
   f("Height Exaggeration", "toggle", "Height", ["Fences"], { def: false }),
-  f("Fence height", "slider", "Height", ["Fences"], { desc: "0–5000." }),
+  f("Fence height", "slider", "Height", ["Fences"], {
+    desc: "0–5000.",
+    visibleWhen: { group: "Height", name: "Height Exaggeration", is: "true" },
+  }),
   f("Max Height", "slider", "Size", ["Pillars"], { desc: "0–8000. Default 3000." }),
+  f("Zoom scaling", "repeatable", "Size", ["Pillars"]),
+  f("Disc radius multiplier", "slider", "Disc Scaling", ["Discs"], { desc: "0.2–4. Default 1.2." }),
   f("Disc scaling", "repeatable", "Disc Scaling", ["Discs"]),
-  f("Fill style", "segmented", "Disc ring", ["Discs"], { values: ["Solid", "None"] }),
-  f("Disc base color", "color", "Disc ring", ["Discs"], { defaultValue: "#1FCE7A" }),
-  f("Disc radius multiplier", "slider", "Disc ring", ["Discs"], { desc: "0.2–4. Default 1.2." }),
   f("Show endpoint discs", "toggle", "Disc ring", ["Arcs"], { def: false }),
-  f("Endpoint disc scaling", "repeatable", "Disc ring", ["Arcs"]),
+  f("Endpoint disc scaling", "slider", "Disc ring", ["Arcs"], {
+    desc: "0.2–4. Default 1.2.",
+    visibleWhen: { group: "Disc ring", name: "Show endpoint discs", is: "true" },
+  }),
   f("Show ground disc", "toggle", "Ground disc", ["Points"]),
   f("Fill style", "segmented", "Ground disc", ["Points"], { values: ["None", "Solid"] }),
   f("Disc color", "color", "Ground disc", ["Points"]),
@@ -685,12 +685,13 @@ const FIELDS: FieldDef[] = [
   f("Falloff Rate", "slider", "Advanced", ["Heatmap"], { desc: "Default 0.2." }),
   f("Sprites per Point", "slider", "Advanced", ["Heatmap"], { desc: "Default 1." }),
   f("Size Multiplier", "slider", "Advanced", ["Heatmap"], { desc: "Default 1.0." }),
-  f("Fence zoom scaling", "repeatable", "Advanced", ["Fences"]),
+  f("Fence zoom scaling", "repeatable", "Zoom Scaling", ["Fences"]),
   f("Show legend in Map Data", "toggle", "Map Legend", ["All Map Layers"]),
-  f("Tooltip fields", "multi", "Tooltip Fields", MAP_TOOLTIPS, {
+  f("Tooltip content fields", "multi", "Tooltips", MAP_TOOLTIPS, {
     desc: "Hover shows these mock-data columns: name, value, type, status.",
     values: ["name", "value", "type", "status"],
     defaultValue: ["name", "value", "type"],
+    visibleWhen: { group: "Tooltips", name: "Show tooltips", is: "true" },
   }),
 ];
 
@@ -744,14 +745,17 @@ export function subCategoriesForVisual(visualId: string): string[] {
 }
 
 /** Always-on mapping / appearance tabs. Everything else sits under Extra. */
-export const SETTINGS_NAV_CORE = ["Mapping", "KPI Display", "Colors"] as const;
+export const SETTINGS_NAV_CORE = ["Mapping", "KPI Display", "Colors", "Color"] as const;
 
 /** Extra tabs whose first control is a master show/hide toggle. */
 export const FEATURE_TAB_MASTERS: Record<string, string> = {
   Legend: "Show legend",
   "Status badge": "Show status badge",
   Tooltips: "Show tooltips",
-  "Annotations": "Show annotations",
+  Annotations: "Show annotations",
+  "Disc ring": "Show endpoint discs",
+  "Map Legend": "Show legend in Map Data",
+  Height: "Height Exaggeration",
 };
 
 function isToggleOn(value: unknown): boolean {
@@ -761,9 +765,11 @@ function isToggleOn(value: unknown): boolean {
 export function isFeatureTabOn(
   group: string,
   getValByKey: (group: string, name: string) => unknown,
+  groupFields?: Opt[],
 ): boolean | null {
   const master = FEATURE_TAB_MASTERS[group];
   if (!master) return null;
+  if (groupFields && !groupFields.some((o) => o.name === master)) return null;
   return isToggleOn(getValByKey(group, master));
 }
 
@@ -774,12 +780,17 @@ export type SettingsNavSection = {
 };
 
 export function settingsNavSections(visualId: string): SettingsNavSection[] {
+  const fields = fieldsForVisual(visualId);
   const tabs = subCategoriesForVisual(visualId);
   const coreSet = new Set<string>(SETTINGS_NAV_CORE);
   const core = tabs.filter((name) => coreSet.has(name));
   const extra = tabs.filter((name) => !coreSet.has(name));
-  const extraPlain = extra.filter((name) => !FEATURE_TAB_MASTERS[name]);
-  const extraToggles = extra.filter((name) => FEATURE_TAB_MASTERS[name]);
+  const hasMaster = (name: string) => {
+    const master = FEATURE_TAB_MASTERS[name];
+    return Boolean(master && fields.some((o) => o.group === name && o.name === master));
+  };
+  const extraPlain = extra.filter((name) => !hasMaster(name));
+  const extraToggles = extra.filter((name) => hasMaster(name));
   const extraOrdered = [...extraPlain, ...extraToggles];
   const sections: SettingsNavSection[] = [];
   if (core.length) sections.push({ id: "core", label: "Core", tabs: core });
@@ -789,7 +800,12 @@ export function settingsNavSections(visualId: string): SettingsNavSection[] {
 
 export function isFieldVisible(o: Opt, getValByKey: (group: string, name: string) => unknown): boolean {
   const master = FEATURE_TAB_MASTERS[o.group];
-  if (master && o.name !== master && !isToggleOn(getValByKey(o.group, master))) return false;
+  if (master && o.name !== master) {
+    const current = getValByKey(o.group, master);
+    if ((typeof current === "boolean" || current === "true" || current === "false") && !isToggleOn(current)) {
+      return false;
+    }
+  }
   if (!o.visibleWhen) return true;
   const current = String(getValByKey(o.visibleWhen.group, o.visibleWhen.name) ?? "");
   const expected = o.visibleWhen.is;
