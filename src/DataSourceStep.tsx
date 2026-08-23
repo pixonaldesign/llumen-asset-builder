@@ -1200,7 +1200,11 @@ function SourceConfiguration({
   );
 }
 
-export default function DataSourceStep() {
+export default function DataSourceStep({
+  onSelectionChange,
+}: {
+  onSelectionChange?: (label: string | null) => void;
+}) {
   const [restoredState] = useState(readDevDataSourceState);
   const [sourceType, setSourceType] = useState<SourceType>(restoredState.sourceType ?? "database");
   const [mlInputSource, setMlInputSource] = useState<MlInputSource | null>(
@@ -1276,6 +1280,32 @@ export default function DataSourceStep() {
   const mlSelectedApi = API_SOURCES.find((source) => source.id === mlSelectedApiId) ?? null;
   const mlSelectedFile = FILE_SOURCES.find((source) => source.id === mlSelectedFileId) ?? null;
   const selectedDataFlow = DATA_FLOWS.find((flow) => flow.id === selectedDataFlowId) ?? null;
+  const selectedMlInputLabel =
+    mlInputSource === "database"
+      ? mlSelectedDatabase?.name
+      : mlInputSource === "api"
+        ? mlSelectedApi?.name
+        : mlInputSource === "file-source"
+          ? mlSelectedFile?.name
+          : mlInputSource === "local-file"
+            ? "Local file"
+            : null;
+  const selectedSourceLabel =
+    sourceType === "database"
+      ? selectedDatabase?.name
+      : sourceType === "api"
+        ? selectedApi?.name
+        : sourceType === "file-upload"
+          ? selectedFile?.name
+          : sourceType === "ml-model"
+            ? selectedMlInputLabel
+            : sourceType === "data-flow"
+              ? selectedDataFlow?.name
+              : null;
+
+  useEffect(() => {
+    onSelectionChange?.(selectedSourceLabel ?? null);
+  }, [onSelectionChange, selectedSourceLabel]);
 
   useEffect(() => {
     sessionStorage.setItem(

@@ -1259,6 +1259,7 @@ export default function EditComponentModal({
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
   const [config, setConfig] = useState<Config>({});
+  const [dataSourceLabel, setDataSourceLabel] = useState<string | null>(null);
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     name: componentName ?? "",
     description: "",
@@ -1547,7 +1548,7 @@ export default function EditComponentModal({
                 (isGeneralInfoStep ? " settings__content--general-info" : "")
               }
             >
-              {isDataSourceStep && <DataSourceStep />}
+              {isDataSourceStep && <DataSourceStep onSelectionChange={setDataSourceLabel} />}
 
               {isFiltersStep && <FiltersStep />}
 
@@ -1658,7 +1659,50 @@ export default function EditComponentModal({
           {!isDeepDiveStep && !isVizPicker && (
           <section className="preview">
             {isDataSourceStep ? (
-              <ApiResponsePreview />
+              <>
+                <div className="preview__head">
+                  <div className="preview__head-row">
+                    <h3 className="preview__title">Chart Preview</h3>
+                    <div
+                      className="seg-toggle preview__mode-toggle"
+                      role="group"
+                      aria-label="Preview mode"
+                    >
+                      <button
+                        type="button"
+                        className={
+                          "seg-toggle__btn" +
+                          (previewMode === "visualization" ? " is-active" : "")
+                        }
+                        onClick={() => setPreviewMode("visualization")}
+                      >
+                        Visualization
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          "seg-toggle__btn" + (previewMode === "data-query" ? " is-active" : "")
+                        }
+                        onClick={() => setPreviewMode("data-query")}
+                      >
+                        Data query
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {previewMode === "visualization" ? (
+                  <ApiResponsePreview
+                    title={generalInfo.name || componentName || "Untitled Asset"}
+                    description={generalInfo.description}
+                    category={generalInfo.category || componentCategory || "General"}
+                    sourceLabel={dataSourceLabel}
+                  />
+                ) : (
+                  <div className="preview__stage preview__stage--table">
+                    <ChartDataQueryPreview />
+                  </div>
+                )}
+              </>
             ) : showChartPreview ? (
               <>
                 <div className="preview__head">

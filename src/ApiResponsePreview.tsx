@@ -1,35 +1,27 @@
-const SAMPLE_RESPONSE = `{
-  "location": "New York",
-  "temperature": 22.5,
-  "humidity": 65,
-  "description": "Partly cloudy",
-  "wind_speed": 12.3,
-  "timestamp": "2024-01-15T14:30:00Z"
-}`;
-
-export default function ApiResponsePreview() {
+export default function ApiResponsePreview({
+  title,
+  description,
+  category,
+  sourceLabel,
+}: {
+  title: string;
+  description: string;
+  category: string;
+  sourceLabel: string | null;
+}) {
   return (
-    <div className="api-response">
-      <div className="api-response__head">
-        <h3 className="api-response__title">Response</h3>
-        <dl className="api-response__meta">
-          <div className="api-response__meta-item">
-            <dt>Status</dt>
-            <dd className="api-response__status">200 OK</dd>
-          </div>
-          <div className="api-response__meta-item">
-            <dt>Time</dt>
-            <dd>245ms</dd>
-          </div>
-          <div className="api-response__meta-item">
-            <dt>Size</dt>
-            <dd>1.2 KB</dd>
-          </div>
-        </dl>
+    <div className="data-source-preview">
+      <div className="data-source-preview__figure">
+        <article className="data-source-preview__card">
+          <strong>{title || "Untitled Asset"}</strong>
+          <p>{description || "Add a description for your component."}</p>
+          <span>{category || "General"}</span>
+        </article>
+        <div className="data-source-preview__connection" aria-label="Selected data source">
+          <i aria-hidden="true" />
+          <span className={!sourceLabel ? "is-empty" : undefined}>{sourceLabel ?? "Select source"}</span>
+        </div>
       </div>
-      <pre className="api-response__body">
-        <code>{SAMPLE_RESPONSE}</code>
-      </pre>
     </div>
   );
 }
