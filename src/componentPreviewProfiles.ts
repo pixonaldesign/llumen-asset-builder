@@ -7,6 +7,7 @@ export type MarkTip = {
   timestamp: string;
   unit: string;
   status: string;
+  total?: number;
 };
 
 export type PreviewSeries = {
@@ -28,6 +29,7 @@ export type PreviewSeries = {
   reference?: number;
   minTotal?: number;
   maxTotal?: number;
+  maxTotals?: number[];
   storyKpi?: { value: string; unit: string };
   kpiTiles?: { label: string; secondary?: string; value: string; status: string }[];
   mapPoints?: {

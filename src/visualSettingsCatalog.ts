@@ -234,7 +234,7 @@ const FIELDS: FieldDef[] = [
     desc: "Categorical column, ≤50 unique values.",
   }),
   f("Max/Total", "field", "Mapping", BARS.concat(["Progress Bar"]), {
-    desc: "Numeric column used as the bar maximum / total.",
+    desc: "Numeric column used as each bar’s maximum / total. The preview fills value against this ceiling.",
   }),
   f("Reference value", "field", "Mapping", ["Line", "Area", "Range"], {
     desc: "Draws a reference line.",

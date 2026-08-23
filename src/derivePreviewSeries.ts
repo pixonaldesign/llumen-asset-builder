@@ -148,6 +148,14 @@ function seriesFromGroups(
   };
 }
 
+function seriesMaxTotals(
+  groups: { label: string; rows: MockRow[] }[],
+  maxCol: string,
+  agg: string,
+): number[] {
+  return groups.map((g) => Number(aggregate(g.rows.map((r) => numCell(r, maxCol)), agg).toFixed(2)));
+}
+
 function calcFromNums(nums: number[], calc: string): number {
   if (!nums.length) return 0;
   const c = calc.toLowerCase();
@@ -488,25 +496,34 @@ export function derivePreviewSeries({
   }
 
   const isTime = chartId === "line" || chartId === "area";
-  const cat =
-    mapped(config, "X axis") ||
-    mapped(config, "Y category") ||
-    mapped(config, "Category") ||
-    (chartId === "horizontalBar" || chartId === "progress" || chartId === "score" ? "district" : isTime ? "timestamp" : "district");
-  const val =
-    mapped(config, "Y axis") ||
-    mapped(config, "X value") ||
-    mapped(config, "Value") ||
-    yCol;
+  const isHorizontal = chartId === "horizontalBar" || chartId === "progress" || chartId === "score";
+  const cat = isHorizontal
+    ? mapped(config, "Y category", "district")
+    : mapped(config, "X axis") || mapped(config, "Category") || (isTime ? "timestamp" : "district");
+  const val = isHorizontal
+    ? mapped(config, "X value", "value")
+    : chartId === "bar" || isTime
+      ? mapped(config, "Y axis", "value")
+      : mapped(config, "Value", yCol);
 
   const groups = groupRows(rows, cat);
   const sliced = applyTopN(groups, isTime ? 100 : topN);
-  const grouped = seriesFromGroups(sliced, val, agg.startsWith("None") && isTime ? "Average" : agg.startsWith("None") && (chartId === "pie") ? "Sum" : agg);
+  const valueAgg = agg.startsWith("None") && isTime ? "Average" : agg.startsWith("None") && (chartId === "pie") ? "Sum" : agg;
+  const grouped = seriesFromGroups(sliced, val, valueAgg);
   out.labels = grouped.labels;
   out.values = chartId === "progress" ? [grouped.values[0] ?? 0] : grouped.values;
   if (chartId === "progress") out.labels = grouped.labels.slice(0, 1);
-  const tipAgg = agg.startsWith("None") && isTime ? "Average" : agg.startsWith("None") && chartId === "pie" ? "Sum" : agg;
-  out.markTips = (chartId === "progress" ? sliced.slice(0, 1) : sliced).map((g) => markTipFromGroup(g, val, tipAgg));
+  const tipAgg = valueAgg;
+  const tipGroups = chartId === "progress" ? sliced.slice(0, 1) : sliced;
+  out.markTips = tipGroups.map((g) => markTipFromGroup(g, val, tipAgg));
+
+  const mappedMaxCol = mapped(config, "Max/Total");
+  if (mappedMaxCol && (chartId === "bar" || chartId === "horizontalBar" || chartId === "progress" || chartId === "score")) {
+    const totals = seriesMaxTotals(tipGroups, mappedMaxCol, valueAgg);
+    out.maxTotals = totals;
+    out.maxTotal = Math.max(...totals, 0);
+    out.markTips = out.markTips.map((tip, i) => ({ ...tip, total: totals[i] }));
+  }
 
   const dual = ml.includes("Actual vs predicted");
   if (seriesCol || dual) {

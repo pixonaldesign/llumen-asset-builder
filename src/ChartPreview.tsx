@@ -51,7 +51,12 @@ const str = (v: unknown, d: string) => (typeof v === "string" && v ? v : d);
 const TOOLTIP_FIELDS = ["value", "category", "timestamp", "unit", "status"] as const;
 
 function tipValue(tip: MarkTip, field: string, numberFormat: string): string {
-  if (field === "value") return formatBySpec(tip.value, numberFormat);
+  if (field === "value") {
+    if (tip.total != null && Number.isFinite(tip.total)) {
+      return `${formatBySpec(tip.value, numberFormat)} / ${formatBySpec(tip.total, numberFormat)}`;
+    }
+    return formatBySpec(tip.value, numberFormat);
+  }
   if (field === "category") return tip.category || tip.label;
   if (field === "timestamp") return tip.timestamp;
   if (field === "unit") return tip.unit;
@@ -549,30 +554,41 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
   const gradId = useId().replace(/:/g, "");
   const sort = minimal && !series ? false : bool(cfg("Bar", "Sort by value", false), false);
   const sortOrder = str(cfg("Bar", "Sort order", "Descending"), "Descending");
-  const showLabels =
-    !minimal &&
-    !compact &&
-    (bool(cfg("Bar", "Show values on bars", false), false) || bool(cfg("Layout & visibility", "Show data labels", false), false));
   const track = str(cfg("Bar", "Background track style", "None"), "None");
   const stack = bool(cfg("Bar", "Stack series", false), false);
   const source = series?.values ?? [40, 72, 30, 58, 90, 64];
   const sourceLabels = series?.labels ?? source.map((_, i) => String(i + 1));
   const groups = series?.groups;
-  const paired = source.map((value, i) => ({ value, label: sourceLabels[i] ?? "", i }));
+  const paired = source.map((value, i) => ({
+    value,
+    label: sourceLabels[i] ?? "",
+    i,
+    total: series?.maxTotals?.[i],
+  }));
   if (sort) paired.sort((a, b) => (sortOrder === "Ascending" ? a.value - b.value : b.value - a.value));
   const data = paired.map((p) => p.value);
   const labels = paired.map((p) => p.label);
   const n = Math.max(data.length, 1);
   const metrics = usePlot();
-  const domain = parseMinMax(cfg("Scaling / axes", "Manual range (min/max)", ""), [0, Math.max(...data, 1)]);
-  const min = String(cfg("Scaling / axes", "Manual range (min/max)", "")).trim() ? domain[0] : 0;
-  const max = String(cfg("Scaling / axes", "Manual range (min/max)", "")).trim() ? domain[1] : Math.max(...data, 1);
+  const rangeRaw = String(cfg("Scaling / axes", "Manual range (min/max)", "")).trim();
+  const totals = paired.map((p) => p.total).filter((t): t is number => t != null && Number.isFinite(t) && t > 0);
+  const hasTotals = totals.length > 0;
+  const showLabels =
+    !minimal &&
+    !compact &&
+    (hasTotals ||
+      bool(cfg("Bar", "Show values on bars", false), false) ||
+      bool(cfg("Layout & visibility", "Show data labels", false), false));
+  const dataMax = Math.max(...data, 1);
+  const domain = parseMinMax(cfg("Scaling / axes", "Manual range (min/max)", ""), [0, hasTotals ? 100 : dataMax]);
+  const min = rangeRaw ? domain[0] : 0;
+  const max = rangeRaw ? domain[1] : hasTotals ? 100 : dataMax;
   const box = plotBox(cfg, !!decorate, 0, showLabels ? 16 : 0, metrics);
   const slot = box.width / n;
   const bw = slot * 0.62;
   const r = Math.min(bw / 2, 4);
   const mode = colorFromCfg(cfg);
-  const yMax = groups?.length && stack
+  const yMax = groups?.length && stack && !hasTotals
     ? Math.max(
         ...labels.map((_, li) => groups.reduce((a, g) => a + (g.values[paired[li]?.i ?? li] ?? 0), 0)),
         1,
@@ -581,9 +597,36 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
   const gradFill = mode.style === "Gradient" ? `url(#${gradId})` : "";
 
   const stackedMax = yMax;
+  const axisFmt = str(cfg("Scaling / axes", "Format", ""), "");
 
   const markColor = (index: number, value: number, seriesN: number, category?: string) =>
     gradFill || colorMode(cfg, index, value, stackedMax, category, seriesN, axisAlong(index, n, value, min, stackedMax));
+
+  const fillH = (value: number, total: number | undefined) => {
+    if (hasTotals && total != null && total > 0) return Math.min(value / total, 1) * box.height;
+    return ((value - min) / (max - min || 1)) * box.height;
+  };
+
+  const trackRect = (x: number, width = bw) =>
+    hasTotals ? (
+      <rect
+        x={x}
+        y={box.top}
+        width={width}
+        height={box.height}
+        rx={r}
+        fill="color-mix(in srgb, var(--lc-text-primary) 14%, transparent)"
+      />
+    ) : null;
+
+  const valueLabel = (value: number, total: number | undefined, x: number, y: number) =>
+    showLabels ? (
+      <text x={x + bw / 2} y={y - 4} fill={INK_STRONG} fontSize="10" textAnchor="middle">
+        {hasTotals && total != null
+          ? `${formatBySpec(value, axisFmt)} / ${formatBySpec(total, axisFmt)}`
+          : formatBySpec(value, axisFmt)}
+      </text>
+    ) : null;
 
   return (
     <>
@@ -592,29 +635,27 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
           <GradientPaint id={gradId} mode={mode} box={box} min={min} max={stackedMax} />
         </defs>
       )}
-      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={stack && groups ? stackedMax : max} min={min} />}
+      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={stack && groups && !hasTotals ? stackedMax : max} min={min} />}
       {data.map((d, i) => {
         const x = box.left + i * slot + (slot - bw) / 2;
         const srcIndex = paired[i]?.i ?? i;
+        const total = paired[i]?.total;
         if (stack && groups?.length) {
           let y = box.bottom;
           return (
             <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, srcIndex)}>
-              {track !== "None" && (
+              {(track !== "None" || hasTotals) && (
                 <rect x={x} y={box.top} width={bw} height={box.height} rx={r} fill="rgba(255,255,255,.06)" />
               )}
+              {trackRect(x)}
               {groups.map((g, gi) => {
                 const v = g.values[srcIndex] ?? 0;
-                const bh = ((v - min) / (stackedMax - min || 1)) * box.height;
+                const bh = fillH(v, total);
                 y -= bh;
                 const color = markColor(gi, v, groups.length, g.name);
                 return <rect key={g.name} x={x} y={y} width={bw} height={Math.max(0, bh)} fill={color} />;
               })}
-              {showLabels && (
-                <text x={x + bw / 2} y={y - 4} fill={INK_STRONG} fontSize="10" textAnchor="middle">
-                  {formatBySpec(d, str(cfg("Scaling / axes", "Format", ""), ""))}
-                </text>
-              )}
+              {valueLabel(d, total, x, y)}
             </g>
           );
         }
@@ -622,16 +663,17 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
           const gw = bw / groups.length;
           return (
             <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, srcIndex)}>
+              {trackRect(x)}
               {groups.map((g, gi) => {
                 const v = g.values[srcIndex] ?? 0;
-                const bh = ((v - min) / (max - min || 1)) * box.height;
+                const bh = fillH(v, total);
                 const color = markColor(gi, v, groups.length, g.name);
                 return <rect key={g.name} x={x + gi * gw} y={box.bottom - bh} width={Math.max(1, gw - 1)} height={bh} rx={2} fill={color} />;
               })}
             </g>
           );
         }
-        const bh = ((d - min) / (max - min || 1)) * box.height;
+        const bh = fillH(d, total);
         const y = box.bottom - bh;
         const color = markColor(i, d, n, labels[i]);
         return (
@@ -648,12 +690,9 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
                   stroke="rgba(255,255,255,.12)"
                 />
               ))}
+            {trackRect(x)}
             <rect x={x} y={y} width={bw} height={Math.max(0, bh)} rx={r} fill={color} opacity={hover === srcIndex ? 1 : 0.92} />
-            {showLabels && (
-              <text x={x + bw / 2} y={y - 4} fill={INK_STRONG} fontSize="10" textAnchor="middle">
-                {formatBySpec(d, str(cfg("Scaling / axes", "Format", ""), ""))}
-              </text>
-            )}
+            {valueLabel(d, total, x, y)}
           </g>
         );
       })}
@@ -977,22 +1016,30 @@ function Scatter({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }: 
 
 function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
   const { W, H, P } = usePlot();
-  const showLabels = !minimal && !compact && bool(cfg("Layout & visibility", "Show data labels", false), false);
   const layout = str(cfg("Bar", "Layout", "Inline"), "Inline");
   const kpiMode = str(cfg("Bar", "KPI number mode", "Percentage"), "Percentage");
   const sort = minimal && !series ? false : bool(cfg("Bar", "Sort by value", false), false);
   const sortOrder = str(cfg("Bar", "Sort order", "Descending"), "Descending");
   const source = series?.values ?? (chartId === "progress" ? [68] : [84, 72, 61, 44]);
   const sourceLabels = series?.labels ?? source.map((_, i) => `Item ${i + 1}`);
-  const paired = source.map((value, i) => ({ value, label: sourceLabels[i] ?? "", i }));
+  const paired = source.map((value, i) => ({
+    value,
+    label: sourceLabels[i] ?? "",
+    i,
+    maxTotal: series?.maxTotals?.[i] ?? series?.maxTotal,
+  }));
   if (sort && chartId === "horizontalBar") {
     paired.sort((a, b) => (sortOrder === "Ascending" ? a.value - b.value : b.value - a.value));
   }
   const data = paired.map((p) => p.value);
   const labels = paired.map((p) => p.label);
   const minTotal = series?.minTotal ?? 0;
-  const maxTotal = series?.maxTotal ?? Math.max(...data, 1);
-  const span = maxTotal - minTotal || 1;
+  const hasMappedTotal = paired.some((p) => p.maxTotal != null && p.maxTotal > 0);
+  const showLabels =
+    !minimal &&
+    !compact &&
+    (hasMappedTotal || bool(cfg("Layout & visibility", "Show data labels", false), false));
+  const fallbackMax = Math.max(...data, 1);
   const n = data.length;
   const cartesian = layout === "Cartesian" && chartId === "horizontalBar";
   const labelW = cartesian ? 58 : 0;
@@ -1012,25 +1059,33 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
     bottom: P + n * (bh + gap) - gap,
   };
   const gradFill = mode.style === "Gradient" ? `url(#${gradId})` : "";
+  const scaleMax = hasMappedTotal
+    ? Math.max(...paired.map((p) => (p.maxTotal && p.maxTotal > 0 ? p.maxTotal : p.value)), 1)
+    : fallbackMax;
 
   return (
     <>
       {gradFill && (
         <defs>
-          <GradientPaint id={gradId} mode={mode} box={plotBoxH} min={minTotal} max={maxTotal} />
+          <GradientPaint id={gradId} mode={mode} box={plotBoxH} min={minTotal} max={scaleMax} />
         </defs>
       )}
       {data.map((v, i) => {
         const y = P + i * (bh + gap);
+        const cap = paired[i]?.maxTotal && paired[i]!.maxTotal! > 0 ? paired[i]!.maxTotal! : scaleMax;
+        const span = cap - minTotal || 1;
         const color =
           gradFill ||
-          colorMode(cfg, i, v, maxTotal, labels[i], n, {
+          colorMode(cfg, i, v, cap, labels[i], n, {
             x: (v - minTotal) / span,
             y: i / Math.max(n - 1, 1),
           });
         const pct = Math.max(0, Math.min(1, (v - minTotal) / span));
         const w = Math.max(2, pct * plotW);
-        const label = kpiMode === "Value of total" ? `${formatBySpec(v, "")} / ${formatBySpec(maxTotal, "")}` : `${Math.round(pct * 100)}%`;
+        const label =
+          hasMappedTotal || kpiMode === "Value of total"
+            ? `${formatBySpec(v, "")} / ${formatBySpec(cap, "")}`
+            : `${Math.round(pct * 100)}%`;
         return (
           <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, paired[i]?.i ?? i)}>
             {cartesian && (
@@ -1038,8 +1093,15 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
                 {labels[i].length > 10 ? `${labels[i].slice(0, 9)}…` : labels[i]}
               </text>
             )}
-            {(track !== "None" || chartId === "progress" || isScore) && (
-              <rect x={P + labelW} y={y} width={plotW} height={bh} rx={bh / 2} fill="rgba(255,255,255,.1)" />
+            {(track !== "None" || chartId === "progress" || isScore || hasMappedTotal) && (
+              <rect
+                x={P + labelW}
+                y={y}
+                width={plotW}
+                height={bh}
+                rx={bh / 2}
+                fill="color-mix(in srgb, var(--lc-text-primary) 14%, transparent)"
+              />
             )}
             {(fillTo || !isScore) && (
               <rect x={P + labelW} y={y} width={w} height={bh} rx={bh / 2} fill={color} />
@@ -1047,7 +1109,7 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
             {isScore && showMarker && <circle cx={P + labelW + w} cy={y + bh / 2} r={5} fill="#fff" stroke={color} strokeWidth="2" />}
             {showLabels && (
               <text x={P + labelW + plotW - 4} y={y + bh / 2 + 4} fill={INK_STRONG} fontSize={FS_TICK} fontWeight="500" textAnchor="end">
-                {cartesian ? formatBySpec(v, "") : `${!cartesian ? labels[i] + "  " : ""}${chartId === "progress" || isScore ? label : formatBySpec(v, "")}`}
+                {cartesian ? formatBySpec(v, "") : `${!cartesian ? labels[i] + "  " : ""}${chartId === "progress" || isScore || hasMappedTotal ? label : formatBySpec(v, "")}`}
               </text>
             )}
           </g>

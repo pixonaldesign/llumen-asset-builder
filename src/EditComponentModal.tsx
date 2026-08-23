@@ -1,4 +1,13 @@
-import { useState, useRef, useCallback, useLayoutEffect, useEffect, useMemo, type ReactNode } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  useEffect,
+  useMemo,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   AlignBottomSimple,
@@ -980,7 +989,7 @@ function Control({
         <Dropdown
           value={String(getVal(o))}
           onChange={(v) => setVal(o, v)}
-          allowEmpty={o.type === "field"}
+          allowEmpty={o.type === "field" && o.level !== "required"}
           searchable={o.type === "field"}
           options={list}
         />
@@ -1140,8 +1149,9 @@ function RevealPanel({
   open: boolean;
   children: ReactNode;
 }) {
+  const inertProps = { inert: !open || undefined } as HTMLAttributes<HTMLDivElement>;
   return (
-    <div className={"ia-reveal" + (open ? " is-open" : "")} aria-hidden={!open} inert={!open || undefined}>
+    <div className={"ia-reveal" + (open ? " is-open" : "")} aria-hidden={!open} {...inertProps}>
       <div className="ia-reveal__inner">{children}</div>
     </div>
   );
@@ -1209,6 +1219,16 @@ function GroupCard({
 }
 
 /* ---------- modal ---------- */
+const WIZARD_PROGRESS_KEY = "llumen.dev.wizard-progress";
+
+function readWizardProgress(): { currentStep?: number; maxUnlockedStep?: number } {
+  try {
+    return JSON.parse(sessionStorage.getItem(WIZARD_PROGRESS_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
 export default function EditComponentModal({
   onClose,
   componentName,
@@ -1222,14 +1242,19 @@ export default function EditComponentModal({
   startAtVisualPicker?: boolean;
   creating?: boolean;
 }) {
+  const [restoredWizardProgress] = useState(readWizardProgress);
   const [activeChart, setActiveChart] = useState("bar");
   const [selectedVisualId, setSelectedVisualId] = useState<string | null>(
     startAtVisualPicker ? null : "vertical-bar",
   );
   const [vizPhase, setVizPhase] = useState<VizPhase>(startAtVisualPicker ? "picker" : "settings");
   const [activeSubCategory, setActiveSubCategory] = useState("Mapping");
-  const [currentStep, setCurrentStep] = useState(startAtVisualPicker ? 0 : 1);
-  const [maxUnlockedStep, setMaxUnlockedStep] = useState(startAtVisualPicker ? 0 : 1);
+  const [currentStep, setCurrentStep] = useState(
+    restoredWizardProgress.currentStep ?? (startAtVisualPicker ? 0 : 1),
+  );
+  const [maxUnlockedStep, setMaxUnlockedStep] = useState(
+    restoredWizardProgress.maxUnlockedStep ?? (startAtVisualPicker ? 0 : 1),
+  );
   const [query, setQuery] = useState("");
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
@@ -1250,6 +1275,13 @@ export default function EditComponentModal({
   const navSections = useMemo(() => settingsNavSections(displayVisualId), [displayVisualId]);
 
   useEffect(() => {
+    sessionStorage.setItem(
+      WIZARD_PROGRESS_KEY,
+      JSON.stringify({ currentStep, maxUnlockedStep }),
+    );
+  }, [currentStep, maxUnlockedStep]);
+
+  useEffect(() => {
     if (!subCategories.includes(activeSubCategory)) {
       setActiveSubCategory(subCategories[0] ?? "Mapping");
     }
@@ -1257,6 +1289,9 @@ export default function EditComponentModal({
 
   const getVal = (o: Opt) => {
     const v = config[keyOf(o)];
+    if (o.type === "field" && o.level === "required" && !isValueFilled(o, v)) {
+      return defaultFor(o);
+    }
     return v === undefined ? defaultFor(o) : v;
   };
   const setVal = (o: Opt, v: unknown) => setConfig((c) => ({ ...c, [keyOf(o)]: v }));
@@ -1286,7 +1321,12 @@ export default function EditComponentModal({
     const next: Config = { ...config };
     for (const o of visualFields) {
       const k = keyOf(o);
-      if (next[k] === undefined) next[k] = defaultFor(o);
+      if (
+        next[k] === undefined ||
+        (o.type === "field" && o.level === "required" && !isValueFilled(o, next[k]))
+      ) {
+        next[k] = defaultFor(o);
+      }
     }
     return next;
   }, [config, visualFields]);

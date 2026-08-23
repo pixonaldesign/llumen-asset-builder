@@ -1,0 +1,16 @@
+---
+description: Preserve the Create Asset modal design-system contract
+globs: "{src/EditComponentModal.tsx,src/CreateComponentPopup.tsx,src/DataSourceStep.tsx,src/VisualTypePicker.tsx,src/FiltersStep.tsx,src/DeepDiveStep.tsx,src/AccessStep.tsx,src/GeneralInfoStep.tsx,src/AddComponentModal.tsx,src/Dropdown.tsx,src/WidgetFrame.tsx,src/styles.css,src/llumen-design-system.css}"
+alwaysApply: false
+---
+
+# Create Asset Modal Design System
+
+- Use existing semantic `--lc-*` and canonical design-system tokens for modal UI color, spacing, radius, typography, and blur.
+- Do not add raw hex, `rgb`/`rgba`, `hsl`/`hsla`, or fixed pixel literals for modal UI when a token exists. Add a canonical token and semantic alias when a genuinely missing role is required.
+- Preserve the exact Figma spacing, radius, typography, and blur scales in `llumen-design-system.css`; do not introduce one-off scale values.
+- Keep UI semantic colors separate from chart and data-series palettes. Never use palette constants for UI states or semantic UI tokens as data colors.
+- Reuse the existing modal structure and shared controls, including `pg-btn`, `Dropdown`, `WidgetFrame`, and established field, menu, card, focus, error, and disabled patterns.
+- Prefer CSS and existing component APIs; add markup hooks only when the required semantic styling cannot be expressed otherwise.
+- Preserve current behavior: the six-step order and unlock rules, picker/settings transitions, Back/Next/Create actions, validation, close/Escape handling, portals, focus behavior, scrolling, and responsive split layout.
+- Keep the nested Add Asset modal visually and behaviorally consistent with the parent Create Asset flow.
