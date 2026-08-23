@@ -1398,6 +1398,28 @@ export default function DataSourceStep({
     setDataFlowPickerOpen(true);
   };
 
+  const clearSourceSelections = () => {
+    setSelectedDatabaseId(null);
+    setDraftDatabaseId(null);
+    setQuery("");
+    setSelectedApiId(null);
+    setDraftApiId(null);
+    setSelectedRequest("");
+    setSelectedFileId(null);
+    setDraftFileId(null);
+    setFileQuery("");
+    setMlInputSource(null);
+    setMlSelectedDatabaseId(null);
+    setMlDatabaseQuery("");
+    setMlSelectedApiId(null);
+    setMlSelectedRequest("");
+    setMlSelectedFileId(null);
+    setMlFileQuery("");
+    setSelectedDataFlowId(null);
+    setDraftDataFlowId(null);
+    setOutputProjection("");
+  };
+
   if (databasePickerOpen) {
     return (
       <div className="ds-step ds-step--database-picker">
@@ -1501,6 +1523,7 @@ export default function DataSourceStep({
                 className={"ds-source-type-card" + (selected ? " is-selected" : "")}
                 aria-pressed={selected}
                 onClick={() => {
+                  if (source.id !== sourceType) clearSourceSelections();
                   setSourceType(source.id);
                   setDatabasePickerOpen(false);
                   setApiPickerOpen(false);
