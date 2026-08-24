@@ -2013,6 +2013,7 @@ function SourceConfiguration({
   fileQuery,
   onFileQueryChange,
   mlSelectedDatabase,
+  isMlDatabaseConnecting,
   onOpenMlDatabasePicker,
   mlDatabaseQuery,
   onMlDatabaseQueryChange,
@@ -2046,6 +2047,7 @@ function SourceConfiguration({
   fileQuery: string;
   onFileQueryChange: (query: string) => void;
   mlSelectedDatabase: DatabaseConnection | null;
+  isMlDatabaseConnecting: boolean;
   onOpenMlDatabasePicker: () => void;
   mlDatabaseQuery: string;
   onMlDatabaseQueryChange: (query: string) => void;
@@ -2259,20 +2261,34 @@ function SourceConfiguration({
               {mlSelectedDatabase ? (
                 <div className="ds-db-selected">
                   <Database size={18} aria-hidden="true" />
-                  <span className="ds-db-selected__content">
+                  <span className="ds-db-selected__content ds-db-selected__content--database">
                     <strong>{mlSelectedDatabase.name}</strong>
-                    <small>{mlSelectedDatabase.schema}</small>
+                    {!isMlDatabaseConnecting && (
+                      <span className="ds-db-selected__success" role="status">
+                        <CheckCircle size={16} weight="bold" aria-hidden="true" />
+                        Connection established
+                      </span>
+                    )}
                   </span>
-                  <span className="ds-db-selected__trailing">
-                    <Database size={16} aria-hidden="true" />
+                  <span className="ds-db-selected__actions">
+                    {isMlDatabaseConnecting ? (
+                      <span className="ds-db-selected__loading" role="status">
+                        <i aria-hidden="true" />
+                        Connecting...
+                      </span>
+                    ) : (
+                      <button type="button" className="ds-db-selected__schema-browser">
+                        Schema Browser
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="ds-db-selected__change"
+                      onClick={onOpenMlDatabasePicker}
+                    >
+                      Change
+                    </button>
                   </span>
-                  <button
-                    type="button"
-                    className="ds-db-selected__change"
-                    onClick={onOpenMlDatabasePicker}
-                  >
-              Change
-            </button>
                 </div>
               ) : (
                 <SourceActionField
@@ -2282,7 +2298,7 @@ function SourceConfiguration({
                 />
               )}
             </section>
-            {mlSelectedDatabase && (
+            {mlSelectedDatabase && !isMlDatabaseConnecting && (
               <QueryEditor value={mlDatabaseQuery} onChange={onMlDatabaseQueryChange} />
             )}
           </>
@@ -2491,6 +2507,7 @@ export default function DataSourceStep({
   );
   const [query, setQuery] = useState(restoredState.query ?? "");
   const [databaseConnecting, setDatabaseConnecting] = useState(false);
+  const [mlDatabaseConnecting, setMlDatabaseConnecting] = useState(false);
   const selectedDatabase =
     DATABASE_CONNECTIONS.find((connection) => connection.id === selectedDatabaseId) ?? null;
   const selectedApi = API_SOURCES.find((source) => source.id === selectedApiId) ?? null;
@@ -2537,8 +2554,8 @@ export default function DataSourceStep({
   }, [activeQueryPreview, onQueryPreviewChange]);
 
   useEffect(() => {
-    onLoadingChange?.(databaseConnecting);
-  }, [databaseConnecting, onLoadingChange]);
+    onLoadingChange?.(databaseConnecting || mlDatabaseConnecting);
+  }, [databaseConnecting, mlDatabaseConnecting, onLoadingChange]);
 
   useEffect(() => {
     if (selectedDatabaseId) {
@@ -2562,6 +2579,21 @@ export default function DataSourceStep({
       setMlDatabaseQuery((current) => current.trim() ? current : DEFAULT_DATABASE_QUERY);
     }
   }, [mlSelectedDatabaseId]);
+
+  useEffect(() => {
+    if (
+      !mlSelectedDatabaseId ||
+      sourceType !== "ml-model" ||
+      mlInputSource !== "database"
+    ) {
+      setMlDatabaseConnecting(false);
+      return;
+    }
+
+    setMlDatabaseConnecting(true);
+    const timer = window.setTimeout(() => setMlDatabaseConnecting(false), 1400);
+    return () => window.clearTimeout(timer);
+  }, [mlInputSource, mlSelectedDatabaseId, sourceType]);
 
   useEffect(() => {
     sessionStorage.setItem(
@@ -2834,6 +2866,7 @@ export default function DataSourceStep({
             fileQuery={fileQuery}
             onFileQueryChange={setFileQuery}
             mlSelectedDatabase={mlSelectedDatabase}
+            isMlDatabaseConnecting={mlDatabaseConnecting}
             onOpenMlDatabasePicker={openMlDatabasePicker}
             mlDatabaseQuery={mlDatabaseQuery}
             onMlDatabaseQueryChange={setMlDatabaseQuery}
