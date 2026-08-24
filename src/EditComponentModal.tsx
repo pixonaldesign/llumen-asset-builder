@@ -38,6 +38,7 @@ import {
 } from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
 import ChartDataQueryPreview from "./ChartDataQueryPreview";
+import DataSourceQueryPreview from "./DataSourceQueryPreview";
 import ColorPalette, { CategoryColorMap, ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
 import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
@@ -63,7 +64,6 @@ import FiltersStep from "./FiltersStep";
 import DeepDiveStep from "./DeepDiveStep";
 import AccessStep from "./AccessStep";
 import GeneralInfoStep, { type GeneralInfo } from "./GeneralInfoStep";
-import ApiResponsePreview from "./ApiResponsePreview";
 import VisualTypePicker from "./VisualTypePicker";
 import SelectedVisualBar from "./SelectedVisualBar";
 import { visualTypeByChartId, visualTypeById } from "./visualCatalog";
@@ -1259,7 +1259,9 @@ export default function EditComponentModal({
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
   const [config, setConfig] = useState<Config>({});
-  const [dataSourceLabel, setDataSourceLabel] = useState<string | null>(null);
+  const [dataSourceConfigured, setDataSourceConfigured] = useState(false);
+  const [dataSourceQuery, setDataSourceQuery] = useState("");
+  const [dataSourceLoading, setDataSourceLoading] = useState(false);
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     name: componentName ?? "",
     description: "",
@@ -1542,13 +1544,22 @@ export default function EditComponentModal({
               className={
                 "settings__content" +
                 (isDataSourceStep ? " settings__content--data-source" : "") +
+                (isDataSourceStep && dataSourceQuery.trim()
+                  ? " settings__content--query-fill"
+                  : "") +
                 (isFiltersStep ? " settings__content--filters" : "") +
                 (isDeepDiveStep ? " settings__content--deep-dive" : "") +
                 (isAccessStep ? " settings__content--access" : "") +
                 (isGeneralInfoStep ? " settings__content--general-info" : "")
               }
             >
-              {isDataSourceStep && <DataSourceStep onSelectionChange={setDataSourceLabel} />}
+              {isDataSourceStep && (
+                <DataSourceStep
+                  onConfigurationChange={setDataSourceConfigured}
+                  onQueryPreviewChange={setDataSourceQuery}
+                  onLoadingChange={setDataSourceLoading}
+                />
+              )}
 
               {isFiltersStep && <FiltersStep />}
 
@@ -1662,44 +1673,33 @@ export default function EditComponentModal({
               <>
                 <div className="preview__head">
                   <div className="preview__head-row">
-                    <h3 className="preview__title">Chart Preview</h3>
-                    <div
-                      className="seg-toggle preview__mode-toggle"
-                      role="group"
-                      aria-label="Preview mode"
-                    >
-                      <button
-                        type="button"
-                        className={
-                          "seg-toggle__btn" +
-                          (previewMode === "visualization" ? " is-active" : "")
-                        }
-                        onClick={() => setPreviewMode("visualization")}
-                      >
-                        Visualization
-                      </button>
-                      <button
-                        type="button"
-                        className={
-                          "seg-toggle__btn" + (previewMode === "data-query" ? " is-active" : "")
-                        }
-                        onClick={() => setPreviewMode("data-query")}
-                      >
-                        Data query
-                      </button>
-                    </div>
+                    <h3 className="preview__title">Data query</h3>
                   </div>
                 </div>
-                {previewMode === "visualization" ? (
-                  <ApiResponsePreview
-                    title={generalInfo.name || componentName || "Untitled Asset"}
-                    description={generalInfo.description}
-                    category={generalInfo.category || componentCategory || "General"}
-                    sourceLabel={dataSourceLabel}
-                  />
+                {dataSourceLoading ? (
+                  <div className="preview__empty preview__empty--loading" role="status">
+                    <span className="preview__loading-spinner" aria-hidden="true" />
+                    <p className="preview__empty-title">Loading query results...</p>
+                  </div>
+                ) : dataSourceConfigured ? (
+                  dataSourceQuery.trim() ? (
+                    <div className="preview__stage preview__stage--query">
+                      <DataSourceQueryPreview />
+                    </div>
+                  ) : (
+                    <div className="preview__empty">
+                      <p className="preview__empty-title">Query will show here</p>
+                      <p className="preview__empty-copy">
+                        This data source does not have a generated query.
+                      </p>
+                    </div>
+                  )
                 ) : (
-                  <div className="preview__stage preview__stage--table">
-                    <ChartDataQueryPreview />
+                  <div className="preview__empty">
+                    <p className="preview__empty-title">No data query yet</p>
+                    <p className="preview__empty-copy">
+                      Select and configure a data source to preview its query results.
+                    </p>
                   </div>
                 )}
               </>
