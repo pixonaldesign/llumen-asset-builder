@@ -259,7 +259,12 @@ function FieldMapSelect({
           <div
             ref={menuRef}
             className="filters-flyout filters-flyout--field"
-            style={{ top: pos.top, left: pos.left, width: pos.width }}
+            style={{
+              top: pos.top,
+              left: pos.left,
+              width: pos.width,
+              maxHeight: Math.max(180, window.innerHeight - pos.top - 12),
+            }}
             role="listbox"
             aria-label="Map to field"
           >

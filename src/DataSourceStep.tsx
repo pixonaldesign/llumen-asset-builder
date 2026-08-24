@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -965,6 +965,8 @@ function ApiSourcePicker({
 }) {
   const [search, setSearch] = useState("");
   const [openCollections, setOpenCollections] = useState<Set<string>>(() => new Set());
+  const [loadingCollections, setLoadingCollections] = useState<Set<string>>(() => new Set());
+  const loadingTimers = useRef<Map<string, number>>(new Map());
   const [selectedAuths, setSelectedAuths] = useState<ApiAuth[]>([]);
   const [selectedMethods, setSelectedMethods] = useState<ApiMethod[]>([]);
   const [sort, setSort] = useState<ApiSort>("default");
@@ -1025,13 +1027,47 @@ function ApiSourcePicker({
     );
   };
 
+  useEffect(
+    () => () => {
+      loadingTimers.current.forEach((timer) => window.clearTimeout(timer));
+    },
+    [],
+  );
+
   const toggleCollection = (id: string) => {
+    const isOpen = openCollections.has(id);
     setOpenCollections((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
+      if (isOpen) next.delete(id);
       else next.add(id);
       return next;
     });
+
+    const existingTimer = loadingTimers.current.get(id);
+    if (existingTimer) window.clearTimeout(existingTimer);
+
+    if (isOpen) {
+      loadingTimers.current.delete(id);
+      setLoadingCollections((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
+
+    setLoadingCollections((current) => new Set(current).add(id));
+    loadingTimers.current.set(
+      id,
+      window.setTimeout(() => {
+        setLoadingCollections((current) => {
+          const next = new Set(current);
+          next.delete(id);
+          return next;
+        });
+        loadingTimers.current.delete(id);
+      }, 1600),
+    );
   };
 
   return (
@@ -1181,8 +1217,13 @@ function ApiSourcePicker({
       <div className="ds-api-manager__list" role="listbox" aria-label="API requests">
         {filteredCollections.map((collection) => {
           const open = openCollections.has(collection.id);
+          const loading = loadingCollections.has(collection.id);
           return (
-            <div className="ds-api-collection" key={collection.id}>
+            <div
+              className="ds-api-collection"
+              key={collection.id}
+              aria-busy={open && loading}
+            >
               <div
                 className="ds-api-collection__row"
                 role="button"
@@ -1211,7 +1252,27 @@ function ApiSourcePicker({
                 </span>
               </div>
               {open &&
-                collection.requests.map((request) => {
+                (loading ? (
+                  <div
+                    className="ds-api-request-skeleton-list"
+                    aria-label="Loading API requests"
+                  >
+                    {Array.from(
+                      { length: Math.max(2, Math.min(collection.requests.length, 4)) },
+                      (_, index) => (
+                        <div className="ds-api-request-skeleton" key={index} aria-hidden="true">
+                          <span className="ds-api-request-skeleton__content">
+                            <i />
+                            <i />
+                          </span>
+                          <i className="ds-api-request-skeleton__updated" />
+                          <i className="ds-api-request-skeleton__action" />
+                        </div>
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  collection.requests.map((request) => {
                   const selected =
                     selectedId === collection.id && selectedRequestId === request.id;
                   return (
@@ -1236,7 +1297,8 @@ function ApiSourcePicker({
                       </span>
                     </button>
                   );
-                })}
+                  })
+                ))}
             </div>
           );
         })}
