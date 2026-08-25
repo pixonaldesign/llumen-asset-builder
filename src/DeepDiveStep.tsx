@@ -4,7 +4,12 @@ import { DotsThreeVertical, GridFour, PencilSimple } from "@phosphor-icons/react
 import AddComponentModal from "./AddComponentModal";
 import ComponentChartPreview from "./ComponentChartPreview";
 import { componentById, type ComponentLibraryItem } from "./componentCatalog";
-import { hasComponentPreviewImage, isCompactPreviewComponent, isSquarePreviewComponent } from "./componentPreviewImages";
+import {
+  hasComponentPreviewImage,
+  isCompactPreviewComponent,
+  isLargeSquarePreviewComponent,
+  isSquarePreviewComponent,
+} from "./componentPreviewImages";
 import { PlusIcon, TrashIcon } from "./icons";
 import { visualTypeById } from "./visualCatalog";
 import WidgetFrame from "./WidgetFrame";
@@ -153,37 +158,8 @@ function DeepDiveTabActionMenu({
   );
 }
 
-function ComponentCardActionMenu({
-  open,
-  menuRef,
-  style,
-  onConfigure,
-  onRemove,
-}: {
-  open: boolean;
-  menuRef: React.RefObject<HTMLDivElement>;
-  style?: React.CSSProperties;
-  onConfigure: () => void;
-  onRemove: () => void;
-}) {
-  if (!open || !style) return null;
-
-  return createPortal(
-    <div ref={menuRef} className="dd-component-menu-flyout" style={style} role="menu" aria-label="Asset actions">
-      <div className="dd-component-menu">
-        <button type="button" className="dd-component-menu__item" role="menuitem" onClick={onConfigure}>
-          Configure
-        </button>
-        <button type="button" className="dd-component-menu__item" role="menuitem" onClick={onRemove}>
-          Remove
-        </button>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 const COMPONENTS_PER_ROW = 4;
+const MODULAR_SLOT_COUNT = 24;
 
 type PreviewSlot =
   | { kind: "wide"; component: DeepDiveComponentRef }
@@ -401,10 +377,11 @@ function DeepDiveComponentCard({
   onDrop: () => void;
 }) {
   const cardRef = useRef<HTMLElement>(null);
-  const { open, setOpen, toggle, pos, triggerRef, menuRef } = useCardActionMenu();
   const heightPx = compact ? COMPACT_CARD_HEIGHT : ORIGINAL_CARD_HEIGHT;
 
   const isCompactWidget = isCompactPreviewComponent(item.id);
+  const isLargeSquareWidget = isLargeSquarePreviewComponent(item.id);
+  const isSquareWidget = isSquarePreviewComponent(item.id);
   const isImageWidget = !readOnly && hasComponentPreviewImage(item.id);
   const useAutoHeight = !readOnly && isImageWidget;
 
@@ -416,6 +393,7 @@ function DeepDiveComponentCard({
         (compact ? " dd-component-card--compact" : "") +
         (readOnly ? " dd-component-card--preview" : " dd-component-card--edit") +
         (!readOnly && isCompactWidget ? " dd-component-card--frame-compact" : "") +
+        (!readOnly && isLargeSquareWidget ? " dd-component-card--frame-large-square" : "") +
         (!readOnly && isImageWidget ? " dd-component-card--frame-image" : "") +
         (previewHalf ? " dd-component-card--preview-half" : "") +
         (dragging ? " is-dragging" : "") +
@@ -424,7 +402,9 @@ function DeepDiveComponentCard({
       aria-label={readOnly ? item.name : `Reorder ${item.name}`}
       draggable={!readOnly}
       style={
-        previewHalf || useAutoHeight
+        !readOnly
+          ? { height: "auto", aspectRatio: isSquareWidget ? "1 / 1" : "95 / 46" }
+          : previewHalf || useAutoHeight
           ? undefined
           : {
               height: heightPx,
@@ -435,7 +415,7 @@ function DeepDiveComponentCard({
         readOnly
           ? undefined
           : (e) => {
-              if ((e.target as HTMLElement).closest(".menu-button")) {
+              if ((e.target as HTMLElement).closest(".dd-component-card__remove")) {
                 e.preventDefault();
                 return;
               }
@@ -484,25 +464,25 @@ function DeepDiveComponentCard({
           size={isCompactWidget ? "compact" : "full"}
           isSelected={dropTarget}
           isDragging={dragging}
-          menuOpen={open}
-          menuButtonRef={triggerRef}
-          onMenuClick={toggle}
         >
           <ComponentChartPreview item={item} />
         </WidgetFrame>
       )}
 
       {!readOnly && (
-        <ComponentCardActionMenu
-          open={open}
-          menuRef={menuRef}
-          style={pos ? { top: pos.top, left: pos.left, width: pos.width } : undefined}
-          onConfigure={() => setOpen(false)}
-          onRemove={() => {
-            setOpen(false);
+        <button
+          type="button"
+          className="dd-component-card__remove"
+          aria-label={`Remove ${item.name}`}
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
+          onClick={(event) => {
+            event.stopPropagation();
             onRemove();
           }}
-        />
+        >
+          <TrashIcon width={16} height={16} aria-hidden="true" />
+        </button>
       )}
     </article>
   );
@@ -524,9 +504,7 @@ function DeepDiveComponentGrid({
   const lastOverUid = useRef<number | null>(null);
   const dragUidRef = useRef<number | null>(null);
 
-  const rows = readOnly
-    ? chunkRows(packPreviewSlots(components))
-    : chunkRows(components);
+  const rows = chunkRows(packPreviewSlots(components));
 
   const renderComponentCard = (component: DeepDiveComponentRef, previewHalf = false) => {
     const item = componentById(component.componentId);
@@ -598,38 +576,53 @@ function DeepDiveComponentGrid({
     );
   };
 
+  if (!readOnly) {
+    const usedSlots = components.reduce(
+      (total, component) =>
+        total +
+        (isLargeSquarePreviewComponent(component.componentId)
+          ? 4
+          : isSquarePreviewComponent(component.componentId)
+            ? 1
+            : 2),
+      0,
+    );
+    const remainingSlots = Math.max(0, MODULAR_SLOT_COUNT - usedSlots);
+    return (
+      <div
+        className={"dd-panel__grid" + (dragUid !== null ? " is-reordering" : "")}
+      >
+        <div
+          className="dd-modular-grid"
+          onDragOver={(event) => {
+            if (dragUidRef.current === null) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+          }}
+        >
+          {components.map((component) => renderComponentCard(component))}
+          {Array.from({ length: remainingSlots }, (_, index) => (
+            <div className="dd-modular-grid__slot" key={`slot-${index}`} aria-hidden="true" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={
-        "dd-panel__grid" +
-        (readOnly ? " dd-panel__grid--preview" : "") +
+        "dd-panel__grid dd-panel__grid--preview" +
         (dragUid !== null ? " is-reordering" : "")
       }
     >
       {rows.map((row) => (
         <div
-          key={
-            readOnly
-              ? (row as PreviewSlot[]).map(previewSlotKey).join("-")
-              : (row as DeepDiveComponentRef[]).map((component) => component.uid).join("-")
-          }
-          className={"dd-grid-row" + (readOnly ? " dd-grid-row--preview" : "")}
+          key={row.map(previewSlotKey).join("-")}
+          className="dd-grid-row dd-grid-row--preview"
         >
-          <div
-            className="dd-grid-row__cards"
-            onDragOver={
-              readOnly
-                ? undefined
-                : (e) => {
-                    if (dragUidRef.current === null) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                  }
-            }
-          >
-            {readOnly
-              ? row.map((slot) => renderPreviewSlot(slot as PreviewSlot))
-              : row.map((component) => renderComponentCard(component as DeepDiveComponentRef))}
+          <div className="dd-grid-row__cards">
+            {row.map((slot) => renderPreviewSlot(slot))}
             {row.length < COMPONENTS_PER_ROW &&
               Array.from({ length: COMPONENTS_PER_ROW - row.length }).map((_, index) => (
                 <div key={`spacer-${index}`} className="dd-grid-row__spacer" aria-hidden="true" />
@@ -857,11 +850,12 @@ export default function DeepDiveStep() {
                 onReorder={reorderComponents}
               />
             ) : (
-              <div className="dd-panel__empty">
-                <span className="dd-panel__empty-icon" aria-hidden="true">
-                  <GridFour size={28} weight="regular" />
-                </span>
-                <p>No assets added to this tab</p>
+              <div className="dd-panel__empty" aria-label="No assets added to this tab">
+                <div className="dd-modular-grid dd-modular-grid--empty" aria-hidden="true">
+                  {Array.from({ length: MODULAR_SLOT_COUNT }, (_, index) => (
+                    <div className="dd-modular-grid__slot" key={index} />
+                  ))}
+                </div>
               </div>
             )}
           </section>

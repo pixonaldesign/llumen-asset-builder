@@ -15,6 +15,8 @@ type DropdownProps = {
   emptyLabel?: string;
   allowEmpty?: boolean;
   searchable?: boolean;
+  searchPlaceholder?: string;
+  noResultsLabel?: string;
   ariaLabel?: string;
   className?: string;
   compact?: boolean;
@@ -28,6 +30,8 @@ export default function Dropdown({
   emptyLabel = "None",
   allowEmpty = false,
   searchable = false,
+  searchPlaceholder = "Search columns",
+  noResultsLabel = "No columns found",
   ariaLabel,
   className,
   compact = false,
@@ -143,9 +147,9 @@ export default function Dropdown({
                 <input
                   ref={searchRef}
                   type="search"
-                  placeholder="Search columns"
+                  placeholder={searchPlaceholder}
                   value={search}
-                  aria-label="Search columns"
+                  aria-label={searchPlaceholder}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => {
                     e.stopPropagation();
@@ -187,7 +191,7 @@ export default function Dropdown({
                 </button>
               ))}
               {searchable && !filtered.length && !showEmpty && (
-                <div className="cp-picker-empty">No columns found</div>
+                <div className="cp-picker-empty">{noResultsLabel}</div>
               )}
             </div>
           </div>,

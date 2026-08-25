@@ -37,15 +37,12 @@ export default function WidgetFrame({
         (isDragging ? " is-dragging" : "")
       }
     >
-      <div className="widget-header">
-        <span className="widget-header-title" title={typeLabel}>
-          {typeLabel}
-        </span>
-        <div className="widget-header-actions">
+      {visualMode === "image" ? (
+        onMenuClick ? (
           <button
             ref={menuButtonRef}
             type="button"
-            className={"menu-button" + (menuOpen ? " is-open" : "")}
+            className={"menu-button widget-image-menu" + (menuOpen ? " is-open" : "")}
             aria-label="Asset actions"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
@@ -53,8 +50,29 @@ export default function WidgetFrame({
           >
             <DotsThreeVertical size={18} weight="bold" aria-hidden="true" />
           </button>
+        ) : null
+      ) : (
+        <div className="widget-header">
+          <span className="widget-header-title" title={typeLabel}>
+            {typeLabel}
+          </span>
+          {onMenuClick && (
+            <div className="widget-header-actions">
+              <button
+                ref={menuButtonRef}
+                type="button"
+                className={"menu-button" + (menuOpen ? " is-open" : "")}
+                aria-label="Asset actions"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={onMenuClick}
+              >
+                <DotsThreeVertical size={18} weight="bold" aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       <div className="widget-body">{children}</div>
     </div>

@@ -50,6 +50,9 @@ export default function ComponentChartPreview({ item }: Props) {
     const fit = preview.fit ?? "wide";
     const scale = preview.scale ?? 1;
     const size = `${92 * scale}%`;
+    const imageStyle = {
+      ...(scale < 1 ? { height: size, maxWidth: size, maxHeight: size } : {}),
+    };
     return (
       <div className={`component-chart-preview component-chart-preview--image component-chart-preview--${fit}`}>
         <img
@@ -58,7 +61,7 @@ export default function ComponentChartPreview({ item }: Props) {
           alt=""
           draggable={false}
           onError={() => setImageError(true)}
-          style={scale < 1 ? { height: size, maxWidth: size, maxHeight: size } : undefined}
+          style={Object.keys(imageStyle).length > 0 ? imageStyle : undefined}
         />
       </div>
     );

@@ -207,7 +207,6 @@ function AddFilterMenu({
   return createPortal(
     <div ref={menuRef} className="filters-flyout" style={style} role="listbox" aria-label="Add filter">
       <div className="cp-picker-menu filters-picker-menu">
-        <p className="filters-picker-menu__label">Filters</p>
         <div className="cp-picker-list">
           {FILTER_OPTIONS.map((filter) => (
             <FilterPickerRow

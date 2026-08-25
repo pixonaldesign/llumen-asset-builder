@@ -14,8 +14,8 @@ export const COMPONENT_PREVIEW_IMAGES: Record<string, ComponentPreviewImage> = {
     src: "/component-previews/average-price-gap-to-benchmark.png",
     fit: "wide",
   },
-  market_stability_score_cluster_average: {
-    src: "/component-previews/market-stability-score-cluster-average.png",
+  carbon_abatement_by_initiative_category: {
+    src: "/component-previews/carbon-abatement-by-initiative-category.png",
     fit: "wide",
   },
   registration_completion_rate: {
@@ -30,12 +30,36 @@ export const COMPONENT_PREVIEW_IMAGES: Record<string, ComponentPreviewImage> = {
     src: "/component-previews/fee-revenue-potential.png",
     fit: "square",
   },
-  contaminant_exceedance_frequency: {
-    src: "/component-previews/contaminant-exceedance-frequency.png",
+  seasonal_pollution_trends_tons: {
+    src: "/component-previews/seasonal-pollution-trends.png",
     fit: "wide",
   },
-  top_3_facilities_by_repeated_incidents: {
-    src: "/component-previews/top-3-facilities-by-repeated-incidents.png",
+  violation_frequency_by_location: {
+    src: "/component-previews/violation-frequency-by-location.png",
+    fit: "wide",
+  },
+  repeat_violation_rate: {
+    src: "/component-previews/repeat-violation-rate.png?v=2",
+    fit: "square",
+  },
+  case_resolution_time: {
+    src: "/component-previews/case-resolution-time.png",
+    fit: "square",
+  },
+  cost_vs_utilization: {
+    src: "/component-previews/cost-vs-utilization.png",
+    fit: "square",
+  },
+  initiative_efficiency: {
+    src: "/component-previews/initiative-efficiency.png",
+    fit: "wide",
+  },
+  total_emission_exceedances: {
+    src: "/component-previews/total-emission-exceedances.png",
+    fit: "wide",
+  },
+  wells_within_acceptable_water_quality_standards: {
+    src: "/component-previews/wells-within-acceptable-water-quality-standards.png",
     fit: "wide",
   },
   high_heat_districts_emerging: {
@@ -67,10 +91,18 @@ export function isSquarePreviewComponent(componentId: string): boolean {
 const COMPACT_PREVIEW_COMPONENT_IDS = new Set([
   "transaction_value_registered",
   "fee_revenue_potential",
+  "repeat_violation_rate",
+  "case_resolution_time",
 ]);
 
 export function isCompactPreviewComponent(componentId: string): boolean {
   return COMPACT_PREVIEW_COMPONENT_IDS.has(componentId);
+}
+
+const LARGE_SQUARE_PREVIEW_COMPONENT_IDS = new Set(["cost_vs_utilization"]);
+
+export function isLargeSquarePreviewComponent(componentId: string): boolean {
+  return LARGE_SQUARE_PREVIEW_COMPONENT_IDS.has(componentId);
 }
 
 export function hasComponentPreviewImage(componentId: string): boolean {

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import Dropdown from "./Dropdown";
 import {
+  ArrowClockwise,
   ArrowLeft,
   CaretDown,
   CheckCircle,
@@ -27,6 +29,11 @@ type MlInputSource = "database" | "api" | "file-source" | "local-file";
 type PickerContext = "source" | "ml";
 type DatabaseType = "MySQL" | "PostgreSQL" | "SQL Server" | "Oracle" | "SQLite";
 type DatabaseSort = "default" | "updated" | "name-asc" | "name-desc";
+type SchemaTable = {
+  name: string;
+  columns: number;
+  rows: number;
+};
 
 type DatabaseConnection = {
   id: string;
@@ -282,6 +289,31 @@ const DATABASE_CONNECTION_META: Record<
   commerce: { type: "MySQL", lastUpdated: "1 day ago", updatedMinutes: 1440 },
 };
 
+const SCHEMA_TABLES: SchemaTable[] = [
+  { name: "dim_emirate", columns: 6, rows: 7 },
+  { name: "dim_facility", columns: 11, rows: 660 },
+  { name: "dim_pollution_source", columns: 4, rows: 3 },
+  { name: "dim_sector", columns: 6, rows: 3 },
+  { name: "dim_violation_type", columns: 5, rows: 3 },
+  { name: "dim_zone", columns: 8, rows: 197 },
+  { name: "fact_consumption", columns: 7, rows: 319731 },
+  { name: "fact_emission", columns: 9, rows: 106577 },
+  { name: "fact_zone_load", columns: 8, rows: 106577 },
+  { name: "fact_inspection", columns: 10, rows: 17500 },
+  { name: "fact_grid_event", columns: 8, rows: 8020 },
+  { name: "fact_asset_status", columns: 7, rows: 5240 },
+  { name: "fact_daily_summary", columns: 12, rows: 1946 },
+];
+
+const SCHEMA_COLUMNS = [
+  ["emirate_id", "smallint", "No", "—", "Yes"],
+  ["name", "text", "No", "—", "No"],
+  ["area_km2", "numeric", "No", "—", "No"],
+  ["population", "integer", "No", "—", "No"],
+  ["centroid", "USER-DEFINED", "No", "—", "No"],
+  ["geometry", "USER-DEFINED", "No", "—", "No"],
+];
+
 const API_SOURCES: ApiSource[] = [
   {
     id: "weather-services",
@@ -517,19 +549,24 @@ const DATA_FLOWS: DataFlow[] = [
 function FieldHeader({
   title,
   required = true,
+  action,
 }: {
   title: string;
   required?: boolean;
+  action?: ReactNode;
 }) {
   return (
     <div className="ds-config__header">
       <h3>{title}</h3>
-      {required && (
+      {(required || action) && (
         <div className="ds-config__header-actions">
-          <span className="ds-config__required">
-            <Info size={16} aria-hidden="true" />
-            Required
-          </span>
+          {required && (
+            <span className="ds-config__required">
+              <Info size={16} aria-hidden="true" />
+              Required
+            </span>
+          )}
+          {action}
         </div>
       )}
     </div>
@@ -558,20 +595,34 @@ function SourceActionField({
   );
 }
 
-function LocalFileUpload() {
+function LocalFileUpload({
+  variant = "ml",
+  onFileChange,
+}: {
+  variant?: "ml" | "source";
+  onFileChange?: (file: File | null) => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  const selectFile = (nextFile: File | null) => {
+    setFile(nextFile);
+    onFileChange?.(nextFile);
+  };
 
   const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
     event.preventDefault();
     setDragging(false);
     const nextFile = event.dataTransfer.files[0];
-    if (nextFile) setFile(nextFile);
+    if (nextFile) selectFile(nextFile);
   };
 
   return (
     <label
-      className={"ds-local-file-upload" + (dragging ? " is-dragging" : "")}
+      className={
+        "ds-local-file-upload" +
+        (variant === "source" ? " ds-local-file-upload--source" : "") +
+        (dragging ? " is-dragging" : "")
+      }
       onDragEnter={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -583,12 +634,58 @@ function LocalFileUpload() {
       <input
         type="file"
         accept=".csv,.json,.geojson,application/json,text/csv,application/geo+json"
-        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+        onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
       />
-      <UploadSimple size={30} aria-hidden="true" />
-      <strong>{file?.name ?? "Click to upload"}</strong>
-      <span>{file ? `${Math.max(1, Math.round(file.size / 1024))} KB` : "CSV, JSON, or GeoJSON"}</span>
+      {variant === "source" ? (
+        <>
+          <FileArrowUp size={24} aria-hidden="true" />
+          <strong>{file?.name ?? "Drag and drop your file here, or"}</strong>
+          <span className="ds-local-file-upload__select">
+            <Plus size={18} aria-hidden="true" />
+            Select File
+          </span>
+          <span className="ds-local-file-upload__limit">
+            {file
+              ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+              : "Maximum file size: 20MB"}
+          </span>
+        </>
+      ) : (
+        <>
+          <UploadSimple size={30} aria-hidden="true" />
+          <strong>{file?.name ?? "Click to upload"}</strong>
+          <span>
+            {file ? `${Math.max(1, Math.round(file.size / 1024))} KB` : "CSV, JSON, or GeoJSON"}
+          </span>
+        </>
+      )}
     </label>
+  );
+}
+
+function UploadFileModal({ onClose }: { onClose: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+
+  return (
+    <section className="ds-upload-file-modal">
+      <header>
+        <h2>Upload New File</h2>
+        <button type="button" aria-label="Close upload modal" onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+      </header>
+      <div className="ds-upload-file-modal__body">
+        <LocalFileUpload variant="source" onFileChange={setFile} />
+      </div>
+      <footer>
+        <button type="button" onClick={onClose}>
+          Cancel
+        </button>
+        <button type="button" disabled={!file} onClick={onClose}>
+          Upload File
+        </button>
+      </footer>
+    </section>
   );
 }
 
@@ -641,14 +738,14 @@ function CreateDatabaseConnectionForm({ onClose }: { onClose: () => void }) {
           <span>
             Database Type <i>*</i>
           </span>
-          <select value={databaseType} onChange={(event) => setDatabaseType(event.target.value)}>
-            <option value="">Select database type</option>
-            {DATABASE_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <Dropdown
+            value={databaseType}
+            onChange={setDatabaseType}
+            options={DATABASE_TYPES.map((type) => ({ value: type, label: type }))}
+            placeholder="Select database type"
+            ariaLabel="Database type"
+            compact
+          />
         </label>
 
         <label>
@@ -1095,8 +1192,8 @@ function ApiSourcePicker({
             <Plus size={17} aria-hidden="true" />
             New Collection
           </button>
+          </div>
         </div>
-      </div>
 
       <div className="ds-db-manager__filters">
         <div className="ds-api-manager__filter-group">
@@ -1131,7 +1228,7 @@ function ApiSourcePicker({
                     {auth}
                   </label>
                 ))}
-              </div>
+      </div>
             )}
           </div>
 
@@ -1363,10 +1460,6 @@ function FileSourcePicker({
               placeholder="Search files..."
             />
           </label>
-          <button type="button" className="ds-db-manager__new">
-            <Plus size={17} aria-hidden="true" />
-            New File
-          </button>
         </div>
       </div>
 
@@ -1378,7 +1471,7 @@ function FileSourcePicker({
       <div className="ds-db-manager__list" role="listbox" aria-label="Uploaded files">
         {visibleFiles.map((source) => {
           const selected = selectedId === source.id;
-          return (
+  return (
             <div
               key={source.id}
               role="option"
@@ -1419,7 +1512,7 @@ function FileSourcePicker({
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Info size={20} aria-hidden="true" />
-                </button>
+          </button>
               </span>
             </div>
           );
@@ -1536,7 +1629,7 @@ function DataFlowPicker({
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Info size={20} aria-hidden="true" />
-                </button>
+            </button>
               </span>
             </div>
           );
@@ -1549,7 +1642,7 @@ function DataFlowPicker({
       <footer className="ds-db-manager__footer">
         <button type="button" className="ds-db-manager__cancel" onClick={onCancel}>
           Cancel
-        </button>
+            </button>
         <button
           type="button"
           className="ds-db-manager__select"
@@ -1655,27 +1748,24 @@ function ApiRequestPanel({
       <header className="ds-api-request__header">
         <h3>API Request</h3>
         <button type="button" className="ds-api-request__send" disabled={!selectedRequest}>
-          <Play size={12} weight="fill" aria-hidden="true" />
+          <Play size={14} weight="fill" aria-hidden="true" />
           Send
         </button>
       </header>
       <div className="ds-api-request__body">
-        <label htmlFor="ds-api-request-select">Request</label>
-        <div className="ds-api-request__select-wrap">
-          <select
-            id="ds-api-request-select"
-            value={request}
-            onChange={(event) => onRequestChange(event.target.value)}
-          >
-            <option value="">Select a Request</option>
-            {requests.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-          <CaretDown size={14} aria-hidden="true" />
-        </div>
+        <label>Request</label>
+        <Dropdown
+          value={request}
+          onChange={onRequestChange}
+          options={requests.map((option) => ({ value: option.id, label: option.name }))}
+          placeholder="Select a Request"
+          searchable
+          searchPlaceholder="Search requests"
+          noResultsLabel="No requests found"
+          ariaLabel="API request"
+          className="ds-api-request__dropdown"
+          compact
+        />
         {selectedRequest && (
           <>
             <div className="ds-api-request__endpoint">
@@ -1683,49 +1773,49 @@ function ApiRequestPanel({
                 {selectedRequest.method}
               </span>
               <code>{selectedRequest.endpoint}</code>
-            </div>
+      </div>
 
             <div className="ds-api-request__tabs" role="tablist" aria-label="Request configuration">
               {(["parameters", "headers", "body"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  role="tab"
+            <button
+              key={tab}
+              type="button"
+              role="tab"
                   aria-selected={activeTab === tab}
                   className={activeTab === tab ? "is-active" : ""}
                   onClick={() => setActiveTab(tab)}
                 >
                   {tab[0].toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
+            </button>
+          ))}
+        </div>
 
             {activeTab === "parameters" ? (
               <div className="ds-api-request__parameters">
                 <ApiParameterSection title="Query Parameters" emptyText="No query parameters defined." />
                 <ApiParameterSection title="Path Parameters" emptyText="No path parameters defined." />
-              </div>
+                </div>
             ) : activeTab === "headers" ? (
               <div className="ds-api-request__headers">
                 <ApiParameterSection emptyText="No specific headers defined." />
               </div>
             ) : (
               <div className="ds-api-request__body-config">
-                <label htmlFor="ds-api-body-type">Body Type</label>
-                <div className="ds-api-request__body-type-wrap">
-                  <select
-                    id="ds-api-body-type"
-                    value={bodyType}
-                    onChange={(event) =>
-                      setBodyType(event.target.value as "none" | "raw" | "form-data")
-                    }
-                  >
-                    <option value="none">None</option>
-                    <option value="raw">Raw (JSON)</option>
-                    <option value="form-data">Form Data</option>
-                  </select>
-                  <CaretDown size={16} aria-hidden="true" />
-                </div>
+                <label>Body Type</label>
+                <Dropdown
+                  value={bodyType}
+                  onChange={(value) =>
+                    setBodyType(value as "none" | "raw" | "form-data")
+                  }
+                  options={[
+                    { value: "none", label: "None" },
+                    { value: "raw", label: "Raw (JSON)" },
+                    { value: "form-data", label: "Form Data" },
+                  ]}
+                  ariaLabel="API request body type"
+                  className="ds-api-request__body-dropdown"
+                  compact
+                />
                 {bodyType === "raw" && (
                   <JsonBodyEditor value={bodyValue} onChange={setBodyValue} />
                 )}
@@ -1739,8 +1829,8 @@ function ApiRequestPanel({
             )}
           </>
         )}
-      </div>
-    </section>
+              </div>
+            </section>
   );
 }
 
@@ -1829,16 +1919,16 @@ function ApiParameterSection({ title, emptyText }: { title?: string; emptyText: 
           <div className="ds-api-parameter-table__rows">
             {rows.map((row) => (
               <div className="ds-api-parameter-row" key={row.id}>
-                <input
+                  <input
                   value={row.key}
                   onChange={(event) => updateRow(row.id, "key", event.target.value)}
-                  placeholder="Key"
+                    placeholder="Key"
                   aria-label={`${title ?? "Header"} key`}
-                />
-                <input
+                  />
+                  <input
                   value={row.value}
                   onChange={(event) => updateRow(row.id, "value", event.target.value)}
-                  placeholder="Value"
+                    placeholder="Value"
                   aria-label={`${title ?? "Header"} value`}
                 />
                 <button
@@ -1850,9 +1940,9 @@ function ApiParameterSection({ title, emptyText }: { title?: string; emptyText: 
                 >
                   <Trash size={17} aria-hidden="true" />
                 </button>
-              </div>
+                </div>
             ))}
-          </div>
+              </div>
         )}
       </div>
       <button
@@ -1871,7 +1961,7 @@ function ApiParameterSection({ title, emptyText }: { title?: string; emptyText: 
         <Plus size={16} aria-hidden="true" />
         Add Item
       </button>
-    </section>
+            </section>
   );
 }
 
@@ -1904,6 +1994,415 @@ function HighlightedSql({ value }: { value: string }) {
   );
 }
 
+function DatabaseSchemaBrowser({
+  database,
+  onClose,
+}: {
+  database: DatabaseConnection;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [selectedTable, setSelectedTable] = useState<SchemaTable | null>(null);
+  const [activeSchemaTab, setActiveSchemaTab] = useState<
+    "structure" | "relationships" | "samples" | "technical"
+  >("structure");
+  const [payloadExpanded, setPayloadExpanded] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const meta = DATABASE_CONNECTION_META[database.id] ?? {
+    type: "SQLite" as DatabaseType,
+    lastUpdated: "Just now",
+    updatedMinutes: 0,
+  };
+  const namespace =
+    database.schema && database.schema !== "Database"
+      ? database.schema
+      : `${database.name.toLowerCase().replace(/\s+/g, "_")}_dm`;
+  const visibleTables = SCHEMA_TABLES.filter((table) =>
+    table.name.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+  const totalRows = SCHEMA_TABLES.reduce((total, table) => total + table.rows, 0);
+  const rawSchemaPayload = JSON.stringify(
+    {
+      source: {
+        id: database.id,
+        name: database.name,
+        type: "database",
+        database_type: meta.type.toLowerCase(),
+        metadata: {
+          active: database.active,
+          namespace,
+        },
+      },
+      normalized: {
+        engine: meta.type.toLowerCase(),
+        sourceFamily: "database",
+        sourceType: meta.type.toLowerCase(),
+        entityCount: SCHEMA_TABLES.length,
+        relationshipCount: 21,
+        namespaces: [namespace],
+        capabilities: {
+          queryable: true,
+          previewable: true,
+          supportsFilters: true,
+        },
+      },
+      selectedEntity: selectedTable
+        ? {
+            name: selectedTable.name,
+            columns: selectedTable.columns,
+            rows: selectedTable.rows,
+          }
+        : null,
+    },
+    null,
+    2,
+  );
+  const selectTable = (table: SchemaTable) => {
+    setSelectedTable(table);
+    setActiveSchemaTab("structure");
+  };
+
+  useEffect(() => {
+    if (!refreshing) return;
+    const timer = window.setTimeout(() => setRefreshing(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [refreshing]);
+
+  return (
+    <section className="ds-schema-browser">
+      <header className="ds-schema-browser__titlebar">
+        <h2>{database.name} Schema Browser</h2>
+        <button type="button" aria-label="Close schema browser" onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+      </header>
+
+      <div className="ds-schema-browser__source">
+        <div>
+          <div className="ds-schema-browser__source-title">
+            <strong>{database.name}</strong>
+            <div className="ds-schema-browser__badges">
+              <span>{meta.type}</span>
+              <span className={database.active ? "is-active" : ""}>
+                {database.active ? "Active" : "Inactive"}
+              </span>
+          </div>
+          </div>
+          <small>Read-only schema visibility for this database connection.</small>
+        </div>
+        <div className="ds-schema-browser__source-actions">
+          <label className="ds-schema-browser__search">
+            <MagnifyingGlass size={16} aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search objects..."
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="ds-schema-browser__body">
+        <aside className="ds-schema-browser__sidebar">
+          <button
+            type="button"
+            className={!selectedTable ? "is-selected" : ""}
+            onClick={() => setSelectedTable(null)}
+          >
+            Overview
+          </button>
+          <div className="ds-schema-browser__objects-heading">
+            <strong>Objects</strong>
+            <span>{SCHEMA_TABLES.length} total</span>
+          </div>
+          <div className="ds-schema-browser__table-list">
+            {visibleTables.map((table) => (
+              <button
+                type="button"
+                key={table.name}
+                className={selectedTable?.name === table.name ? "is-selected" : ""}
+                onClick={() => selectTable(table)}
+              >
+                <strong>{table.name}</strong>
+                <span>
+                  {table.columns} columns · {table.rows.toLocaleString()}
+                </span>
+              </button>
+            ))}
+            {visibleTables.length === 0 && <p>No tables match your search.</p>}
+          </div>
+        </aside>
+
+        <main className="ds-schema-browser__content">
+          {refreshing ? (
+            <div className="ds-schema-browser__loading" role="status">
+              <i aria-hidden="true" />
+              Refreshing schema…
+            </div>
+          ) : selectedTable ? (
+            <>
+              <div className="ds-schema-browser__object-header">
+                <div>
+                  <span>{namespace}</span>
+                  <h3>
+                    {namespace}.{selectedTable.name}
+                  </h3>
+                  <p>
+                    {selectedTable.rows.toLocaleString()} rows, {selectedTable.columns} columns
+                  </p>
+                </div>
+                <div className="ds-schema-browser__object-badges">
+                  <span>Table</span>
+                  <span>
+                    PK:{" "}
+                    {selectedTable.name === "dim_emirate"
+                      ? "emirate_id"
+                      : selectedTable.name.replace(/^(?:dim|fact)_/, "") + "_id"}
+                  </span>
+                </div>
+              </div>
+              <nav className="ds-schema-browser__tabs" aria-label="Object details">
+                {(
+                  [
+                    ["structure", "Structure"],
+                    ["relationships", "Relationships"],
+                    ["samples", "Sample Rows"],
+                    ["technical", "Technical"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    type="button"
+                    key={id}
+                    className={activeSchemaTab === id ? "is-selected" : ""}
+                    onClick={() => setActiveSchemaTab(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </nav>
+              {activeSchemaTab === "structure" ? (
+                <>
+                  <section className="ds-schema-browser__columns-table">
+                    <header>
+                      <span>Column</span>
+                      <span>Type</span>
+                      <span>Nullable</span>
+                      <span>Default</span>
+                      <span>Primary Key</span>
+                    </header>
+                    {SCHEMA_COLUMNS.slice(
+                      0,
+                      Math.min(selectedTable.columns, SCHEMA_COLUMNS.length),
+                    ).map(([name, type, nullable, defaultValue, primaryKey]) => (
+                      <div key={name}>
+                        <strong>{name}</strong>
+                        <code>{type}</code>
+                        <span>{nullable}</span>
+                        <span>{defaultValue}</span>
+                        <span>{primaryKey}</span>
+                      </div>
+                    ))}
+                  </section>
+                  <section className="ds-schema-browser__indexes">
+                    <h3>Indexes</h3>
+                    <div>
+                      {[
+                        [`${selectedTable.name}_name_key`, "name", "Unique"],
+                        [
+                          `${selectedTable.name}_pkey`,
+                          selectedTable.name === "dim_emirate"
+                            ? "emirate_id"
+                            : selectedTable.name.replace(/^(?:dim|fact)_/, "") + "_id",
+                          "Unique",
+                        ],
+                        [`idx_${selectedTable.name}_geometry`, "geometry", ""],
+                      ].map(([name, column, badge]) => (
+                        <article key={name}>
+                          <header>
+                            <strong>{name}</strong>
+                            {badge && <span>{badge}</span>}
+                          </header>
+                          <p>{column}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                </>
+              ) : activeSchemaTab === "relationships" ? (
+                <section className="ds-schema-browser__relationships">
+                  <p>
+                    Showing relationships involving{" "}
+                    <code>
+                      {namespace}.{selectedTable.name}
+                    </code>
+                    .
+                  </p>
+                  <div className="ds-schema-browser__relationships-table">
+                    <header>
+                      <span>From</span>
+                      <span>From Fields</span>
+                      <span>To</span>
+                      <span>To Fields</span>
+                      <span>Type</span>
+                    </header>
+                    {[
+                      "dim_facility",
+                      "dim_zone",
+                      "fact_consumption",
+                      "fact_emission",
+                      "fact_grid_event",
+                      "fact_inspection",
+                      "fact_violation",
+                      "fact_zone_load",
+                    ].map((name) => (
+                      <div key={name}>
+                        <span>
+                          {namespace}.{name}
+                        </span>
+                        <span>emirate_id</span>
+                        <span>
+                          {namespace}.{selectedTable.name}
+                        </span>
+                        <span>emirate_id</span>
+                        <span>Foreign Key</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : activeSchemaTab === "samples" ? (
+                <section className="ds-schema-browser__samples">
+                  <p>
+                    Showing only the sample data returned by the runner. No paging or ad-hoc querying
+                    is included in v1.
+                  </p>
+                  <div className="ds-schema-browser__sample-table">
+                    <header>
+                      {["Area_km2", "Centroid", "Emirate_id", "Geometry", "Name", "Population"].map(
+                        (column) => <span key={column}>{column}</span>,
+                      )}
+                    </header>
+                    {[
+                      ["{5873856 -2 false finite…", "0101000020E610…", "1", "0106000020E610…", "Abu Dhabi Emirate", "3800000"],
+                      ["{26234 -2 false finite…", "0101000020E610…", "2", "0106000020E610…", "Ajman", "550000"],
+                      ["{377314 -2 false finite…", "0101000020E610…", "3", "0106000020E610…", "Dubai", "3600000"],
+                    ].map((row) => (
+                      <div key={row[2]}>
+                        {row.map((value, index) => (
+                          <span key={`${index}-${value}`}>{value}</span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : (
+                <section className="ds-schema-browser__technical">
+                  <div className="ds-schema-browser__technical-grid">
+                    <section>
+                      <h3>Capabilities</h3>
+                      <dl>
+                        {[
+                          ["Source type", meta.type.toLowerCase()],
+                          ["Source family", "database"],
+                          ["Schema version", "v1"],
+                          ["Runner engine", meta.type.toLowerCase()],
+                          ["Generated", "Aug 25, 2026, 10:11 AM"],
+                          ["Queryable", "Yes"],
+                          ["Previewable", "Yes"],
+                          ["Supports filters", "Yes"],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <dt>{label}</dt>
+                            <dd>{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </section>
+                    <section>
+                      <h3>Physical Objects</h3>
+                      <p>Nothing to show.</p>
+                    </section>
+                  </div>
+                  <section className="ds-schema-browser__payload">
+                    <h3>Raw Schema Payload</h3>
+                    <div className="ds-schema-browser__payload-actions">
+                      <button type="button" onClick={() => setPayloadExpanded(true)}>
+                        Expand All
+                      </button>
+                      <button type="button" onClick={() => setPayloadExpanded(false)}>
+                        Collapse All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard?.writeText(rawSchemaPayload)}
+                      >
+                        Copy All
+                      </button>
+                    </div>
+                    <pre>
+                      <code>
+                        {payloadExpanded
+                          ? rawSchemaPayload
+                          : `${rawSchemaPayload.split("\n").slice(0, 12).join("\n")}\n  …\n}`}
+                      </code>
+                    </pre>
+                  </section>
+                </section>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="ds-schema-browser__summary">
+                Summary for this source. Select a table in the list to inspect its structure and
+                sample metadata.
+              </p>
+              <div className="ds-schema-browser__metrics">
+                {[
+                  ["Engine", meta.type],
+                  ["Tables", String(SCHEMA_TABLES.length)],
+                  ["Relationships", "21"],
+                  ["Namespaces", "1"],
+                  ["Rows", totalRows.toLocaleString()],
+                  ["Generated", "Aug 25, 2026 · 10:11 AM"],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="ds-schema-browser__overview-grid">
+                <section>
+                  <h3>Top tables</h3>
+                  {SCHEMA_TABLES.slice(6, 11).map((table) => (
+                    <button type="button" key={table.name} onClick={() => selectTable(table)}>
+                      <span>
+                        {namespace}.{table.name}
+                      </span>
+                      <strong>{table.rows.toLocaleString()}</strong>
+                    </button>
+                  ))}
+                </section>
+                <section>
+                  <h3>Namespaces</h3>
+                  <span>{namespace}</span>
+                </section>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+
+      <footer className="ds-schema-browser__footer">
+        <button type="button" onClick={() => setRefreshing(true)} disabled={refreshing}>
+          <ArrowClockwise size={16} aria-hidden="true" />
+          Refresh
+        </button>
+      </footer>
+    </section>
+  );
+}
+
 function SourcePickerModal({
   children,
   onClose,
@@ -1911,7 +2410,15 @@ function SourcePickerModal({
 }: {
   children: ReactNode;
   onClose: () => void;
-  variant?: "default" | "database" | "create-database" | "api" | "file" | "data-flow";
+  variant?:
+    | "default"
+    | "database"
+    | "create-database"
+    | "api"
+    | "file"
+    | "data-flow"
+    | "schema-browser"
+    | "upload-file";
 }) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1941,13 +2448,17 @@ function SourcePickerModal({
                   ? " ds-source-picker-modal--file"
                   : variant === "data-flow"
                     ? " ds-source-picker-modal--data-flow"
+                    : variant === "schema-browser"
+                      ? " ds-source-picker-modal--schema-browser"
+                      : variant === "upload-file"
+                        ? " ds-source-picker-modal--upload-file"
                   : "")
         }
         role="dialog"
         aria-modal="true"
       >
         {children}
-      </div>
+          </div>
     </div>,
     document.body,
   );
@@ -2004,17 +2515,20 @@ function SourceConfiguration({
   selectedDatabase,
   isDatabaseConnecting,
   onOpenDatabasePicker,
+  onOpenDatabaseSchemaBrowser,
   selectedApi,
   onOpenApiPicker,
   selectedRequest,
   onSelectedRequestChange,
   selectedFile,
   onOpenFilePicker,
+  onOpenFileSchemaBrowser,
   fileQuery,
   onFileQueryChange,
   mlSelectedDatabase,
   isMlDatabaseConnecting,
   onOpenMlDatabasePicker,
+  onOpenMlDatabaseSchemaBrowser,
   mlDatabaseQuery,
   onMlDatabaseQueryChange,
   mlSelectedApi,
@@ -2038,17 +2552,20 @@ function SourceConfiguration({
   selectedDatabase: DatabaseConnection | null;
   isDatabaseConnecting: boolean;
   onOpenDatabasePicker: () => void;
+  onOpenDatabaseSchemaBrowser: () => void;
   selectedApi: ApiSource | null;
   onOpenApiPicker: () => void;
   selectedRequest: string;
   onSelectedRequestChange: (request: string) => void;
   selectedFile: FileSource | null;
   onOpenFilePicker: () => void;
+  onOpenFileSchemaBrowser: () => void;
   fileQuery: string;
   onFileQueryChange: (query: string) => void;
   mlSelectedDatabase: DatabaseConnection | null;
   isMlDatabaseConnecting: boolean;
   onOpenMlDatabasePicker: () => void;
+  onOpenMlDatabaseSchemaBrowser: () => void;
   mlDatabaseQuery: string;
   onMlDatabaseQueryChange: (query: string) => void;
   mlSelectedApi: ApiSource | null;
@@ -2066,6 +2583,8 @@ function SourceConfiguration({
   query: string;
   onQueryChange: (query: string) => void;
 }) {
+  const [uploadFileModalOpen, setUploadFileModalOpen] = useState(false);
+
   if (sourceType === "database") {
     return (
       <div className="ds-config-stack">
@@ -2090,7 +2609,11 @@ function SourceConfiguration({
                     Connecting...
                   </span>
                 ) : (
-                  <button type="button" className="ds-db-selected__schema-browser">
+                  <button
+                    type="button"
+                    className="ds-db-selected__schema-browser"
+                    onClick={onOpenDatabaseSchemaBrowser}
+                  >
                     Schema Browser
                   </button>
                 )}
@@ -2109,12 +2632,12 @@ function SourceConfiguration({
               icon={<Database size={20} aria-hidden="true" />}
               onClick={onOpenDatabasePicker}
             />
-          )}
-        </section>
+        )}
+      </section>
         {selectedDatabase && !isDatabaseConnecting && (
           <QueryEditor value={query} onChange={onQueryChange} />
         )}
-      </div>
+    </div>
     );
   }
 
@@ -2124,14 +2647,11 @@ function SourceConfiguration({
         <section className="ds-config">
           <FieldHeader title="API Source" />
           {selectedApi ? (
-            <div className="ds-db-selected">
+            <div className="ds-db-selected ds-db-selected--no-trailing">
               <CirclesFour size={18} aria-hidden="true" />
               <span className="ds-db-selected__content">
                 <strong>{selectedApi.name}</strong>
                 <small>API connection</small>
-              </span>
-              <span className="ds-db-selected__trailing">
-                <CirclesFour size={16} aria-hidden="true" />
               </span>
               <button type="button" className="ds-db-selected__change" onClick={onOpenApiPicker}>
                 Change
@@ -2158,49 +2678,82 @@ function SourceConfiguration({
 
   if (sourceType === "file-upload") {
     return (
-      <div className="ds-config-stack">
-        {selectedFile && (
-          <section className="ds-config">
-            <FieldHeader title="Apply ML Prediction (Optional)" required={false} />
-            <div className="ds-config__notice" role="note">
-              Enhance your data with machine learning predictions by selecting a model below.
-              <br />
-              No ML models available. Configure models in Platform Settings.
-            </div>
-          </section>
-        )}
-        <section className="ds-config">
-          <FieldHeader title="Select File" />
-          {selectedFile ? (
-            <div className="ds-db-selected">
-              <FileArrowUp size={18} aria-hidden="true" />
-              <span className="ds-db-selected__content">
-                <strong>{selectedFile.name}</strong>
-                <small>
-                  {selectedFile.fileName} · {selectedFile.rows.toLocaleString()} rows
-                </small>
-              </span>
-              <span className="ds-db-selected__trailing">
-                <Database size={16} aria-hidden="true" />
-              </span>
-              <button type="button" className="ds-db-selected__change" onClick={onOpenFilePicker}>
-                Change
-              </button>
-            </div>
-          ) : (
-            <SourceActionField
-              label="Select File"
-              icon={<FileArrowUp size={20} aria-hidden="true" />}
-              onClick={onOpenFilePicker}
-            />
+      <>
+        <div className="ds-config-stack">
+          {selectedFile && (
+            <section className="ds-config">
+              <FieldHeader title="Apply ML Prediction (Optional)" required={false} />
+              <div className="ds-config__notice" role="note">
+                Enhance your data with machine learning predictions by selecting a model below.
+                <br />
+                No ML models available. Configure models in Platform Settings.
+              </div>
+            </section>
           )}
-          <p className="ds-config__helper">
-            Uploaded files are stored as source-backed tables. Select an existing file or use + New in
-            the picker to upload one.
-          </p>
-        </section>
-        {selectedFile && <QueryEditor value={fileQuery} onChange={onFileQueryChange} />}
-      </div>
+          <section className="ds-config">
+            <FieldHeader
+              title="Select File"
+              required={false}
+              action={
+                <button
+                  type="button"
+                  className="ds-config__upload-action"
+                  onClick={() => setUploadFileModalOpen(true)}
+                >
+                  <Plus size={16} aria-hidden="true" />
+                  Upload New File
+                </button>
+              }
+            />
+            {selectedFile ? (
+              <div className="ds-db-selected ds-db-selected--no-trailing">
+                <FileArrowUp size={18} aria-hidden="true" />
+                <span className="ds-db-selected__content">
+                  <strong>{selectedFile.name}</strong>
+                  <small>
+                    {selectedFile.fileName} · {selectedFile.rows.toLocaleString()} rows
+                  </small>
+                </span>
+                <span className="ds-db-selected__actions">
+                  <button
+                    type="button"
+                    className="ds-db-selected__schema-browser"
+                    onClick={onOpenFileSchemaBrowser}
+                  >
+                    Schema Browser
+                  </button>
+                  <button
+                    type="button"
+                    className="ds-db-selected__change"
+                    onClick={onOpenFilePicker}
+                  >
+                    Change
+                  </button>
+                </span>
+              </div>
+            ) : (
+              <SourceActionField
+                label="Select File"
+                icon={<FileArrowUp size={20} aria-hidden="true" />}
+                onClick={onOpenFilePicker}
+              />
+            )}
+            <p className="ds-config__helper">
+              Uploaded files are stored as source-backed tables. Select an existing file or upload a
+              new one.
+            </p>
+          </section>
+          {selectedFile && <QueryEditor value={fileQuery} onChange={onFileQueryChange} />}
+        </div>
+        {uploadFileModalOpen && (
+          <SourcePickerModal
+            variant="upload-file"
+            onClose={() => setUploadFileModalOpen(false)}
+          >
+            <UploadFileModal onClose={() => setUploadFileModalOpen(false)} />
+          </SourcePickerModal>
+        )}
+      </>
     );
   }
 
@@ -2277,7 +2830,11 @@ function SourceConfiguration({
                         Connecting...
                       </span>
                     ) : (
-                      <button type="button" className="ds-db-selected__schema-browser">
+                      <button
+                        type="button"
+                        className="ds-db-selected__schema-browser"
+                        onClick={onOpenMlDatabaseSchemaBrowser}
+                      >
                         Schema Browser
                       </button>
                     )}
@@ -2430,10 +2987,12 @@ function SourceConfiguration({
 
 export default function DataSourceStep({
   onConfigurationChange,
+  onSourceTypeChange,
   onQueryPreviewChange,
   onLoadingChange,
 }: {
   onConfigurationChange?: (configured: boolean) => void;
+  onSourceTypeChange?: (selected: boolean) => void;
   onQueryPreviewChange?: (query: string) => void;
   onLoadingChange?: (loading: boolean) => void;
 }) {
@@ -2508,6 +3067,8 @@ export default function DataSourceStep({
   const [query, setQuery] = useState(restoredState.query ?? "");
   const [databaseConnecting, setDatabaseConnecting] = useState(false);
   const [mlDatabaseConnecting, setMlDatabaseConnecting] = useState(false);
+  const [schemaBrowserDatabase, setSchemaBrowserDatabase] =
+    useState<DatabaseConnection | null>(null);
   const selectedDatabase =
     DATABASE_CONNECTIONS.find((connection) => connection.id === selectedDatabaseId) ?? null;
   const selectedApi = API_SOURCES.find((source) => source.id === selectedApiId) ?? null;
@@ -2548,6 +3109,10 @@ export default function DataSourceStep({
   useEffect(() => {
     onConfigurationChange?.(hasConfiguredSource);
   }, [hasConfiguredSource, onConfigurationChange]);
+
+  useEffect(() => {
+    onSourceTypeChange?.(Boolean(sourceType));
+  }, [onSourceTypeChange, sourceType]);
 
   useEffect(() => {
     onQueryPreviewChange?.(activeQueryPreview);
@@ -2857,17 +3422,29 @@ export default function DataSourceStep({
             selectedDatabase={selectedDatabase}
             isDatabaseConnecting={databaseConnecting}
             onOpenDatabasePicker={openDatabasePicker}
+            onOpenDatabaseSchemaBrowser={() => setSchemaBrowserDatabase(selectedDatabase)}
             selectedApi={selectedApi}
             onOpenApiPicker={openApiPicker}
             selectedRequest={selectedRequest}
             onSelectedRequestChange={setSelectedRequest}
             selectedFile={selectedFile}
             onOpenFilePicker={openFilePicker}
+            onOpenFileSchemaBrowser={() => {
+              if (!selectedFile) return;
+              setSchemaBrowserDatabase({
+                id: `file-${selectedFile.id}`,
+                name: selectedFile.name,
+                description: selectedFile.fileName,
+                schema: selectedFile.tableName,
+                active: selectedFile.active,
+              });
+            }}
             fileQuery={fileQuery}
             onFileQueryChange={setFileQuery}
             mlSelectedDatabase={mlSelectedDatabase}
             isMlDatabaseConnecting={mlDatabaseConnecting}
             onOpenMlDatabasePicker={openMlDatabasePicker}
+            onOpenMlDatabaseSchemaBrowser={() => setSchemaBrowserDatabase(mlSelectedDatabase)}
             mlDatabaseQuery={mlDatabaseQuery}
             onMlDatabaseQueryChange={setMlDatabaseQuery}
             mlSelectedApi={mlSelectedApi}
@@ -2888,6 +3465,17 @@ export default function DataSourceStep({
         )}
     </div>
       {pickerModal}
+      {schemaBrowserDatabase && (
+        <SourcePickerModal
+          variant="schema-browser"
+          onClose={() => setSchemaBrowserDatabase(null)}
+        >
+          <DatabaseSchemaBrowser
+            database={schemaBrowserDatabase}
+            onClose={() => setSchemaBrowserDatabase(null)}
+          />
+        </SourcePickerModal>
+      )}
     </>
   );
 }

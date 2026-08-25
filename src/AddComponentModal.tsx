@@ -13,6 +13,16 @@ import {
 } from "./componentCatalog";
 
 const SECTIONS_WITH_CONTENT: ComponentSectionId[] = ["insights"];
+const ALL_INSIGHTS_HIDDEN_IDS = new Set([
+  "high_heat_districts",
+  "average_price_gap_to_benchmark",
+  "registration_completion_rate",
+  "quarterly_revenue_index",
+  "mobility_throughput",
+  "annual_revenue_bar_chart",
+  "average_handling_cost",
+  "average_traffic_speed_by_road_type",
+]);
 
 type Props = {
   open: boolean;
@@ -96,7 +106,9 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
     if (!hasSectionContent) return [];
     const q = query.trim().toLowerCase();
     return COMPONENT_LIBRARY.filter((item) => {
-      if (item.section !== section || item.sidebar !== sidebar) return false;
+      const showingAllInsights = section === "insights" && sidebar === "suggested";
+      if (item.section !== section || (!showingAllInsights && item.sidebar !== sidebar)) return false;
+      if (showingAllInsights && ALL_INSIGHTS_HIDDEN_IDS.has(item.id)) return false;
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||

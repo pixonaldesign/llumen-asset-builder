@@ -1260,6 +1260,7 @@ export default function EditComponentModal({
   const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
   const [config, setConfig] = useState<Config>({});
   const [dataSourceConfigured, setDataSourceConfigured] = useState(false);
+  const [dataSourceTypeSelected, setDataSourceTypeSelected] = useState(false);
   const [dataSourceQuery, setDataSourceQuery] = useState("");
   const [dataSourceLoading, setDataSourceLoading] = useState(false);
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
@@ -1420,6 +1421,7 @@ export default function EditComponentModal({
   const isDeepDiveStep = wizardStepId === "deep-dive";
   const isAccessStep = wizardStepId === "access";
   const isGeneralInfoStep = wizardStepId === "general-info";
+  const isDataSourcePicker = isDataSourceStep && !dataSourceTypeSelected;
   const isPreviewVizOnly = isAccessStep || isGeneralInfoStep;
   const isVizPicker = isVizStep && vizPhase === "picker";
   const isVizSettings = isVizStep && vizPhase === "settings";
@@ -1518,7 +1520,8 @@ export default function EditComponentModal({
           className={
             "modal__body" +
             (isDeepDiveStep ? " modal__body--deep-dive" : "") +
-            (isVizPicker ? " modal__body--viz-picker" : "")
+            (isVizPicker ? " modal__body--viz-picker" : "") +
+            (isDataSourcePicker ? " modal__body--single-pane" : "")
           }
         >
           <section className={"settings" + (isVizPicker ? " settings--viz-picker" : "")}>
@@ -1556,6 +1559,7 @@ export default function EditComponentModal({
               {isDataSourceStep && (
                 <DataSourceStep
                   onConfigurationChange={setDataSourceConfigured}
+                  onSourceTypeChange={setDataSourceTypeSelected}
                   onQueryPreviewChange={setDataSourceQuery}
                   onLoadingChange={setDataSourceLoading}
                 />
@@ -1667,7 +1671,7 @@ export default function EditComponentModal({
             )}
           </section>
 
-          {!isDeepDiveStep && !isVizPicker && (
+          {!isDeepDiveStep && !isVizPicker && !isDataSourcePicker && (
           <section className="preview">
             {isDataSourceStep ? (
               <>

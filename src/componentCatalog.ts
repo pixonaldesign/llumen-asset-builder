@@ -3,9 +3,16 @@ import { visualTypeById } from "./visualCatalog";
 export type ComponentSectionId = "backgrounds" | "insights" | "filters" | "custom";
 export type ComponentSidebarId =
   | "suggested"
+  | "analytics"
+  | "population"
   | "landuse"
   | "mobility"
   | "traffic"
+  | "real-estate"
+  | "employees"
+  | "itc"
+  | "commerce"
+  | "waste"
   | "maps"
   | "videos"
   | "images"
@@ -32,8 +39,8 @@ export interface ComponentLibraryItem extends ComponentListRow {
 
 export const COMPONENT_SECTIONS: { id: ComponentSectionId; label: string }[] = [
   { id: "insights", label: "Insights" },
-  { id: "filters", label: "Filters" },
   { id: "custom", label: "Custom" },
+  { id: "filters", label: "Filters" },
 ];
 
 export const COMPONENT_SIDEBARS: Record<ComponentSectionId, { id: ComponentSidebarId; label: string }[]> = {
@@ -44,10 +51,16 @@ export const COMPONENT_SIDEBARS: Record<ComponentSectionId, { id: ComponentSideb
     { id: "colors", label: "Colors" },
   ],
   insights: [
-    { id: "suggested", label: "Suggested" },
-    { id: "landuse", label: "Landuse" },
+    { id: "suggested", label: "All Insights" },
+    { id: "analytics", label: "Analytics" },
+    { id: "population", label: "Population" },
     { id: "mobility", label: "Mobility" },
     { id: "traffic", label: "Traffic" },
+    { id: "real-estate", label: "Real Estate" },
+    { id: "employees", label: "Employees" },
+    { id: "itc", label: "ITC" },
+    { id: "commerce", label: "Commerce" },
+    { id: "waste", label: "Waste" },
   ],
   filters: [
     { id: "suggested", label: "Suggested" },
@@ -65,16 +78,37 @@ const BASE_ROWS: Omit<ComponentListRow, "id">[] = [
   { name: "High-Heat Districts", category: "Market Heat", type: "Data_chart", date: "5/12/2026" },
   { name: "Average Price Gap to Benchmark", category: "Market Pricing", type: "Data_chart", date: "5/11/2026" },
   {
-    name: "Market Stability Score / Cluster Average",
-    category: "Market Stability",
+    name: "Carbon Abatement by Initiative Category",
+    category: "Operations",
     type: "Data_chart",
     date: "5/10/2026",
   },
   { name: "Registration Completion Rate", category: "Market Operations", type: "Data_chart", date: "5/9/2026" },
   { name: "Quarterly Revenue Index", category: "Finance", type: "Data_chart", date: "5/7/2026" },
   { name: "Mobility Throughput", category: "Mobility", type: "Data_chart", date: "5/6/2026" },
-  { name: "Contaminant Exceedance Frequency", category: "Operations", type: "Data_chart", date: "5/6/2026" },
-  { name: "Top 3 Facilities by Repeated Incidents", category: "Operations", type: "Data_chart", date: "5/6/2026" },
+  { name: "Seasonal Pollution Trends (Tons)", category: "Operations", type: "Data_chart", date: "5/6/2026" },
+  { name: "Violation Frequency by Location", category: "Operations", type: "Data_chart", date: "5/6/2026" },
+  { name: "Repeat Violation Rate", category: "Operations", type: "Data_chart", date: "5/6/2026" },
+  { name: "Case Resolution Time", category: "Operations", type: "Data_chart", date: "5/6/2026" },
+  { name: "Cost vs Utilization", category: "Operations", type: "Data_chart", date: "5/6/2026" },
+  {
+    name: "Initiative Efficiency",
+    category: "Operations",
+    type: "Data_chart",
+    date: "5/6/2026",
+  },
+  {
+    name: "Total Emission Exceedances",
+    category: "Operations",
+    type: "Data_chart",
+    date: "5/6/2026",
+  },
+  {
+    name: "% Wells Within Acceptable Water Quality Standards",
+    category: "Operations",
+    type: "Data_chart",
+    date: "5/6/2026",
+  },
   { name: "Annual Revenue Bar Chart", category: "Finance", type: "Data_chart", date: "4/21/2026" },
   { name: "Average Handling Cost", category: "Finance", type: "Data_chart", date: "4/25/2026" },
   { name: "Average Order Value", category: "Sales", type: "Data_chart", date: "4/6/2026" },
