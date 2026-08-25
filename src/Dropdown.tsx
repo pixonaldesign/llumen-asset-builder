@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect, useCallback, type CSSProperties } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { ChevronDownIcon, SearchIcon } from "./icons";
 
@@ -19,6 +26,8 @@ type DropdownProps = {
   noResultsLabel?: string;
   ariaLabel?: string;
   className?: string;
+  menuClassName?: string;
+  endIcon?: ReactNode;
   compact?: boolean;
 };
 
@@ -34,6 +43,8 @@ export default function Dropdown({
   noResultsLabel = "No columns found",
   ariaLabel,
   className,
+  menuClassName,
+  endIcon,
   compact = false,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
@@ -125,14 +136,19 @@ export default function Dropdown({
       >
         <span className="cp-picker-trigger-name">{displayLabel}</span>
         <span className="cp-picker-trigger-end">
-          <ChevronDownIcon className="cp-caret" width={16} height={16} aria-hidden="true" />
+          {endIcon ?? (
+            <ChevronDownIcon className="cp-caret" width={16} height={16} aria-hidden="true" />
+          )}
         </span>
       </button>
       {open &&
         createPortal(
           <div
             ref={menuRef}
-            className="cp-picker-menu cp-picker-menu--flyout"
+            className={
+              "cp-picker-menu cp-picker-menu--flyout" +
+              (menuClassName ? ` ${menuClassName}` : "")
+            }
             role="listbox"
             style={
               {

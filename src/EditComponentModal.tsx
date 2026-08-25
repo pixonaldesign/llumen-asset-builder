@@ -1266,6 +1266,12 @@ export default function EditComponentModal({
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     name: componentName ?? "",
     description: "",
+    insight: "",
+    location: [],
+    tags: [],
+    updateFrequency: "",
+    customUpdateFrequency: "",
+    scheduleAutoRefresh: false,
     category: componentCategory ?? "",
   });
 
@@ -1342,9 +1348,16 @@ export default function EditComponentModal({
         chartId: activeChart,
         config: resolvedConfig,
         title: generalInfo.name,
-        insight: generalInfo.description,
+        insight: generalInfo.insight || generalInfo.description,
       }),
-    [displayVisualId, activeChart, resolvedConfig, generalInfo.name, generalInfo.description],
+    [
+      displayVisualId,
+      activeChart,
+      resolvedConfig,
+      generalInfo.name,
+      generalInfo.description,
+      generalInfo.insight,
+    ],
   );
 
   const colorDataRange = useMemo(
@@ -1377,7 +1390,7 @@ export default function EditComponentModal({
       if (
         !generalInfo.name.trim() ||
         !generalInfo.description.trim() ||
-        !generalInfo.category.trim()
+        !generalInfo.tags.length
       ) {
         return;
       }
@@ -1579,6 +1592,17 @@ export default function EditComponentModal({
                     setGeneralInfo({
                       name: chart.name,
                       description: `Shows ${chart.name.toLowerCase()} using the configured data source and visualization settings.`,
+                      insight:
+                        generalInfo.insight ||
+                        `Monitor ${chart.name.toLowerCase()} to identify meaningful changes and trends.`,
+                      location: generalInfo.location,
+                      tags:
+                        generalInfo.tags.length > 0
+                          ? generalInfo.tags
+                          : [componentCategory || "Analytics"],
+                      updateFrequency: generalInfo.updateFrequency,
+                      customUpdateFrequency: generalInfo.customUpdateFrequency,
+                      scheduleAutoRefresh: generalInfo.scheduleAutoRefresh,
                       category: generalInfo.category || componentCategory || "Operations",
                     })
                   }

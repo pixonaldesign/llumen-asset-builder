@@ -5,7 +5,6 @@ import ComponentChartPreview from "./ComponentChartPreview";
 import { SearchIcon } from "./icons";
 import {
   COMPONENT_LIBRARY,
-  COMPONENT_SECTIONS,
   COMPONENT_SIDEBARS,
   type ComponentLibraryItem,
   type ComponentSectionId,
@@ -70,7 +69,7 @@ function ComponentPickerCard({
 }
 
 export default function AddComponentModal({ open, onClose, onAdd, excludedIds = [] }: Props) {
-  const [section, setSection] = useState<ComponentSectionId>("insights");
+  const section: ComponentSectionId = "insights";
   const [sidebar, setSidebar] = useState<ComponentSidebarId>("suggested");
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -91,7 +90,6 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
     if (!open) {
       setQuery("");
       setSelectedIds(new Set());
-      setSection("insights");
       setSidebar("suggested");
     }
   }, [open]);
@@ -144,19 +142,6 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
           <h2 id="add-component-title" className="add-component-modal__title">
             Add Asset
           </h2>
-
-          <nav className="add-component-modal__tabs" aria-label="Asset categories">
-            {COMPONENT_SECTIONS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={"add-component-modal__tab" + (section === tab.id ? " is-active" : "")}
-                onClick={() => setSection(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
 
           <label className="add-component-modal__search">
             <SearchIcon width={20} height={20} aria-hidden="true" />

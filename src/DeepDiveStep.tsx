@@ -26,9 +26,6 @@ export type DeepDiveTab = {
   components: DeepDiveComponentRef[];
 };
 
-const COMPACT_CARD_HEIGHT = 220;
-const ORIGINAL_CARD_HEIGHT = 300;
-
 type DeepDiveViewMode = "edit" | "preview";
 
 let tabUid = 0;
@@ -68,9 +65,18 @@ type FlyoutPos = { top: number; left: number; width: number };
 function measureCardMenuPosition(trigger: HTMLElement | null, menuWidth: number, gap = 6): FlyoutPos | null {
   if (!trigger) return null;
   const rect = trigger.getBoundingClientRect();
+  const modalRect = trigger.closest(".modal")?.getBoundingClientRect();
+  const preferredLeft = rect.right - menuWidth;
+  const boundaryInset = 12;
+  const left = modalRect
+    ? Math.min(
+        Math.max(preferredLeft, modalRect.left + boundaryInset),
+        modalRect.right - menuWidth - boundaryInset,
+      )
+    : preferredLeft;
   return {
     top: rect.bottom + gap,
-    left: rect.right - menuWidth,
+    left,
     width: menuWidth,
   };
 }
@@ -158,77 +164,11 @@ function DeepDiveTabActionMenu({
   );
 }
 
-const COMPONENTS_PER_ROW = 4;
 const MODULAR_SLOT_COUNT = 24;
-
-type PreviewSlot =
-  | { kind: "wide"; component: DeepDiveComponentRef }
-  | { kind: "square-pair"; components: [DeepDiveComponentRef, DeepDiveComponentRef] }
-  | { kind: "square-single"; component: DeepDiveComponentRef };
-
-function packPreviewSlots(components: DeepDiveComponentRef[]): PreviewSlot[] {
-  const squares = components.filter((component) => isSquarePreviewComponent(component.componentId));
-  const squareSlots: PreviewSlot[] = [];
-
-  for (let index = 0; index < squares.length; index += 2) {
-    const first = squares[index];
-    const second = squares[index + 1];
-    if (second) {
-      squareSlots.push({ kind: "square-pair", components: [first, second] });
-    } else {
-      squareSlots.push({ kind: "square-single", component: first });
-    }
-  }
-
-  const slots: PreviewSlot[] = [];
-  const includedSquareUids = new Set<number>();
-  let nextSquareSlot = 0;
-
-  for (const component of components) {
-    if (isSquarePreviewComponent(component.componentId)) {
-      if (includedSquareUids.has(component.uid)) continue;
-
-      const slot = squareSlots[nextSquareSlot];
-      nextSquareSlot += 1;
-      if (!slot) continue;
-
-      slots.push(slot);
-      if (slot.kind === "square-pair") {
-        includedSquareUids.add(slot.components[0].uid);
-        includedSquareUids.add(slot.components[1].uid);
-      } else {
-        includedSquareUids.add(slot.component.uid);
-      }
-      continue;
-    }
-
-    slots.push({ kind: "wide", component });
-  }
-
-  return slots;
-}
-
-function previewSlotKey(slot: PreviewSlot): string {
-  if (slot.kind === "square-pair") {
-    return `${slot.components[0].uid}-${slot.components[1].uid}`;
-  }
-  if (slot.kind === "square-single") {
-    return String(slot.component.uid);
-  }
-  return String(slot.component.uid);
-}
 
 function widgetTypeLabel(item: ComponentLibraryItem): string {
   const visual = visualTypeById(item.visualId);
   return visual?.label ?? item.type.replace(/_/g, " ");
-}
-
-function chunkRows<T>(items: T[], size = COMPONENTS_PER_ROW): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    rows.push(items.slice(i, i + size));
-  }
-  return rows;
 }
 
 function DeepDiveTabChip({
@@ -354,7 +294,6 @@ function DeepDiveComponentCard({
   uid,
   compact,
   readOnly = false,
-  previewHalf = false,
   dragging,
   dropTarget,
   onRemove,
@@ -367,7 +306,6 @@ function DeepDiveComponentCard({
   uid: number;
   compact: boolean;
   readOnly?: boolean;
-  previewHalf?: boolean;
   dragging?: boolean;
   dropTarget?: boolean;
   onRemove: () => void;
@@ -377,13 +315,11 @@ function DeepDiveComponentCard({
   onDrop: () => void;
 }) {
   const cardRef = useRef<HTMLElement>(null);
-  const heightPx = compact ? COMPACT_CARD_HEIGHT : ORIGINAL_CARD_HEIGHT;
 
   const isCompactWidget = isCompactPreviewComponent(item.id);
   const isLargeSquareWidget = isLargeSquarePreviewComponent(item.id);
   const isSquareWidget = isSquarePreviewComponent(item.id);
-  const isImageWidget = !readOnly && hasComponentPreviewImage(item.id);
-  const useAutoHeight = !readOnly && isImageWidget;
+  const isImageWidget = hasComponentPreviewImage(item.id);
 
   return (
     <article
@@ -392,25 +328,15 @@ function DeepDiveComponentCard({
         "dd-component-card" +
         (compact ? " dd-component-card--compact" : "") +
         (readOnly ? " dd-component-card--preview" : " dd-component-card--edit") +
-        (!readOnly && isCompactWidget ? " dd-component-card--frame-compact" : "") +
-        (!readOnly && isLargeSquareWidget ? " dd-component-card--frame-large-square" : "") +
-        (!readOnly && isImageWidget ? " dd-component-card--frame-image" : "") +
-        (previewHalf ? " dd-component-card--preview-half" : "") +
+        (isCompactWidget ? " dd-component-card--frame-compact" : "") +
+        (isLargeSquareWidget ? " dd-component-card--frame-large-square" : "") +
+        (isImageWidget ? " dd-component-card--frame-image" : "") +
         (dragging ? " is-dragging" : "") +
         (dropTarget ? " is-drop-target" : "")
       }
       aria-label={readOnly ? item.name : `Reorder ${item.name}`}
       draggable={!readOnly}
-      style={
-        !readOnly
-          ? { height: "auto", aspectRatio: isSquareWidget ? "1 / 1" : "95 / 46" }
-          : previewHalf || useAutoHeight
-          ? undefined
-          : {
-              height: heightPx,
-              minHeight: heightPx,
-            }
-      }
+      style={{ height: "auto", aspectRatio: isSquareWidget ? "1 / 1" : "95 / 46" }}
       onDragStart={
         readOnly
           ? undefined
@@ -484,6 +410,16 @@ function DeepDiveComponentCard({
           <TrashIcon width={16} height={16} aria-hidden="true" />
         </button>
       )}
+      {!readOnly && (
+        <span
+          className="resize-corner dd-component-card__resize-corner"
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M20 4v10a6 6 0 0 1-6 6H4" />
+          </svg>
+        </span>
+      )}
     </article>
   );
 }
@@ -504,9 +440,7 @@ function DeepDiveComponentGrid({
   const lastOverUid = useRef<number | null>(null);
   const dragUidRef = useRef<number | null>(null);
 
-  const rows = chunkRows(packPreviewSlots(components));
-
-  const renderComponentCard = (component: DeepDiveComponentRef, previewHalf = false) => {
+  const renderComponentCard = (component: DeepDiveComponentRef) => {
     const item = componentById(component.componentId);
     if (!item) return null;
     return (
@@ -516,7 +450,6 @@ function DeepDiveComponentGrid({
         item={item}
         compact={component.compact}
         readOnly={readOnly}
-        previewHalf={previewHalf}
         dragging={dragUid === component.uid}
         dropTarget={dropUid === component.uid && dragUid !== component.uid}
         onRemove={() => onRemove(component.uid)}
@@ -548,31 +481,6 @@ function DeepDiveComponentGrid({
           setDropUid(null);
         }}
       />
-    );
-  };
-
-  const renderPreviewSlot = (slot: PreviewSlot) => {
-    if (slot.kind === "wide") {
-      return (
-        <div key={slot.component.uid} className="dd-grid-row__slot">
-          {renderComponentCard(slot.component)}
-        </div>
-      );
-    }
-
-    if (slot.kind === "square-pair") {
-      return (
-        <div key={`${slot.components[0].uid}-${slot.components[1].uid}`} className="dd-grid-row__slot dd-grid-row__slot--square-pair">
-          {renderComponentCard(slot.components[0], true)}
-          {renderComponentCard(slot.components[1], true)}
-        </div>
-      );
-    }
-
-    return (
-      <div key={slot.component.uid} className="dd-grid-row__slot dd-grid-row__slot--square-single">
-        {renderComponentCard(slot.component, true)}
-      </div>
     );
   };
 
@@ -610,26 +518,10 @@ function DeepDiveComponentGrid({
   }
 
   return (
-    <div
-      className={
-        "dd-panel__grid dd-panel__grid--preview" +
-        (dragUid !== null ? " is-reordering" : "")
-      }
-    >
-      {rows.map((row) => (
-        <div
-          key={row.map(previewSlotKey).join("-")}
-          className="dd-grid-row dd-grid-row--preview"
-        >
-          <div className="dd-grid-row__cards">
-            {row.map((slot) => renderPreviewSlot(slot))}
-            {row.length < COMPONENTS_PER_ROW &&
-              Array.from({ length: COMPONENTS_PER_ROW - row.length }).map((_, index) => (
-                <div key={`spacer-${index}`} className="dd-grid-row__spacer" aria-hidden="true" />
-              ))}
-          </div>
-        </div>
-      ))}
+    <div className="dd-panel__grid dd-panel__grid--preview">
+      <div className="dd-modular-grid dd-modular-grid--preview-content">
+        {components.map((component) => renderComponentCard(component))}
+      </div>
     </div>
   );
 }
