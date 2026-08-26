@@ -9013,6 +9013,35 @@ html[data-theme="light"] .dd-component-menu {
   width: 100%;
 }
 
+.ds-create-db__fields .cp-picker-trigger {
+  min-height: var(--lc-control-height);
+  height: var(--lc-control-height);
+  padding: 0 var(--spacing-lg);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-ui-small);
+  outline: 0;
+  background: var(--lc-bg-control);
+  background-image: none;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+  backdrop-filter: none;
+}
+
+.ds-create-db__fields .cp-picker-trigger.is-placeholder {
+  color: var(--lc-text-tertiary);
+}
+
+.ds-create-db__fields .cp-picker-trigger:hover,
+.ds-create-db__fields .cp-picker-trigger.is-open,
+.ds-create-db__fields .cp-picker-trigger:focus,
+.ds-create-db__fields .cp-picker-trigger:focus-visible {
+  outline: none;
+  border-color: var(--lc-border-control);
+  background: var(--lc-bg-control);
+  background-image: none;
+  box-shadow: none;
+}
+
 .ds-create-db__fields input,
 .ds-create-db__fields select {
   width: 100%;
@@ -9032,8 +9061,9 @@ html[data-theme="light"] .dd-component-menu {
 
 .ds-create-db__fields input:focus,
 .ds-create-db__fields select:focus {
-  border-color: var(--lc-border-control-focus);
-  box-shadow: var(--lc-shadow-control-focus);
+  outline: none;
+  border-color: var(--lc-border-control);
+  box-shadow: none;
 }
 
 .ds-create-db__footer {
