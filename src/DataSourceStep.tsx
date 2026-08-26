@@ -12,6 +12,7 @@ import {
   FileArrowUp,
   FunnelSimple,
   FlowArrow,
+  GitBranch,
   Globe,
   Info,
   MagnifyingGlass,
@@ -19,12 +20,21 @@ import {
   Plus,
   Sparkle,
   Stack,
+  Storefront,
   Trash,
   UploadSimple,
   X,
 } from "@phosphor-icons/react";
 
-type SourceType = "database" | "api" | "file-upload" | "ai-model" | "ml-model" | "data-flow";
+type SourceType =
+  | "database"
+  | "api"
+  | "file-upload"
+  | "ai-model"
+  | "ml-model"
+  | "data-flow"
+  | "marketplace"
+  | "etl-flow";
 type MlInputSource = "database" | "api" | "file-source" | "local-file";
 type PickerContext = "source" | "ml";
 type DatabaseType = "MySQL" | "PostgreSQL" | "SQL Server" | "Oracle" | "SQLite";
@@ -82,6 +92,14 @@ type DataFlow = {
   columns: string[];
 };
 
+type MarketplaceProvider = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  active: boolean;
+};
+
 type SourceTypeOption = {
   id: SourceType;
   title: string;
@@ -123,6 +141,9 @@ type DevDataSourceState = {
   selectedDataFlowId: string | null;
   draftDataFlowId: string | null;
   outputProjection: string;
+  marketplacePickerOpen: boolean;
+  selectedMarketplaceProviderId: string | null;
+  draftMarketplaceProviderId: string | null;
   query: string;
 };
 
@@ -186,6 +207,77 @@ const SOURCE_TYPES: SourceTypeOption[] = [
     description: "Use a data-flow pipeline with transformations and analytics",
     icon: <FlowArrow size={20} aria-hidden="true" />,
   },
+  {
+    id: "marketplace",
+    title: "Marketplace",
+    description: "Query an onboarded data marketplace provider",
+    icon: <Storefront size={20} aria-hidden="true" />,
+  },
+  {
+    id: "etl-flow",
+    title: "ETL Flow",
+    description: "Use an ETL flow pipeline with transformations and analytics",
+    icon: <GitBranch size={20} aria-hidden="true" />,
+  },
+];
+
+const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
+  {
+    id: "tomtom-traffic-api",
+    name: "TomTom Traffic API",
+    description:
+      "Road-traffic data from TomTom: live incidents and flow, junction-level delays and turn ratios",
+    category: "Marketplace",
+    active: true,
+  },
+  {
+    id: "here-traffic-api",
+    name: "HERE Traffic API",
+    description:
+      "Real-time traffic flow, incidents, road closures, and travel-time analytics",
+    category: "Marketplace",
+    active: true,
+  },
+  {
+    id: "google-maps-platform",
+    name: "Google Maps Platform",
+    description:
+      "Routes, places, geocoding, distance matrices, and mobility intelligence",
+    category: "Marketplace",
+    active: true,
+  },
+  {
+    id: "openweather",
+    name: "OpenWeather",
+    description:
+      "Current weather, forecasts, historical observations, and environmental conditions",
+    category: "Marketplace",
+    active: true,
+  },
+  {
+    id: "arcgis-living-atlas",
+    name: "ArcGIS Living Atlas",
+    description:
+      "Curated global geographic layers for demographics, land use, and infrastructure",
+    category: "Marketplace",
+    active: false,
+  },
+  {
+    id: "mapbox-traffic-data",
+    name: "Mapbox Traffic Data",
+    description:
+      "Live road speeds, congestion patterns, routing conditions, and map-ready traffic data",
+    category: "Marketplace",
+    active: true,
+  },
+  {
+    id: "safegraph-places",
+    name: "SafeGraph Places",
+    description:
+      "Points of interest, business attributes, brand relationships, and location metadata",
+    category: "Marketplace",
+    active: false,
+  },
 ];
 
 const ML_INPUT_SOURCES: MlInputOption[] = [
@@ -206,12 +298,6 @@ const ML_INPUT_SOURCES: MlInputOption[] = [
     title: "File source",
     description: "Files uploaded to Llumen and registered as queryable tables",
     icon: <File size={20} aria-hidden="true" />,
-  },
-  {
-    id: "local-file",
-    title: "Local file",
-    description: "Parse CSV, JSON, or GeoJSON in the browser without creating a source first",
-    icon: <UploadSimple size={20} aria-hidden="true" />,
   },
 ];
 
@@ -514,6 +600,12 @@ const FILE_SOURCES: FileSource[] = [
 ];
 
 const DATA_FLOWS: DataFlow[] = [
+  {
+    id: "untitled-etl-flow",
+    name: "Untitled ETL Flow",
+    description: "No description",
+    columns: ["id", "source", "transformed_value", "status", "updated_at"],
+  },
   {
     id: "incident",
     name: "incident",
@@ -1047,6 +1139,89 @@ function DatabaseConnectionPicker({
   );
 }
 
+function CreateApiCollectionForm({ onClose }: { onClose: () => void }) {
+  const [connectionName, setConnectionName] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
+  const [authenticationMethod, setAuthenticationMethod] =
+    useState<ApiAuth>("No Authentication");
+  const [requestMethod, setRequestMethod] = useState<ApiMethod>("GET");
+  const canCreate = connectionName.trim() && apiUrl.trim();
+
+  return (
+    <form
+      className="ds-create-db ds-create-api"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (canCreate) onClose();
+      }}
+    >
+      <header className="ds-create-db__header">
+        <h2>Create API Collection</h2>
+        <button type="button" aria-label="Close" onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+      </header>
+
+      <div className="ds-create-db__fields">
+        <label>
+          <span>
+            Connection Name <i>*</i>
+          </span>
+          <input
+            value={connectionName}
+            onChange={(event) => setConnectionName(event.target.value)}
+            placeholder="Enter connection name"
+            autoFocus
+          />
+        </label>
+
+        <label>
+          <span>
+            API URL <i>*</i>
+          </span>
+          <input
+            type="url"
+            value={apiUrl}
+            onChange={(event) => setApiUrl(event.target.value)}
+            placeholder="https://api.example.com/data"
+          />
+        </label>
+
+        <label>
+          <span>Authentication Method</span>
+          <Dropdown
+            value={authenticationMethod}
+            onChange={(value) => setAuthenticationMethod(value as ApiAuth)}
+            options={API_AUTH_OPTIONS.map((method) => ({ value: method, label: method }))}
+            ariaLabel="Authentication method"
+            compact
+          />
+        </label>
+
+        <label>
+          <span>Request Method</span>
+          <Dropdown
+            value={requestMethod}
+            onChange={(value) => setRequestMethod(value as ApiMethod)}
+            options={API_METHOD_OPTIONS.map((method) => ({ value: method, label: method }))}
+            ariaLabel="Request method"
+            compact
+          />
+        </label>
+      </div>
+
+      <footer className="ds-create-db__footer">
+        <button type="button" className="ds-create-db__cancel" onClick={onClose}>
+          Cancel
+        </button>
+        <button type="submit" className="ds-create-db__submit" disabled={!canCreate}>
+          Create Connection
+        </button>
+      </footer>
+    </form>
+  );
+}
+
 function ApiSourcePicker({
   selectedId,
   selectedRequestId,
@@ -1070,6 +1245,7 @@ function ApiSourcePicker({
   const [authMenuOpen, setAuthMenuOpen] = useState(false);
   const [methodMenuOpen, setMethodMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const searchValue = search.trim().toLowerCase();
   const hasRequestFilters = selectedAuths.length > 0 || selectedMethods.length > 0;
   const compareItems = (
@@ -1168,7 +1344,8 @@ function ApiSourcePicker({
   };
 
   return (
-    <section className="ds-api-manager">
+    <>
+      <section className="ds-api-manager">
       <header className="ds-db-manager__titlebar">
         <h2>Select API Request</h2>
         <button type="button" aria-label="Close" onClick={onCancel}>
@@ -1188,7 +1365,11 @@ function ApiSourcePicker({
               placeholder="Search collections and requests..."
             />
           </label>
-          <button type="button" className="ds-db-manager__new">
+          <button
+            type="button"
+            className="ds-db-manager__new"
+            onClick={() => setCreateModalOpen(true)}
+          >
             <Plus size={17} aria-hidden="true" />
             New Collection
           </button>
@@ -1417,6 +1598,130 @@ function ApiSourcePicker({
           Select Request
         </button>
       </footer>
+      </section>
+      {createModalOpen && (
+        <SourcePickerModal variant="create-api" onClose={() => setCreateModalOpen(false)}>
+          <CreateApiCollectionForm onClose={() => setCreateModalOpen(false)} />
+        </SourcePickerModal>
+      )}
+    </>
+  );
+}
+
+function MarketplaceProviderPicker({
+  selectedId,
+  onChange,
+  onCancel,
+  onSelect,
+}: {
+  selectedId: string | null;
+  onChange: (id: string) => void;
+  onCancel: () => void;
+  onSelect: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const visibleProviders = MARKETPLACE_PROVIDERS.filter((provider) =>
+    `${provider.name} ${provider.description} ${provider.category}`
+      .toLowerCase()
+      .includes(search.trim().toLowerCase()),
+  );
+
+  return (
+    <section className="ds-db-manager ds-marketplace-manager">
+      <header className="ds-db-manager__titlebar">
+        <h2>Select Marketplace Provider</h2>
+        <button type="button" aria-label="Close" onClick={onCancel}>
+          <X size={18} aria-hidden="true" />
+        </button>
+      </header>
+
+      <div className="ds-db-manager__toolbar">
+        <h3>Marketplace Providers</h3>
+        <div className="ds-db-manager__toolbar-actions">
+          <label className="ds-db-manager__search">
+            <MagnifyingGlass size={17} aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search marketplace providers..."
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="ds-db-manager__columns" aria-hidden="true">
+        <span>Marketplace Providers</span>
+        <span>Status</span>
+      </div>
+
+      <div
+        className="ds-db-manager__list"
+        role="listbox"
+        aria-label="Marketplace providers"
+      >
+        {visibleProviders.map((provider) => {
+          const selected = selectedId === provider.id;
+          return (
+            <div
+              key={provider.id}
+              role="option"
+              tabIndex={0}
+              aria-selected={selected}
+              className={"ds-db-manager-row" + (selected ? " is-selected" : "")}
+              onClick={() => onChange(provider.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onChange(provider.id);
+                }
+              }}
+            >
+              <div className="ds-db-manager-row__connection">
+                <strong>{provider.name}</strong>
+                <div>
+                  <span>{provider.description}</span>
+                  <span>{provider.category}</span>
+                </div>
+              </div>
+              <span className="ds-db-manager-row__actions">
+                <span
+                  className={
+                    "ds-db-manager-row__status" + (provider.active ? " is-active" : "")
+                  }
+                >
+                  <i aria-hidden="true" />
+                  {provider.active ? "Active" : "Inactive"}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Information about ${provider.name}`}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Info size={20} aria-hidden="true" />
+                </button>
+              </span>
+            </div>
+          );
+        })}
+        {visibleProviders.length === 0 && (
+          <p className="ds-db-manager__empty">No marketplace providers match your search.</p>
+        )}
+      </div>
+
+      <footer className="ds-db-manager__footer">
+        <button type="button" className="ds-db-manager__cancel" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="ds-db-manager__select"
+          disabled={!selectedId}
+          onClick={onSelect}
+        >
+          Select Provider
+        </button>
+      </footer>
     </section>
   );
 }
@@ -1541,16 +1846,19 @@ function FileSourcePicker({
 
 function DataFlowPicker({
   selectedId,
+  flowMode,
   onChange,
   onCancel,
   onSelect,
 }: {
   selectedId: string | null;
+  flowMode: "data-flow" | "etl-flow";
   onChange: (id: string) => void;
   onCancel: () => void;
   onSelect: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const isEtlFlow = flowMode === "etl-flow";
   const visibleFlows = DATA_FLOWS.filter((flow) =>
     `${flow.name} ${flow.description}`.toLowerCase().includes(search.trim().toLowerCase()),
   );
@@ -1558,14 +1866,14 @@ function DataFlowPicker({
   return (
     <section className="ds-db-manager ds-data-flow-manager">
       <header className="ds-db-manager__titlebar">
-        <h2>Select Data Flow</h2>
+        <h2>{isEtlFlow ? "Select ETL Flow" : "Select Data Flow"}</h2>
         <button type="button" aria-label="Close" onClick={onCancel}>
           <X size={18} aria-hidden="true" />
         </button>
       </header>
 
       <div className="ds-db-manager__toolbar">
-        <h3>Data Flows</h3>
+        <h3>{isEtlFlow ? "ETL Flows" : "Data Flows"}</h3>
         <div className="ds-db-manager__toolbar-actions">
           <label className="ds-db-manager__search">
             <MagnifyingGlass size={17} aria-hidden="true" />
@@ -1573,19 +1881,15 @@ function DataFlowPicker({
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search data flows..."
+              placeholder={isEtlFlow ? "Search ETL flows..." : "Search data flows..."}
             />
           </label>
-          <button type="button" className="ds-db-manager__new">
-            <Plus size={17} aria-hidden="true" />
-            New Data Flow
-          </button>
         </div>
       </div>
 
       <div className="ds-db-manager__columns" aria-hidden="true">
-        <span>Data Flows</span>
-        <span>Output Schema</span>
+        <span>{isEtlFlow ? "ETL Flows" : "Data Flows"}</span>
+        <span>{isEtlFlow ? "Type" : "Output Schema"}</span>
       </div>
 
       <div className="ds-db-manager__list" role="listbox" aria-label="Data flows">
@@ -1609,19 +1913,17 @@ function DataFlowPicker({
               }}
             >
               <div className="ds-file-manager-row__file">
-                <span className="ds-file-manager-row__icon">
-                  <FlowArrow size={20} aria-hidden="true" />
-                </span>
                 <div className="ds-db-manager-row__connection">
                   <strong>{flow.name}</strong>
                   <div>
                     <span>{flow.description}</span>
+                    {isEtlFlow && <span>ETL Flow</span>}
                   </div>
                 </div>
               </div>
               <span className="ds-db-manager-row__actions">
                 <span className="ds-data-flow-manager-row__columns">
-                  {flow.columns.length} Columns
+                  {isEtlFlow ? "ETL Flow" : `${flow.columns.length} Columns`}
                 </span>
                 <button
                   type="button"
@@ -1635,7 +1937,9 @@ function DataFlowPicker({
           );
         })}
         {visibleFlows.length === 0 && (
-          <p className="ds-db-manager__empty">No data flows match your search.</p>
+          <p className="ds-db-manager__empty">
+            No {isEtlFlow ? "ETL flows" : "data flows"} match your search.
+          </p>
         )}
       </div>
 
@@ -1649,7 +1953,7 @@ function DataFlowPicker({
           disabled={!selectedId}
           onClick={onSelect}
         >
-          Select Data Flow
+          {isEtlFlow ? "Select ETL Flow" : "Select Data Flow"}
         </button>
       </footer>
     </section>
@@ -2414,7 +2718,9 @@ function SourcePickerModal({
     | "default"
     | "database"
     | "create-database"
+    | "create-api"
     | "api"
+    | "marketplace"
     | "file"
     | "data-flow"
     | "schema-browser"
@@ -2442,17 +2748,21 @@ function SourcePickerModal({
             ? " ds-source-picker-modal--database"
             : variant === "create-database"
               ? " ds-source-picker-modal--create-database"
+              : variant === "create-api"
+                ? " ds-source-picker-modal--create-api"
               : variant === "api"
                 ? " ds-source-picker-modal--api"
-                : variant === "file"
-                  ? " ds-source-picker-modal--file"
-                  : variant === "data-flow"
-                    ? " ds-source-picker-modal--data-flow"
-                    : variant === "schema-browser"
-                      ? " ds-source-picker-modal--schema-browser"
-                      : variant === "upload-file"
-                        ? " ds-source-picker-modal--upload-file"
-                  : "")
+                : variant === "marketplace"
+                  ? " ds-source-picker-modal--marketplace"
+                  : variant === "file"
+                    ? " ds-source-picker-modal--file"
+                    : variant === "data-flow"
+                      ? " ds-source-picker-modal--data-flow"
+                      : variant === "schema-browser"
+                        ? " ds-source-picker-modal--schema-browser"
+                        : variant === "upload-file"
+                          ? " ds-source-picker-modal--upload-file"
+                    : "")
         }
         role="dialog"
         aria-modal="true"
@@ -2543,6 +2853,8 @@ function SourceConfiguration({
   onOpenDataFlowPicker,
   outputProjection,
   onOutputProjectionChange,
+  selectedMarketplaceProvider,
+  onOpenMarketplacePicker,
   query,
   onQueryChange,
 }: {
@@ -2580,6 +2892,8 @@ function SourceConfiguration({
   onOpenDataFlowPicker: () => void;
   outputProjection: string;
   onOutputProjectionChange: (query: string) => void;
+  selectedMarketplaceProvider: MarketplaceProvider | null;
+  onOpenMarketplacePicker: () => void;
   query: string;
   onQueryChange: (query: string) => void;
 }) {
@@ -2793,7 +3107,10 @@ function SourceConfiguration({
                   <button
                     key={source.id}
                     type="button"
-                    className="ds-ml-input-card"
+                    className={
+                      "ds-ml-input-card" +
+                      (source.id === "file-source" ? " ds-ml-input-card--full" : "")
+                    }
                     aria-pressed={false}
                     onClick={() => onMlInputSourceChange(source.id)}
                   >
@@ -2953,13 +3270,48 @@ function SourceConfiguration({
     );
   }
 
+  if (sourceType === "marketplace") {
+    return (
+      <section className="ds-config">
+        <FieldHeader title="Marketplace Provider" />
+        {selectedMarketplaceProvider ? (
+          <div className="ds-db-selected ds-db-selected--no-trailing">
+            <Storefront size={18} aria-hidden="true" />
+            <span className="ds-db-selected__content">
+              <strong>{selectedMarketplaceProvider.name}</strong>
+              <small>{selectedMarketplaceProvider.category}</small>
+            </span>
+            <button
+              type="button"
+              className="ds-db-selected__change"
+              onClick={onOpenMarketplacePicker}
+            >
+              Change
+            </button>
+          </div>
+        ) : (
+          <SourceActionField
+            label="Select Marketplace Provider"
+            icon={<Storefront size={20} aria-hidden="true" />}
+            onClick={onOpenMarketplacePicker}
+          />
+        )}
+      </section>
+    );
+  }
+
+  const isEtlFlow = sourceType === "etl-flow";
   return (
     <div className="ds-config-stack">
       <section className="ds-config">
-        <FieldHeader title="Select Data Flow" />
+        <FieldHeader title={isEtlFlow ? "Select ETL Flow" : "Select Data Flow"} />
         {selectedDataFlow ? (
           <button type="button" className="ds-flow-selected" onClick={onOpenDataFlowPicker}>
-            <FlowArrow size={18} aria-hidden="true" />
+            {isEtlFlow ? (
+              <GitBranch size={18} aria-hidden="true" />
+            ) : (
+              <FlowArrow size={18} aria-hidden="true" />
+            )}
             <span className="ds-flow-selected__content">
               <strong>{selectedDataFlow.name}</strong>
               <small>{selectedDataFlow.columns.length} columns</small>
@@ -2968,8 +3320,14 @@ function SourceConfiguration({
           </button>
         ) : (
           <SourceActionField
-            label="Select Data Flow"
-            icon={<FlowArrow size={20} aria-hidden="true" />}
+            label={isEtlFlow ? "Select ETL Flow" : "Select Data Flow"}
+            icon={
+              isEtlFlow ? (
+                <GitBranch size={20} aria-hidden="true" />
+              ) : (
+                <FlowArrow size={20} aria-hidden="true" />
+              )
+            }
             onClick={onOpenDataFlowPicker}
           />
         )}
@@ -3064,6 +3422,15 @@ export default function DataSourceStep({
   const [outputProjection, setOutputProjection] = useState(
     restoredState.outputProjection ?? "",
   );
+  const [marketplacePickerOpen, setMarketplacePickerOpen] = useState(
+    restoredState.marketplacePickerOpen ?? false,
+  );
+  const [selectedMarketplaceProviderId, setSelectedMarketplaceProviderId] = useState<
+    string | null
+  >(restoredState.selectedMarketplaceProviderId ?? null);
+  const [draftMarketplaceProviderId, setDraftMarketplaceProviderId] = useState<
+    string | null
+  >(restoredState.draftMarketplaceProviderId ?? null);
   const [query, setQuery] = useState(restoredState.query ?? "");
   const [databaseConnecting, setDatabaseConnecting] = useState(false);
   const [mlDatabaseConnecting, setMlDatabaseConnecting] = useState(false);
@@ -3078,6 +3445,8 @@ export default function DataSourceStep({
   const mlSelectedApi = API_SOURCES.find((source) => source.id === mlSelectedApiId) ?? null;
   const mlSelectedFile = FILE_SOURCES.find((source) => source.id === mlSelectedFileId) ?? null;
   const selectedDataFlow = DATA_FLOWS.find((flow) => flow.id === selectedDataFlowId) ?? null;
+  const selectedMarketplaceProvider =
+    MARKETPLACE_PROVIDERS.find((provider) => provider.id === selectedMarketplaceProviderId) ?? null;
   const selectedSourceOption =
     SOURCE_TYPES.find((source) => source.id === sourceType) ?? null;
   const hasConfiguredSource =
@@ -3086,7 +3455,8 @@ export default function DataSourceStep({
     (sourceType === "file-upload" && Boolean(selectedFile)) ||
     (sourceType === "ml-model" &&
       Boolean(mlSelectedDatabase || mlSelectedApi || mlSelectedFile)) ||
-    (sourceType === "data-flow" && Boolean(selectedDataFlow));
+    ((sourceType === "data-flow" || sourceType === "etl-flow") && Boolean(selectedDataFlow)) ||
+    (sourceType === "marketplace" && Boolean(selectedMarketplaceProvider));
   const shouldFillQuery =
     (sourceType === "database" && Boolean(selectedDatabase)) ||
     (sourceType === "file-upload" && Boolean(selectedFile)) ||
@@ -3102,7 +3472,7 @@ export default function DataSourceStep({
           ? mlDatabaseQuery
           : sourceType === "ml-model" && mlInputSource === "file-source"
             ? mlFileQuery
-            : sourceType === "data-flow"
+            : sourceType === "data-flow" || sourceType === "etl-flow"
               ? outputProjection
               : "";
 
@@ -3190,6 +3560,9 @@ export default function DataSourceStep({
         selectedDataFlowId,
         draftDataFlowId,
         outputProjection,
+        marketplacePickerOpen,
+        selectedMarketplaceProviderId,
+        draftMarketplaceProviderId,
         query,
       } satisfies DevDataSourceState),
     );
@@ -3220,6 +3593,9 @@ export default function DataSourceStep({
     selectedDataFlowId,
     draftDataFlowId,
     outputProjection,
+    marketplacePickerOpen,
+    selectedMarketplaceProviderId,
+    draftMarketplaceProviderId,
     query,
   ]);
 
@@ -3251,6 +3627,10 @@ export default function DataSourceStep({
     setDraftDataFlowId(selectedDataFlowId);
     setDataFlowPickerOpen(true);
   };
+  const openMarketplacePicker = () => {
+    setDraftMarketplaceProviderId(selectedMarketplaceProviderId);
+    setMarketplacePickerOpen(true);
+  };
 
   const clearSourceSelections = () => {
     setSelectedDatabaseId(null);
@@ -3273,6 +3653,8 @@ export default function DataSourceStep({
     setSelectedDataFlowId(null);
     setDraftDataFlowId(null);
     setOutputProjection("");
+    setSelectedMarketplaceProviderId(null);
+    setDraftMarketplaceProviderId(null);
   };
 
   const pickerModal = databasePickerOpen ? (
@@ -3339,10 +3721,24 @@ export default function DataSourceStep({
           }}
         />
     </SourcePickerModal>
+  ) : marketplacePickerOpen ? (
+    <SourcePickerModal variant="marketplace" onClose={() => setMarketplacePickerOpen(false)}>
+      <MarketplaceProviderPicker
+        selectedId={draftMarketplaceProviderId}
+        onChange={setDraftMarketplaceProviderId}
+        onCancel={() => setMarketplacePickerOpen(false)}
+        onSelect={() => {
+          if (!draftMarketplaceProviderId) return;
+          setSelectedMarketplaceProviderId(draftMarketplaceProviderId);
+          setMarketplacePickerOpen(false);
+        }}
+      />
+    </SourcePickerModal>
   ) : dataFlowPickerOpen ? (
     <SourcePickerModal variant="data-flow" onClose={() => setDataFlowPickerOpen(false)}>
         <DataFlowPicker
           selectedId={draftDataFlowId}
+          flowMode={sourceType === "etl-flow" ? "etl-flow" : "data-flow"}
           onChange={setDraftDataFlowId}
           onCancel={() => setDataFlowPickerOpen(false)}
           onSelect={() => {
@@ -3376,6 +3772,7 @@ export default function DataSourceStep({
                   setApiPickerOpen(false);
                   setFilePickerOpen(false);
                   setDataFlowPickerOpen(false);
+                  setMarketplacePickerOpen(false);
                 }}
               >
                 Change
@@ -3401,6 +3798,7 @@ export default function DataSourceStep({
                     setApiPickerOpen(false);
                     setFilePickerOpen(false);
                     setDataFlowPickerOpen(false);
+                    setMarketplacePickerOpen(false);
                   }}
                 >
                   <span className="ds-source-type-card__icon">{source.icon}</span>
@@ -3459,6 +3857,8 @@ export default function DataSourceStep({
             onOpenDataFlowPicker={openDataFlowPicker}
             outputProjection={outputProjection}
             onOutputProjectionChange={setOutputProjection}
+            selectedMarketplaceProvider={selectedMarketplaceProvider}
+            onOpenMarketplacePicker={openMarketplacePicker}
             query={query}
             onQueryChange={setQuery}
           />

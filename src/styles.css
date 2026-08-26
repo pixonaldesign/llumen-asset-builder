@@ -7110,6 +7110,10 @@ html[data-theme="light"] .dd-component-menu {
     border-color 0.14s ease;
 }
 
+.ds-ml-input-card--full {
+  grid-column: 1 / -1;
+}
+
 .ds-ml-input-card:hover {
   border-color: var(--lc-border-hover);
   background: var(--lc-surface-2);
@@ -7461,15 +7465,20 @@ html[data-theme="light"] .dd-component-menu {
   align-items: center;
   justify-self: start;
   gap: var(--spacing-sm);
-  padding: var(--spacing-2xs) 0;
-  border: 0;
-  background: transparent;
-  font: var(--lc-font-small);
+  min-height: var(--lc-control-height);
+  padding: 0 var(--spacing-xl);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-ui-pill);
+  background: var(--lc-bg-control);
+  font: var(--lc-font-body);
+  font-weight: var(--font-weight-medium);
   color: var(--lc-text-brand);
   cursor: pointer;
 }
 
 .ds-ml-change-input:hover {
+  border-color: var(--lc-border-control-hover);
+  background: var(--lc-bg-default-hover);
   color: var(--lc-text-brand-hover);
 }
 
@@ -7535,6 +7544,13 @@ html[data-theme="light"] .dd-component-menu {
   padding: 0;
 }
 
+.ds-source-picker-modal--create-api {
+  width: min(100%, 768px);
+  height: fit-content;
+  max-height: calc(100vh - var(--spacing-6xl));
+  padding: 0;
+}
+
 .ds-source-picker-modal--api {
   width: min(100%, 910px);
   height: min(94vh, 980px);
@@ -7542,6 +7558,7 @@ html[data-theme="light"] .dd-component-menu {
   padding: 0;
 }
 
+.ds-source-picker-modal--marketplace,
 .ds-source-picker-modal--file,
 .ds-source-picker-modal--data-flow {
   width: min(100%, 860px);
@@ -8821,6 +8838,10 @@ html[data-theme="light"] .dd-component-menu {
   min-height: 0;
 }
 
+.ds-marketplace-manager {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
 .ds-file-manager,
 .ds-data-flow-manager {
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
@@ -9213,6 +9234,10 @@ html[data-theme="light"] .dd-component-menu {
   min-height: 68px;
   border-top: 1px solid var(--lc-border-subtle);
   border-bottom: 0;
+}
+
+.ds-marketplace-manager .ds-db-manager__footer {
+  justify-content: flex-end;
 }
 
 .ds-db-manager__cancel {
