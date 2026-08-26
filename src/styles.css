@@ -4151,6 +4151,12 @@ button {
 .settings__content--data-source {
   overflow-y: auto;
   padding-bottom: var(--space-2xl);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings__content--data-source::-webkit-scrollbar {
+  display: none;
 }
 
 .settings__content--query-fill {
@@ -4726,6 +4732,239 @@ button {
 
 .access-level-menu__option {
   width: 100%;
+}
+
+.access-invite-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: var(--spacing-3xl);
+  background: color-mix(in srgb, var(--lc-bg-modal-scrim) 45%, transparent);
+  backdrop-filter: blur(var(--blur-xs));
+}
+
+.access-invite-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(100%, 560px);
+  max-height: calc(100vh - var(--spacing-6xl));
+  overflow: hidden;
+  border: 1px solid var(--lc-border-modal);
+  border-radius: var(--radius-ui-x-large);
+  background: var(--lc-bg-modal);
+  box-shadow: var(--lc-shadow-modal);
+}
+
+.access-invite-modal__header,
+.access-invite-modal__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  min-height: 64px;
+  padding: var(--spacing-lg) var(--spacing-2xl);
+}
+
+.access-invite-modal__header {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--lc-border-subtle);
+}
+
+.access-invite-modal__header > div {
+  display: grid;
+  gap: var(--spacing-xs);
+}
+
+.access-invite-modal__header h2,
+.access-invite-modal__header p {
+  margin: 0;
+}
+
+.access-invite-modal__header h2 {
+  font: var(--lc-font-heading-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--lc-text-primary);
+}
+
+.access-invite-modal__header p {
+  font: var(--lc-font-small);
+  color: var(--lc-text-secondary);
+}
+
+.access-invite-modal__header > button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--spacing-4xl);
+  height: var(--spacing-4xl);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-ui-pill);
+  background: transparent;
+  color: var(--lc-text-tertiary);
+  cursor: pointer;
+}
+
+.access-invite-modal__header > button:hover {
+  background: var(--lc-bg-default-hover);
+  color: var(--lc-text-primary);
+}
+
+.access-invite-modal__fields {
+  display: grid;
+  gap: var(--spacing-xl);
+  padding: var(--spacing-xl) var(--spacing-2xl);
+  overflow-y: auto;
+}
+
+.access-invite-modal__fields label {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.access-invite-modal__fields label > span {
+  font: var(--lc-font-small);
+  font-weight: var(--font-weight-medium);
+  color: var(--lc-text-secondary);
+}
+
+.access-invite-modal__fields label > span i {
+  color: var(--lc-text-negative);
+  font-style: normal;
+}
+
+.access-invite-modal__fields input,
+.access-invite-modal__fields select,
+.access-invite-modal__fields textarea {
+  width: 100%;
+  min-height: var(--lc-control-height);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-ui-small);
+  outline: 0;
+  background: var(--lc-bg-control);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+}
+
+.access-invite-modal__fields .cp-picker-wrap,
+.access-invite-modal__fields .cp-picker-trigger {
+  width: 100%;
+}
+
+.access-invite-modal__fields .cp-picker-trigger {
+  min-height: var(--lc-control-height);
+  height: var(--lc-control-height);
+  padding: 0 var(--spacing-lg);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--lc-ui-radius);
+  background: var(--color-neutral-900);
+  color: var(--lc-text-primary);
+  backdrop-filter: none;
+}
+
+.access-invite-modal__fields .cp-picker-trigger:hover,
+.access-invite-modal__fields .cp-picker-trigger.is-open {
+  border-color: var(--lc-border-control-hover);
+  background: var(--color-neutral-800);
+}
+
+.access-invite-modal__fields .cp-picker-trigger:focus-visible {
+  outline: none;
+  border-color: var(--lc-border-control-focus);
+  box-shadow: var(--lc-shadow-control-focus);
+}
+
+html[data-theme="light"] .access-invite-modal__fields .cp-picker-trigger {
+  background: var(--color-neutral-50);
+}
+
+html[data-theme="light"] .access-invite-modal__fields .cp-picker-trigger:hover,
+html[data-theme="light"] .access-invite-modal__fields .cp-picker-trigger.is-open {
+  background: var(--color-neutral-100);
+}
+
+.access-invite-access-menu {
+  max-height: 220px;
+  padding: var(--spacing-xs);
+  overflow: hidden;
+  border: 1px solid var(--lc-border-default);
+  border-radius: var(--lc-ui-radius);
+  background: var(--color-neutral-700);
+  box-shadow: var(--lc-shadow-3);
+  opacity: 1;
+  backdrop-filter: none;
+  isolation: isolate;
+}
+
+html[data-theme="light"] .access-invite-access-menu {
+  background: var(--color-neutral-50);
+}
+
+.access-invite-access-menu .cp-picker-list {
+  gap: var(--spacing-2xs);
+  max-height: 204px;
+}
+
+.access-invite-access-menu .cp-picker-row {
+  width: 100%;
+  min-height: 36px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 0;
+  border-radius: var(--lc-ui-radius);
+  background: transparent;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.access-invite-access-menu .cp-picker-row:hover,
+.access-invite-access-menu .cp-picker-row.is-selected {
+  background: var(--lc-bg-neutral-subtle);
+}
+
+.access-invite-modal__fields textarea {
+  min-height: 88px;
+  resize: none;
+}
+
+.access-invite-modal__fields input:focus,
+.access-invite-modal__fields select:focus,
+.access-invite-modal__fields textarea:focus {
+  border-color: var(--lc-border-control-focus);
+  box-shadow: var(--lc-shadow-control-focus);
+}
+
+.access-invite-modal__footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--lc-border-subtle);
+}
+
+.access-invite-modal__footer button {
+  min-height: var(--lc-control-height);
+  padding: 0 var(--spacing-xl);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-ui-pill);
+  background: var(--lc-bg-control);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.access-invite-modal__footer button[type="submit"] {
+  border-color: var(--lc-border-brand);
+  background: var(--lc-bg-brand);
+  color: var(--lc-text-on-brand);
+}
+
+.access-invite-modal__footer button:disabled {
+  border-color: var(--lc-border-disabled);
+  background: var(--lc-bg-disabled);
+  color: var(--lc-text-disabled);
+  cursor: not-allowed;
 }
 
 /* ---------- General Info wizard step ---------- */
@@ -9889,7 +10128,7 @@ html[data-theme="light"] .dd-component-menu {
   margin: 0;
   padding: var(--spacing-xl);
   font: var(--lc-font-body);
-  font-style: italic;
+  font-style: normal;
   color: var(--lc-text-tertiary);
 }
 
