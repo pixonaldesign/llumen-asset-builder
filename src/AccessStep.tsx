@@ -106,34 +106,6 @@ const INITIAL_MEMBERS: AccessMember[] = [
     initials: "JD",
     access: "view",
   },
-  {
-    id: "member-4",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    initials: "JD",
-    access: "full",
-  },
-  {
-    id: "member-5",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    initials: "JD",
-    access: "limited",
-  },
-  {
-    id: "member-6",
-    name: "John Smith",
-    email: "john.smith@example.com",
-    initials: "JS",
-    access: "view",
-  },
-  {
-    id: "member-7",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    initials: "JD",
-    access: "full",
-  },
 ];
 
 type FlyoutPos = { top: number; left: number; width: number };
