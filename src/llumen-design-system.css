@@ -2147,7 +2147,6 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 /* Input field — Figma Input Field 769:5885 */
 .input,
 .general-info-field__input,
-.access-step__invite-input,
 .ds-url-bar__input,
 .ds-param-row__input,
 .text-field input,
@@ -2180,7 +2179,6 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 
 .input::placeholder,
 .general-info-field__input::placeholder,
-.access-step__invite-input::placeholder,
 .ds-url-bar__input::placeholder,
 .ds-param-row__input::placeholder,
 .text-field input::placeholder,
@@ -2196,8 +2194,6 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 .input:focus-visible,
 .general-info-field__input:focus,
 .general-info-field__input:focus-visible,
-.access-step__invite-input:focus,
-.access-step__invite-input:focus-visible,
 .ds-url-bar__input:focus,
 .ds-url-bar__input:focus-visible,
 .ds-param-row__input:focus,
@@ -2218,8 +2214,6 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 .input[aria-invalid='true'],
 .general-info-field__input.is-error,
 .general-info-field__input[aria-invalid='true'],
-.access-step__invite-input.is-error,
-.access-step__invite-input[aria-invalid='true'],
 .ds-url-bar__input.is-error,
 .ds-url-bar__input[aria-invalid='true'],
 .ds-param-row__input.is-error,
@@ -2261,7 +2255,6 @@ textarea.general-info-field__input {
 
 .pg-surface-dropdown-trigger,
 .cp-picker-trigger,
-.filters-field-select,
 .filters-step__add,
 .access-level-select {
   display: flex;
@@ -2294,7 +2287,6 @@ textarea.general-info-field__input {
 
 .pg-surface-dropdown-trigger:hover,
 .cp-picker-trigger:hover,
-.filters-field-select:hover,
 .filters-step__add:hover,
 .access-level-select:hover {
   border-color: color-mix(in srgb, var(--white) 16%, transparent);
@@ -2306,8 +2298,6 @@ textarea.general-info-field__input {
 .pg-surface-dropdown-trigger:focus-visible,
 .cp-picker-trigger.is-open,
 .cp-picker-trigger:focus-visible,
-.filters-field-select.is-open,
-.filters-field-select:focus-visible,
 .filters-step__add.is-open,
 .filters-step__add:focus-visible,
 .access-level-select.is-open,
@@ -2321,7 +2311,6 @@ textarea.general-info-field__input {
 
 .pg-surface-dropdown-trigger:active:not([aria-expanded='true']),
 .cp-picker-trigger:active:not(.is-open),
-.filters-field-select:active:not(.is-open),
 .filters-step__add:active:not(.is-open),
 .access-level-select:active:not(.is-open) {
   border-color: var(--lc-border-default);
@@ -2331,7 +2320,6 @@ textarea.general-info-field__input {
 
 .pg-surface-dropdown-trigger.is-placeholder,
 .cp-picker-trigger.is-placeholder,
-.filters-field-select.is-placeholder,
 .access-level-select.is-placeholder {
   color: var(--lc-text-tertiary);
 }
@@ -2340,8 +2328,6 @@ textarea.general-info-field__input {
 .pg-surface-dropdown-trigger[aria-invalid='true'],
 .cp-picker-trigger.is-error,
 .cp-picker-trigger[aria-invalid='true'],
-.filters-field-select.is-error,
-.filters-field-select[aria-invalid='true'],
 .access-level-select.is-error,
 .access-level-select[aria-invalid='true'] {
   border-color: var(--lc-border-negative);
@@ -2358,8 +2344,7 @@ textarea.general-info-field__input {
 .pg-surface-dropdown-trigger__caret,
 .cp-picker-trigger .cp-caret,
 .access-level-select__caret,
-.filters-field-select svg,
-.filters-step__add svg {
+.filters-step__add > svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
@@ -2369,7 +2354,6 @@ textarea.general-info-field__input {
 
 .pg-surface-dropdown-menu,
 .cp-picker-menu,
-.filters-field-menu,
 .access-level-menu {
   box-sizing: border-box;
   margin: 0;
@@ -2397,7 +2381,6 @@ textarea.general-info-field__input {
 
 .pg-surface-dropdown__item,
 .cp-picker-row,
-.filters-field-menu__option,
 .access-level-menu__option {
   display: block;
   width: 100%;
@@ -2420,8 +2403,6 @@ textarea.general-info-field__input {
 .pg-surface-dropdown__item.is-selected,
 .cp-picker-row:hover,
 .cp-picker-row.is-selected,
-.filters-field-menu__option:hover,
-.filters-field-menu__option.is-selected,
 .access-level-menu__option:hover,
 .access-level-menu__option.is-selected {
   background: var(--lc-bg-default);

@@ -29,6 +29,7 @@ type DropdownProps = {
   menuClassName?: string;
   endIcon?: ReactNode;
   compact?: boolean;
+  minMenuWidth?: number;
 };
 
 export default function Dropdown({
@@ -46,6 +47,7 @@ export default function Dropdown({
   menuClassName,
   endIcon,
   compact = false,
+  minMenuWidth,
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -58,12 +60,13 @@ export default function Dropdown({
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const width = Math.max(rect.width, minMenuWidth ?? 0);
     setMenuPos({
       top: rect.bottom + 8,
-      left: rect.left,
-      width: rect.width,
+      left: Math.min(rect.left, Math.max(8, window.innerWidth - width - 8)),
+      width,
     });
-  }, []);
+  }, [minMenuWidth]);
 
   const close = useCallback(() => {
     setOpen(false);

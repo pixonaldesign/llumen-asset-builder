@@ -415,8 +415,8 @@ function DeepDiveComponentCard({
           className="resize-corner dd-component-card__resize-corner"
           aria-hidden="true"
         >
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M20 4v10a6 6 0 0 1-6 6H4" />
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M31 4V16A16 16 0 0 1 16 31H4" />
           </svg>
         </span>
       )}

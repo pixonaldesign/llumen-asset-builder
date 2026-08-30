@@ -506,7 +506,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
             <label className="general-info-field__label" htmlFor="general-info-name">
               Asset Name
             </label>
-            <span className="general-info-field__status">
+            <span className="general-info-field__status general-info-field__status--required">
               <Info size={15} aria-hidden="true" />
               Required
             </span>
@@ -526,7 +526,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
             <label className="general-info-field__label" htmlFor="general-info-description">
               Description
             </label>
-            <span className="general-info-field__status">
+            <span className="general-info-field__status general-info-field__status--required">
               <Info size={15} aria-hidden="true" />
               Required
             </span>
@@ -572,7 +572,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
         <div className="general-info-field">
           <div className="general-info-field__label-row">
             <label className="general-info-field__label">Tags</label>
-            <span className="general-info-field__status">
+            <span className="general-info-field__status general-info-field__status--required">
               <Info size={15} aria-hidden="true" />
               Required
             </span>

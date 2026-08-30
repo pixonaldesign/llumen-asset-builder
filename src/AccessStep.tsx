@@ -1,8 +1,7 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
-import { PlusIcon, ChevronDownIcon } from "./icons";
-import Dropdown from "./Dropdown";
+import { ChevronDownIcon, TrashIcon } from "./icons";
 
 type AccessLevel = "full" | "limited" | "view";
 
@@ -15,10 +14,11 @@ type AccessMember = {
   isAdmin?: boolean;
 };
 
-type AccessGroup = {
+type InviteCandidate = {
   id: string;
-  label: string;
-  members: AccessMember[];
+  name: string;
+  email: string;
+  initials: string;
 };
 
 const ACCESS_LEVELS: { value: AccessLevel; label: string }[] = [
@@ -27,68 +27,112 @@ const ACCESS_LEVELS: { value: AccessLevel; label: string }[] = [
   { value: "view", label: "View only" },
 ];
 
-const INITIAL_GROUPS: AccessGroup[] = [
+const INVITE_ACCESS_LEVELS: { value: AccessLevel; label: string }[] = [
+  { value: "view", label: "Can view" },
+  { value: "limited", label: "Limited access" },
+  { value: "full", label: "Full access" },
+];
+
+const INVITE_DIRECTORY: InviteCandidate[] = [
   {
-    id: "planning",
-    label: "Planning",
-    members: [
-      {
-        id: "planning-1",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        initials: "JD",
-        access: "full",
-        isAdmin: true,
-      },
-      {
-        id: "planning-2",
-        name: "John Smith",
-        email: "john.smith@example.com",
-        initials: "JS",
-        access: "limited",
-      },
-      {
-        id: "planning-3",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        initials: "JD",
-        access: "view",
-      },
-    ],
+    id: "dir-jane",
+    name: "Jane Cooper",
+    email: "jane.cooper@llumen.com",
+    initials: "JC",
   },
   {
-    id: "chairman",
-    label: "Chairman Office",
-    members: [
-      {
-        id: "chairman-1",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        initials: "JD",
-        access: "full",
-      },
-      {
-        id: "chairman-2",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        initials: "JD",
-        access: "limited",
-      },
-      {
-        id: "chairman-3",
-        name: "John Smith",
-        email: "john.smith@example.com",
-        initials: "JS",
-        access: "view",
-      },
-      {
-        id: "chairman-4",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        initials: "JD",
-        access: "full",
-      },
-    ],
+    id: "dir-michael",
+    name: "Michael Chen",
+    email: "michael.chen@llumen.com",
+    initials: "MC",
+  },
+  {
+    id: "dir-sarah",
+    name: "Sarah Williams",
+    email: "sarah.williams@llumen.com",
+    initials: "SW",
+  },
+  {
+    id: "dir-david",
+    name: "David Patel",
+    email: "david.patel@llumen.com",
+    initials: "DP",
+  },
+];
+
+function candidateFromQuery(query: string): InviteCandidate {
+  const target = query.trim();
+  const localName = target.includes("@") ? target.split("@")[0] : target;
+  const name = localName
+    .split(/[._\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || target;
+  const initials =
+    name
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "IN";
+  return {
+    id: `typed-${target.toLowerCase()}`,
+    name,
+    email: target.includes("@") ? target : `${localName.toLowerCase().replace(/\s+/g, ".")}@llumen.com`,
+    initials,
+  };
+}
+
+const INITIAL_MEMBERS: AccessMember[] = [
+  {
+    id: "member-1",
+    name: "John Doe",
+    email: "john.doe@example.com",
+    initials: "JD",
+    access: "full",
+    isAdmin: true,
+  },
+  {
+    id: "member-2",
+    name: "John Smith",
+    email: "john.smith@example.com",
+    initials: "JS",
+    access: "limited",
+  },
+  {
+    id: "member-3",
+    name: "John Doe",
+    email: "john.doe@example.com",
+    initials: "JD",
+    access: "view",
+  },
+  {
+    id: "member-4",
+    name: "John Doe",
+    email: "john.doe@example.com",
+    initials: "JD",
+    access: "full",
+  },
+  {
+    id: "member-5",
+    name: "John Doe",
+    email: "john.doe@example.com",
+    initials: "JD",
+    access: "limited",
+  },
+  {
+    id: "member-6",
+    name: "John Smith",
+    email: "john.smith@example.com",
+    initials: "JS",
+    access: "view",
+  },
+  {
+    id: "member-7",
+    name: "John Doe",
+    email: "john.doe@example.com",
+    initials: "JD",
+    access: "full",
   },
 ];
 
@@ -107,15 +151,19 @@ function measureAccessMenuPosition(trigger: HTMLElement | null, menuWidth: numbe
 function AccessLevelSelect({
   value,
   onChange,
+  options = ACCESS_LEVELS,
+  className,
 }: {
   value: AccessLevel;
   onChange: (value: AccessLevel) => void;
+  options?: { value: AccessLevel; label: string }[];
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<FlyoutPos | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const selected = ACCESS_LEVELS.find((level) => level.value === value);
+  const selected = options.find((level) => level.value === value);
 
   const syncPosition = useCallback(() => {
     const next = measureAccessMenuPosition(triggerRef.current, 168);
@@ -162,7 +210,8 @@ function AccessLevelSelect({
         className={
           "access-level-select" +
           (open ? " is-open" : "") +
-          (!selected ? " is-placeholder" : "")
+          (!selected ? " is-placeholder" : "") +
+          (className ? ` ${className}` : "")
         }
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -182,7 +231,7 @@ function AccessLevelSelect({
             style={{ top: pos.top, left: pos.left, width: pos.width }}
           >
             <ul className="access-level-menu__list">
-              {ACCESS_LEVELS.map((level) => (
+              {options.map((level) => (
                 <li key={level.value}>
                   <button
                     type="button"
@@ -209,9 +258,11 @@ function AccessLevelSelect({
 function AccessMemberRow({
   member,
   onAccessChange,
+  onRemove,
 }: {
   member: AccessMember;
   onAccessChange: (access: AccessLevel) => void;
+  onRemove: () => void;
 }) {
   return (
     <li className="access-row">
@@ -227,215 +278,223 @@ function AccessMemberRow({
           <span className="access-row__email">{member.email}</span>
         </div>
       </div>
-      <AccessLevelSelect value={member.access} onChange={onAccessChange} />
+      <div className="access-row__actions">
+        <AccessLevelSelect value={member.access} onChange={onAccessChange} />
+        {member.isAdmin ? (
+          <span className="access-row__remove" aria-hidden="true" />
+        ) : (
+          <button
+            type="button"
+            className="access-row__remove"
+            aria-label={`Remove ${member.name}`}
+            onClick={onRemove}
+          >
+            <TrashIcon width={16} height={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
     </li>
   );
 }
 
 export default function AccessStep() {
   const [inviteQuery, setInviteQuery] = useState("");
-  const [groups, setGroups] = useState(INITIAL_GROUPS);
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [inviteTarget, setInviteTarget] = useState("");
+  const [pendingInvites, setPendingInvites] = useState<InviteCandidate[]>([]);
+  const [members, setMembers] = useState(INITIAL_MEMBERS);
   const [inviteAccess, setInviteAccess] = useState<AccessLevel>("view");
-  const [inviteMessage, setInviteMessage] = useState("");
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const inviteFieldRef = useRef<HTMLDivElement>(null);
+  const inviteInputRef = useRef<HTMLInputElement>(null);
+
+  const takenEmails = useMemo(() => {
+    const emails = new Set(pendingInvites.map((item) => item.email.toLowerCase()));
+    members.forEach((member) => emails.add(member.email.toLowerCase()));
+    return emails;
+  }, [members, pendingInvites]);
+
+  const suggestions = useMemo(() => {
+    const query = inviteQuery.trim().toLowerCase();
+    return INVITE_DIRECTORY.filter((person) => {
+      if (takenEmails.has(person.email.toLowerCase())) return false;
+      if (!query) return true;
+      return (
+        person.name.toLowerCase().includes(query) ||
+        person.email.toLowerCase().includes(query)
+      );
+    });
+  }, [inviteQuery, takenEmails]);
 
   useEffect(() => {
-    if (!inviteModalOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setInviteModalOpen(false);
+    if (!suggestOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (inviteFieldRef.current?.contains(target)) return;
+      setSuggestOpen(false);
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [inviteModalOpen]);
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [suggestOpen]);
 
-  const updateMemberAccess = (groupId: string, memberId: string, access: AccessLevel) => {
-    setGroups((current) =>
-      current.map((group) =>
-        group.id !== groupId
-          ? group
-          : {
-              ...group,
-              members: group.members.map((member) =>
-                member.id === memberId ? { ...member, access } : member,
-              ),
-            },
-      ),
+  const addPending = (candidate: InviteCandidate) => {
+    setPendingInvites((current) => {
+      if (current.some((item) => item.email.toLowerCase() === candidate.email.toLowerCase())) {
+        return current;
+      }
+      return [...current, candidate];
+    });
+    setInviteQuery("");
+    setSuggestOpen(false);
+    inviteInputRef.current?.focus();
+  };
+
+  const removePending = (id: string) => {
+    setPendingInvites((current) => current.filter((item) => item.id !== id));
+    inviteInputRef.current?.focus();
+  };
+
+  const updateMemberAccess = (memberId: string, access: AccessLevel) => {
+    setMembers((current) =>
+      current.map((member) => (member.id === memberId ? { ...member, access } : member)),
     );
+  };
+
+  const removeMember = (memberId: string) => {
+    setMembers((current) => current.filter((member) => member.id !== memberId));
   };
 
   const sendInvite = () => {
-    const target = inviteTarget.trim();
-    if (!target) return;
-    const localName = target.includes("@") ? target.split("@")[0] : target;
-    const name = localName
-      .split(/[._\s-]+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
-    const initials =
-      name
-        .split(/\s+/)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase() || "IN";
+    const toAdd =
+      pendingInvites.length > 0
+        ? pendingInvites
+        : inviteQuery.trim()
+          ? [candidateFromQuery(inviteQuery)]
+          : [];
+    if (!toAdd.length) return;
 
-    setGroups((current) =>
-      current.map((group, index) =>
-        index === 0
-          ? {
-              ...group,
-              members: [
-                ...group.members,
-                {
-                  id: `invite-${Date.now()}`,
-                  name,
-                  email: target,
-                  initials,
-                  access: inviteAccess,
-                },
-              ],
-            }
-          : group,
-      ),
-    );
+    setMembers((current) => [
+      ...current,
+      ...toAdd.map((person) => ({
+        id: `invite-${person.id}-${Date.now()}`,
+        name: person.name,
+        email: person.email,
+        initials: person.initials,
+        access: inviteAccess,
+      })),
+    ]);
+    setPendingInvites([]);
     setInviteQuery("");
-    setInviteTarget("");
-    setInviteMessage("");
     setInviteAccess("view");
-    setInviteModalOpen(false);
+    setSuggestOpen(false);
   };
 
   return (
-    <>
-      <div className="access-step">
+    <div className="access-step">
       <h3 className="access-step__title">Access</h3>
 
       <div className="access-step__invite">
-        <input
-          className="access-step__invite-input"
-          type="text"
-          value={inviteQuery}
-          onChange={(e) => setInviteQuery(e.target.value)}
-          placeholder="Add workspaces or people"
-          aria-label="Add workspaces or people"
-        />
-        <button
-          type="button"
-          className="access-step__invite-btn"
-          onClick={() => {
-            setInviteTarget(inviteQuery);
-            setInviteModalOpen(true);
+        <div
+          ref={inviteFieldRef}
+          className={"access-step__invite-field" + (suggestOpen ? " is-open" : "")}
+          onMouseDown={(event) => {
+            if ((event.target as HTMLElement).closest("button")) return;
+            inviteInputRef.current?.focus();
           }}
         >
-          <PlusIcon width={14} height={14} aria-hidden="true" />
-          <span>Invite</span>
+          <div className="access-step__invite-tokens">
+            {pendingInvites.map((person) => (
+              <span key={person.id} className="access-step__invite-chip">
+                {person.name}
+                <button
+                  type="button"
+                  aria-label={`Remove ${person.name}`}
+                  onClick={() => removePending(person.id)}
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+            <input
+              ref={inviteInputRef}
+              className="access-step__invite-input"
+              type="text"
+              value={inviteQuery}
+              onChange={(event) => {
+                setInviteQuery(event.target.value);
+                setSuggestOpen(true);
+              }}
+              onFocus={() => setSuggestOpen(true)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setSuggestOpen(false);
+                  return;
+                }
+                if (event.key === "Backspace" && !inviteQuery && pendingInvites.length) {
+                  event.preventDefault();
+                  removePending(pendingInvites[pendingInvites.length - 1].id);
+                  return;
+                }
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                if (suggestions[0]) addPending(suggestions[0]);
+                else if (inviteQuery.trim()) addPending(candidateFromQuery(inviteQuery));
+              }}
+              placeholder={pendingInvites.length ? "" : "Add workspaces or people"}
+              aria-label="Add workspaces or people"
+              aria-autocomplete="list"
+              aria-expanded={suggestOpen}
+            />
+          </div>
+          {pendingInvites.length > 0 && (
+            <AccessLevelSelect
+              value={inviteAccess}
+              onChange={setInviteAccess}
+              options={INVITE_ACCESS_LEVELS}
+              className="access-level-select--embed"
+            />
+          )}
+          {suggestOpen && suggestions.length > 0 && (
+            <div className="access-step__invite-suggest" role="listbox" aria-label="People and workspaces">
+              {suggestions.map((person) => (
+                <button
+                  key={person.id}
+                  type="button"
+                  role="option"
+                  className="access-step__invite-suggest-row"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => addPending(person)}
+                >
+                  <span className="access-row__avatar" aria-hidden="true">
+                    {person.initials}
+                  </span>
+                  <span>
+                    <strong>{person.name}</strong>
+                    <small>{person.email.startsWith("workspace:") ? "Workspace" : person.email}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          className="pg-btn pg-btn--primary access-step__invite-btn"
+          disabled={pendingInvites.length === 0 && !inviteQuery.trim()}
+          onClick={sendInvite}
+        >
+          Invite
         </button>
       </div>
 
-      <div className="access-step__groups">
-        {groups.map((group, index) => (
-          <Fragment key={group.id}>
-            {index > 0 && <hr className="access-step__separator" aria-hidden="true" />}
-            <section className="access-group">
-              <h4 className="access-group__label">{group.label}</h4>
-              <ul className="access-group__list">
-                {group.members.map((member) => (
-                  <AccessMemberRow
-                    key={member.id}
-                    member={member}
-                    onAccessChange={(access) => updateMemberAccess(group.id, member.id, access)}
-                  />
-                ))}
-              </ul>
-            </section>
-          </Fragment>
+      <ul className="access-step__list">
+        {members.map((member) => (
+          <AccessMemberRow
+            key={member.id}
+            member={member}
+            onAccessChange={(access) => updateMemberAccess(member.id, access)}
+            onRemove={() => removeMember(member.id)}
+          />
         ))}
-      </div>
-      </div>
-
-      {inviteModalOpen &&
-        createPortal(
-          <div
-            className="access-invite-overlay"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setInviteModalOpen(false);
-            }}
-          >
-            <form
-              className="access-invite-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="access-invite-title"
-              onSubmit={(event) => {
-                event.preventDefault();
-                sendInvite();
-              }}
-            >
-              <header className="access-invite-modal__header">
-                <div>
-                  <h2 id="access-invite-title">Invite people or workspaces</h2>
-                  <p>Grant access to this asset and choose their permission level.</p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close"
-                  onClick={() => setInviteModalOpen(false)}
-                >
-                  <X size={18} aria-hidden="true" />
-                </button>
-              </header>
-
-              <div className="access-invite-modal__fields">
-                <label>
-                  <span>
-                    People or workspace <i>*</i>
-                  </span>
-                  <input
-                    type="text"
-                    value={inviteTarget}
-                    onChange={(event) => setInviteTarget(event.target.value)}
-                    placeholder="Enter an email or workspace name"
-                    autoFocus
-                  />
-                </label>
-
-                <label>
-                  <span>Access level</span>
-                  <Dropdown
-                    value={inviteAccess}
-                    onChange={(value) => setInviteAccess(value as AccessLevel)}
-                    options={ACCESS_LEVELS}
-                    ariaLabel="Access level"
-                    menuClassName="access-invite-access-menu"
-                    compact
-                  />
-                </label>
-
-                <label>
-                  <span>Message (Optional)</span>
-                  <textarea
-                    value={inviteMessage}
-                    onChange={(event) => setInviteMessage(event.target.value)}
-                    placeholder="Add a message to the invitation"
-                    rows={3}
-                  />
-                </label>
-              </div>
-
-              <footer className="access-invite-modal__footer">
-                <button type="button" onClick={() => setInviteModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={!inviteTarget.trim()}>
-                  Send Invite
-                </button>
-              </footer>
-            </form>
-          </div>,
-          document.body,
-        )}
-    </>
+      </ul>
+    </div>
   );
 }

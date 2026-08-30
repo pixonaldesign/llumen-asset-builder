@@ -7,14 +7,14 @@ import {
   SlidersHorizontal,
   User,
 } from "@phosphor-icons/react";
-import { ChevronDownIcon, TrashIcon } from "./icons";
+import { ChevronDownIcon, PlusIcon, TrashIcon } from "./icons";
+import Dropdown from "./Dropdown";
 
 type FilterType = "DateRange" | "Lookup" | "Dropdown" | "Slider" | "Text";
 
 export type FilterOption = {
   id: string;
   title: string;
-  slug: string;
   type: FilterType;
   icon: ReactNode;
 };
@@ -29,35 +29,30 @@ const FILTER_OPTIONS: FilterOption[] = [
   {
     id: "date-range",
     title: "Date Range Filter",
-    slug: "date_range_filter",
     type: "DateRange",
     icon: <CalendarBlank size={18} weight="regular" aria-hidden="true" />,
   },
   {
     id: "location",
     title: "Location Filter",
-    slug: "location_filter",
     type: "Lookup",
     icon: <MapPin size={18} weight="regular" aria-hidden="true" />,
   },
   {
     id: "category",
     title: "Category Filter",
-    slug: "category_filter",
     type: "Dropdown",
     icon: <Shapes size={18} weight="regular" aria-hidden="true" />,
   },
   {
     id: "range-slider",
     title: "Range Slider Filter",
-    slug: "range_slider_filter",
     type: "Slider",
     icon: <SlidersHorizontal size={18} weight="regular" aria-hidden="true" />,
   },
   {
     id: "user",
     title: "User Filter",
-    slug: "user_filter",
     type: "Text",
     icon: <User size={18} weight="regular" aria-hidden="true" />,
   },
@@ -120,52 +115,6 @@ function measureFlyoutPosition(trigger: HTMLElement | null, minWidth: number, ga
   };
 }
 
-function useFlyoutMenu(minWidth = 200) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<FlyoutPos | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const syncPosition = useCallback(() => {
-    const next = measureFlyoutPosition(triggerRef.current, minWidth);
-    if (next) setPos(next);
-  }, [minWidth]);
-
-  const toggle = useCallback(() => {
-    setOpen((current) => {
-      if (current) return false;
-      syncPosition();
-      return true;
-    });
-  }, [syncPosition]);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    syncPosition();
-    const onPointer = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (menuRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onLayout = () => syncPosition();
-    document.addEventListener("mousedown", onPointer);
-    window.addEventListener("resize", onLayout);
-    window.addEventListener("scroll", onLayout, true);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("resize", onLayout);
-      window.removeEventListener("scroll", onLayout, true);
-    };
-  }, [open, syncPosition]);
-
-  useEffect(() => {
-    if (!open) setPos(null);
-  }, [open]);
-
-  return { open, setOpen, toggle, pos, triggerRef, menuRef };
-}
-
 function FilterPickerRow({
   filter,
   disabled,
@@ -223,6 +172,8 @@ function AddFilterMenu({
   );
 }
 
+const MAP_TO_FIELD_OPTIONS = MAP_TO_FIELDS.map((field) => ({ value: field, label: field }));
+
 function FieldMapSelect({
   value,
   onChange,
@@ -230,66 +181,17 @@ function FieldMapSelect({
   value: string;
   onChange: (field: string) => void;
 }) {
-  const { open, setOpen, toggle, pos, triggerRef, menuRef } = useFlyoutMenu(200);
-  const label = value || "Select Field";
-
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        className={
-          "filters-field-select" +
-          (open ? " is-open" : "") +
-          (!value ? " is-placeholder" : "")
-        }
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={toggle}
-      >
-        <span>{label}</span>
-        <ChevronDownIcon width={16} height={16} aria-hidden="true" />
-      </button>
-      {open &&
-        pos &&
-        createPortal(
-          <div
-            ref={menuRef}
-            className="filters-flyout filters-flyout--field"
-            style={{
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              maxHeight: Math.max(180, window.innerHeight - pos.top - 12),
-            }}
-            role="listbox"
-            aria-label="Map to field"
-          >
-            <div className="filters-field-menu">
-              <p className="filters-field-menu__label">Map to</p>
-              <ul className="filters-field-menu__list">
-                {MAP_TO_FIELDS.map((field) => (
-                  <li key={field}>
-                    <button
-                      type="button"
-                      className={"filters-field-menu__option" + (field === value ? " is-selected" : "")}
-                      onClick={() => {
-                        onChange(field);
-                        setOpen(false);
-                      }}
-                    >
-                      {field}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>,
-          document.body,
-        )}
-    </>
+    <Dropdown
+      className="filters-field-map"
+      value={value}
+      onChange={onChange}
+      options={MAP_TO_FIELD_OPTIONS}
+      placeholder="Select Field"
+      searchable
+      ariaLabel="Map to field"
+      minMenuWidth={240}
+    />
   );
 }
 
@@ -330,7 +232,7 @@ function AppliedFilterRow({
       onDragStart={(e) => {
         if (
           (e.target as HTMLElement).closest(
-            ".filters-applied-row__remove, .filters-applied-row__bottom, .filters-field-select",
+            ".filters-applied-row__remove, .filters-applied-row__map, .filters-field-map",
           )
         ) {
           e.preventDefault();
@@ -363,7 +265,12 @@ function AppliedFilterRow({
             <strong className="filters-applied-row__title">{filter.title}</strong>
           </div>
           <div className="filters-applied-row__top-actions">
-            <span className="filters-applied-row__type">{filter.type}</span>
+            <div className="filters-applied-row__map">
+              <span className="filters-applied-row__map-label">
+                Map to<span className="filters-applied-row__required" aria-hidden="true">*</span>
+              </span>
+              <FieldMapSelect value={mappedField} onChange={onFieldChange} />
+            </div>
             <button
               type="button"
               className="filters-applied-row__remove"
@@ -374,18 +281,6 @@ function AppliedFilterRow({
             >
               <TrashIcon width={20} height={20} />
             </button>
-          </div>
-        </div>
-
-        <div className="filters-applied-row__divider" aria-hidden="true" />
-
-        <div className="filters-applied-row__bottom">
-          <span className="filters-applied-row__slug">{filter.slug}</span>
-          <div className="filters-applied-row__map">
-            <span className="filters-applied-row__map-label">
-              Map to<span className="filters-applied-row__required" aria-hidden="true">*</span>
-            </span>
-            <FieldMapSelect value={mappedField} onChange={onFieldChange} />
           </div>
         </div>
       </div>
@@ -524,7 +419,10 @@ export default function FiltersStep() {
         aria-expanded={addMenuOpen}
         onClick={toggleAddMenu}
       >
-        <span>+ Add Filter</span>
+        <span className="filters-step__add-label">
+          <PlusIcon width={16} height={16} aria-hidden="true" />
+          Add Filter
+        </span>
         <ChevronDownIcon width={16} height={16} aria-hidden="true" />
       </button>
 
