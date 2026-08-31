@@ -31,6 +31,7 @@ export interface Opt {
   group: string;
   def: boolean;
   defaultValue?: unknown;
+  editableValue?: boolean;
   visibleWhen?: { group: string; name: string; is: string | string[] };
 }
 

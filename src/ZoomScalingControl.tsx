@@ -1,5 +1,6 @@
 import { PlusIcon, TrashIcon } from "./icons";
 import Dropdown from "./Dropdown";
+import { fieldOptionsFor } from "./mockDataset";
 import {
   ZOOM_RATES,
   asZoomScaling,
@@ -12,9 +13,11 @@ import {
 type Props = {
   value: unknown;
   onChange: (next: ZoomScalingValue) => void;
+  dataRangeOnly?: boolean;
 };
 
 const RATE_OPTIONS = ZOOM_RATES.map((rate) => ({ value: rate, label: rate }));
+const DATA_FIELD_OPTIONS = fieldOptionsFor("Y axis");
 
 function meterSuffix(scale: string): string {
   const n = Number(scale);
@@ -58,11 +61,11 @@ function curvePath(
 function ScaleChart({ value }: { value: ZoomScalingValue }) {
   const parsed = parsedZoomStops(value);
   const W = 400;
-  const H = 160;
+  const H = 210;
   const padL = 8;
   const padR = 8;
-  const padT = 8;
-  const padB = 28;
+  const padT = 10;
+  const padB = 32;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
   const zooms = parsed.map((p) => p.zoom);
@@ -78,28 +81,40 @@ function ScaleChart({ value }: { value: ZoomScalingValue }) {
   const pts = parsed.map((p) => ({ x: xOf(p.zoom), y: yOf(p.scale) }));
   const first = pts[0] ?? { x: padL, y: padT + plotH };
   const last = pts[pts.length - 1] ?? { x: padL + plotW, y: padT };
-  const ticks = parsed.length ? parsed.map((p) => p.zoom) : [zMin, zMax];
-  const mids = ticks.slice(0, -1).map((z, i) => (z + ticks[i + 1]) / 2);
+  const ticks = Array.from({ length: 5 }, (_, i) => {
+    const t = i / 4;
+    const raw = zMin + zSpan * t;
+    const value = i === 0 ? zMin : i === 4 ? zMax : Math.round(raw / 50) * 50;
+    return { value, x: padL + plotW * t };
+  });
+  const mids = ticks.slice(0, -1).map((tick, i) => (tick.x + ticks[i + 1].x) / 2);
   const baseline = padT + plotH;
 
   return (
     <svg className="zs-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Zoom scale curve">
       <line className="zs-chart__axis" x1={padL} y1={baseline} x2={W - padR} y2={baseline} />
-      {mids.map((z) => (
-        <line key={`mid-${z}`} className="zs-chart__grid zs-chart__grid--minor" x1={xOf(z)} y1={baseline - 22} x2={xOf(z)} y2={baseline} />
+      {mids.map((x) => (
+        <line
+          key={`mid-${x}`}
+          className="zs-chart__grid zs-chart__grid--minor"
+          x1={x}
+          y1={baseline}
+          x2={x}
+          y2={baseline + 9}
+        />
       ))}
-      {ticks.map((z, i) => {
-        const x = xOf(z);
+      {ticks.map((tick, i) => {
+        const { value, x } = tick;
         return (
-          <g key={`${z}-${i}`}>
-            <line className="zs-chart__grid" x1={x} y1={padT} x2={x} y2={baseline} />
+          <g key={`${value}-${i}`}>
+            <line className="zs-chart__grid" x1={x} y1={padT} x2={x} y2={baseline + 9} />
             <text
               className="zs-chart__tick"
               x={x}
               y={H - 6}
               textAnchor={i === 0 ? "start" : i === ticks.length - 1 ? "end" : "middle"}
             >
-              {Number.isInteger(z) ? z : z.toFixed(1)}
+              {Number.isInteger(value) ? value : value.toFixed(1)}
             </text>
           </g>
         );
@@ -107,13 +122,21 @@ function ScaleChart({ value }: { value: ZoomScalingValue }) {
       {pts.length >= 2 && (
         <path className="zs-chart__line" d={curvePath(pts, value.rate, first, last)} />
       )}
+      {pts.length >= 2 && (
+        <>
+          <circle className="zs-chart__endpoint" cx={first.x} cy={first.y} r={6} />
+          <circle className="zs-chart__endpoint" cx={last.x} cy={last.y} r={6} />
+        </>
+      )}
       {value.rate === "Custom" &&
-        pts.map((p, i) => <circle key={i} className="zs-chart__dot" cx={p.x} cy={p.y} r={5} />)}
+        pts.slice(1, -1).map((p, i) => (
+          <circle key={i} className="zs-chart__dot" cx={p.x} cy={p.y} r={5} />
+        ))}
     </svg>
   );
 }
 
-export default function ZoomScalingControl({ value, onChange }: Props) {
+export default function ZoomScalingControl({ value, onChange, dataRangeOnly = false }: Props) {
   const current = asZoomScaling(value);
   const parsed = parsedZoomStops(current);
   const zMin = parsed.length ? parsed[0].zoom : 0;
@@ -122,6 +145,7 @@ export default function ZoomScalingControl({ value, onChange }: Props) {
 
   const commit = (patch: Partial<ZoomScalingValue>) =>
     onChange({
+      dataField: patch.dataField ?? current.dataField,
       rate: patch.rate ?? current.rate,
       styleAcrossZoom: patch.styleAcrossZoom ?? current.styleAcrossZoom,
       stops: (patch.stops ?? current.stops).map((s) => ({ zoom: s.zoom, scale: s.scale })),
@@ -154,18 +178,33 @@ export default function ZoomScalingControl({ value, onChange }: Props) {
 
   return (
     <div className="zs">
-      <ScaleChart value={current} />
+      {!dataRangeOnly && <ScaleChart value={current} />}
 
       <div className="zs-block">
-        <div className="zs-field">
-          <div className="ia-field-name">Rate of change</div>
-          <Dropdown
-            value={current.rate}
-            onChange={(rate) => commit({ rate: rate as ZoomRate })}
-            options={RATE_OPTIONS}
-            ariaLabel="Rate of change"
-          />
-        </div>
+        {!dataRangeOnly && (
+          <div className="zs-controls">
+            <div className="zs-field">
+              <div className="ia-field-name">Data field</div>
+              <Dropdown
+                value={current.dataField}
+                onChange={(dataField) => commit({ dataField })}
+                options={DATA_FIELD_OPTIONS}
+                searchable
+                ariaLabel="Data field"
+                minMenuWidth={360}
+              />
+            </div>
+            <div className="zs-field">
+              <div className="ia-field-name">Rate of change</div>
+              <Dropdown
+                value={current.rate}
+                onChange={(rate) => commit({ rate: rate as ZoomRate })}
+                options={RATE_OPTIONS}
+                ariaLabel="Rate of change"
+              />
+            </div>
+          </div>
+        )}
 
         <p className="zs-range">
           data range: {zMin} - {zMax}
@@ -235,19 +274,21 @@ export default function ZoomScalingControl({ value, onChange }: Props) {
         </button>
       </div>
 
-      <div className="ia-toggle-flat">
-        <div className="ia-toggle-line">
-          <div className="ia-toggle-line-label">
-            <strong>Style Across Zoom Range</strong>
+      {!dataRangeOnly && (
+        <div className="ia-toggle-flat">
+          <div className="ia-toggle-line">
+            <div className="ia-toggle-line-label">
+              <strong>Style Across Zoom Range</strong>
+            </div>
+            <span
+              role="switch"
+              aria-checked={current.styleAcrossZoom}
+              className={"ia-mini-switch" + (current.styleAcrossZoom ? " on" : "")}
+              onClick={() => commit({ styleAcrossZoom: !current.styleAcrossZoom })}
+            />
           </div>
-          <span
-            role="switch"
-            aria-checked={current.styleAcrossZoom}
-            className={"ia-mini-switch" + (current.styleAcrossZoom ? " on" : "")}
-            onClick={() => commit({ styleAcrossZoom: !current.styleAcrossZoom })}
-          />
         </div>
-      </div>
+      )}
     </div>
   );
 }

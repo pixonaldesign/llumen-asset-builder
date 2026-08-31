@@ -43,6 +43,7 @@ import ColorPalette, { CategoryColorMap, ColorPaletteProvider, PaletteSelector }
 import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
 import Dropdown from "./Dropdown";
+import PhosphorIconPicker from "./PhosphorIconPicker";
 import { derivePreviewSeries, mappedMeasureColumn } from "./derivePreviewSeries";
 import { allColumnNames, defaultColumnForField, fieldOptionsFor, numericExtent, uniqueValues } from "./mockDataset";
 import {
@@ -223,7 +224,11 @@ function defaultSlider(o: Opt): number {
 }
 
 function isZoomScalingField(o: Opt) {
-  return /zoom scaling/i.test(o.name) || o.name === "Disc scaling";
+  return (
+    /zoom scaling/i.test(o.name) ||
+    o.name === "Disc scaling" ||
+    (o.group === "Extrusion" && o.name === "Data range")
+  );
 }
 
 function defaultFor(o: Opt): unknown {
@@ -296,7 +301,7 @@ function sliderScale(o: Opt): { lo: number; hi: number; ticks: number; unit: str
   if (/%/.test(desc)) unit = "%";
   else if (/\bpx\b/i.test(desc)) unit = "px";
   else if (desc.includes("°")) unit = "°";
-  else if (/\(m\)/i.test(o.name)) unit = "m";
+  else if (/\(m\)/i.test(o.name) || /\bm\b/i.test(desc)) unit = "m";
 
   let step = stepMatch ? parseFloat(stepMatch[1]) : 0;
   if (!step && Number.isInteger(lo) && Number.isInteger(hi) && span >= 1 && span <= 12) step = 1;
@@ -674,16 +679,36 @@ function Control({
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
 }) {
+  if (o.group === "Marker Shape" && o.name === "Icons") {
+    return (
+      <PhosphorIconPicker
+        value={String(getVal(o))}
+        onChange={(value) => setVal(o, value)}
+      />
+    );
+  }
+
   switch (o.type) {
-    case "segmented":
-      return <Segmented values={o.values} value={String(getVal(o))} onChange={(v) => setVal(o, v)} />;
+    case "segmented": {
+      const rawValue = String(getVal(o));
+      const value =
+        o.group === "Extrusion" && o.name === "Extrusion mode" && rawValue === "Height"
+          ? "Fixed height"
+          : rawValue;
+      return <Segmented values={o.values} value={value} onChange={(v) => setVal(o, v)} />;
+    }
 
     case "posgrid":
       return <PlacementPicker value={String(getVal(o))} onChange={(v) => setVal(o, v)} />;
 
     case "slider": {
-      const pct = Number(getVal(o));
       const scale = sliderScale(o);
+      const rawValue = getVal(o);
+      const numericValue = Number(rawValue);
+      const pct =
+        typeof rawValue === "string" && rawValue.trim() !== "" && scale.hi !== scale.lo
+          ? ((numericValue - scale.lo) / (scale.hi - scale.lo)) * 100
+          : numericValue;
       const discrete = scale.ticks >= 2;
       const max = discrete ? scale.ticks - 1 : 100;
       const idx = discrete
@@ -692,15 +717,22 @@ function Control({
       const fillPct = discrete ? (idx / max) * 100 : idx;
       return (
         <div className={"ia-slider" + (discrete ? " ia-slider--steps" : "")}>
-          <div className="ia-slider-track">
+          <div
+            className="ia-slider-track"
+            style={{ ["--ia-slider-t" as string]: max === 0 ? 0 : idx / max }}
+          >
             {discrete && (
               <div className="ia-slider-dots" aria-hidden="true">
                 {Array.from({ length: scale.ticks }, (_, i) => (
-                  <span key={i} className="ia-slider-dot" />
+                  <span
+                    key={i}
+                    className={"ia-slider-dot" + (i <= idx ? " is-covered" : "")}
+                    style={{ ["--ia-slider-t" as string]: max === 0 ? 0 : i / max }}
+                  />
                 ))}
               </div>
             )}
-            <div className="ia-slider-fill" style={{ width: `${fillPct}%` }}>
+            <div className="ia-slider-fill">
               <span className="ia-slider-thumb" aria-hidden="true" />
             </div>
             <input
@@ -717,7 +749,28 @@ function Control({
               }}
             />
           </div>
-          <div className="ia-slider-val">{sliderDisplay(o, fillPct)}</div>
+          {o.editableValue ? (
+            <input
+              className="ia-slider-val ia-slider-val--input"
+              type="number"
+              min={scale.lo}
+              max={scale.hi}
+              step={
+                discrete
+                  ? (scale.hi - scale.lo) / max
+                  : Math.max((scale.hi - scale.lo) / 100, scale.hi <= 1 ? 0.01 : 1)
+              }
+              value={Number(sliderValue(o, fillPct).toFixed(scale.hi <= 1 ? 2 : 0))}
+              aria-label={`${o.name} value`}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (!Number.isFinite(next) || scale.hi === scale.lo) return;
+                setVal(o, ((Math.max(scale.lo, Math.min(scale.hi, next)) - scale.lo) / (scale.hi - scale.lo)) * 100);
+              }}
+            />
+          ) : (
+            <div className="ia-slider-val">{sliderDisplay(o, fillPct)}</div>
+          )}
         </div>
       );
     }
@@ -882,7 +935,13 @@ function Control({
 
     case "repeatable": {
       if (isZoomScalingField(o)) {
-        return <ZoomScalingControl value={getVal(o)} onChange={(next) => setVal(o, next)} />;
+        return (
+          <ZoomScalingControl
+            value={getVal(o)}
+            onChange={(next) => setVal(o, next)}
+            dataRangeOnly={o.group === "Extrusion" && o.name === "Data range"}
+          />
+        );
       }
       const rows = asRepeatable(getVal(o));
       const update = (next: RepeatableRow[]) => setVal(o, next);
@@ -1086,6 +1145,13 @@ function FieldBlock({
           </div>
           <PlacementPicker value={String(getVal(o))} onChange={(v) => setVal(o, v)} />
         </div>
+      </div>
+    );
+  }
+  if (o.group === "Extrusion" && o.name === "Data range") {
+    return (
+      <div className="ia-field">
+        <Control o={o} getVal={getVal} setVal={setVal} />
       </div>
     );
   }
@@ -1509,6 +1575,8 @@ export default function EditComponentModal({
   const selectVisual = (visual: VisualType) => {
     setSelectedVisualId(visual.id);
     setActiveChart(visual.chartId);
+    setActiveSubCategory("Mapping");
+    setQuery("");
     setVizPhase("settings");
     const requiredMaps = fieldsForVisual(visual.id).filter(
       (o) => o.group === "Mapping" && o.level === "required" && o.type === "field",

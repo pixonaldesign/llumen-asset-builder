@@ -12,6 +12,9 @@ import { ChevronDownIcon, SearchIcon } from "./icons";
 export type DropdownOption = {
   value: string;
   label: string;
+  dataType?: string;
+  disabled?: boolean;
+  disabledReason?: string;
 };
 
 type DropdownProps = {
@@ -103,7 +106,10 @@ export default function Dropdown({
   const query = search.trim().toLowerCase();
   const filtered = query
     ? options.filter(
-        (o) => o.label.toLowerCase().includes(query) || o.value.toLowerCase().includes(query),
+        (o) =>
+          o.label.toLowerCase().includes(query) ||
+          o.value.toLowerCase().includes(query) ||
+          o.dataType?.toLowerCase().includes(query),
       )
     : options;
   const showEmpty = allowEmpty && (!query || emptyLabel.toLowerCase().includes(query));
@@ -178,7 +184,8 @@ export default function Dropdown({
                     }
                     if (e.key !== "Enter") return;
                     e.preventDefault();
-                    if (filtered[0]) pick(filtered[0].value);
+                    const firstEnabled = filtered.find((option) => !option.disabled);
+                    if (firstEnabled) pick(firstEnabled.value);
                     else if (showEmpty) pick("");
                   }}
                 />
@@ -203,10 +210,33 @@ export default function Dropdown({
                   type="button"
                   role="option"
                   aria-selected={opt.value === value}
-                  className={"cp-picker-row" + (opt.value === value ? " is-selected" : "")}
+                  aria-disabled={opt.disabled || undefined}
+                  disabled={opt.disabled}
+                  className={
+                    "cp-picker-row" +
+                    (opt.dataType ? " cp-picker-row--typed" : "") +
+                    (opt.value === value ? " is-selected" : "") +
+                    (opt.disabled ? " is-disabled" : "")
+                  }
                   onClick={() => pick(opt.value)}
                 >
                   <span className="cp-picker-row-name">{opt.label}</span>
+                  {(opt.dataType || opt.disabledReason) && (
+                    <span className="cp-picker-row-meta">
+                      {opt.disabledReason && (
+                        <span className="cp-picker-badge cp-picker-badge--incompatible">
+                          {opt.disabledReason}
+                        </span>
+                      )}
+                      {opt.dataType && (
+                        <span
+                          className={`cp-picker-badge cp-picker-badge--${opt.dataType.toLowerCase()}`}
+                        >
+                          {opt.dataType}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </button>
               ))}
               {searchable && !filtered.length && !showEmpty && (

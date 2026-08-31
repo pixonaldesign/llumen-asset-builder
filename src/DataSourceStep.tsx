@@ -818,7 +818,7 @@ function CreateDatabaseConnectionForm({ onClose }: { onClose: () => void }) {
           <span>
             Connection Name <i>*</i>
           </span>
-          <input
+      <input
             value={connectionName}
             onChange={(event) => setConnectionName(event.target.value)}
             placeholder="Enter connection name"
@@ -898,7 +898,7 @@ function CreateDatabaseConnectionForm({ onClose }: { onClose: () => void }) {
             autoComplete="new-password"
           />
         </label>
-      </div>
+    </div>
 
       <footer className="ds-create-db__footer">
         <button type="button" className="ds-create-db__cancel" onClick={onClose}>
@@ -991,8 +991,8 @@ function DatabaseConnectionPicker({
             <Plus size={17} aria-hidden="true" />
             New Connection
           </button>
+          </div>
         </div>
-      </div>
 
       <div className="ds-db-manager__filters">
         <div className="ds-db-manager__menu-wrap">
@@ -1022,7 +1022,7 @@ function DatabaseConnectionPicker({
                   {type}
                 </label>
               ))}
-            </div>
+      </div>
           )}
         </div>
 
@@ -1129,7 +1129,7 @@ function DatabaseConnectionPicker({
           Select Connection
         </button>
       </footer>
-      </section>
+    </section>
       {createModalOpen && (
         <SourcePickerModal variant="create-database" onClose={() => setCreateModalOpen(false)}>
           <CreateDatabaseConnectionForm onClose={() => setCreateModalOpen(false)} />
@@ -1350,7 +1350,7 @@ function ApiSourcePicker({
         <h2>Select API Request</h2>
         <button type="button" aria-label="Close" onClick={onCancel}>
           <X size={18} aria-hidden="true" />
-        </button>
+          </button>
       </header>
 
       <div className="ds-db-manager__toolbar">
@@ -1588,7 +1588,7 @@ function ApiSourcePicker({
       <footer className="ds-db-manager__footer">
         <button type="button" className="ds-db-manager__cancel" onClick={onCancel}>
           Cancel
-        </button>
+            </button>
         <button
           type="button"
           className="ds-db-manager__select"
@@ -1596,7 +1596,7 @@ function ApiSourcePicker({
           onClick={onSelect}
         >
           Select Request
-        </button>
+            </button>
       </footer>
       </section>
       {createModalOpen && (
@@ -1877,7 +1877,7 @@ function DataFlowPicker({
         <div className="ds-db-manager__toolbar-actions">
           <label className="ds-db-manager__search">
             <MagnifyingGlass size={17} aria-hidden="true" />
-            <input
+        <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -1931,7 +1931,7 @@ function DataFlowPicker({
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Info size={20} aria-hidden="true" />
-            </button>
+        </button>
               </span>
             </div>
           );

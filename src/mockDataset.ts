@@ -1,4 +1,4 @@
-export type ColumnType = "number" | "string" | "datetime";
+export type ColumnType = "number" | "string" | "boolean" | "datetime" | "geometry";
 
 export type MockColumn = {
   name: string;
@@ -6,7 +6,7 @@ export type MockColumn = {
   type: ColumnType;
 };
 
-export type MockRow = Record<string, string | number>;
+export type MockRow = Record<string, string | number | boolean>;
 
 export type MockDataset = {
   id: string;
@@ -67,6 +67,7 @@ function buildRows(): MockRow[] {
         amount,
         incidents,
         completion_rate: completion,
+        active: completion >= 80,
         status: statusFor(completion),
         unit: "%",
         series: mi % 2 === 0 ? "Actual" : "Forecast",
@@ -99,6 +100,7 @@ export const MOCK_DATASET: MockDataset = {
     { name: "amount", label: "Transaction value (M AED)", type: "number" },
     { name: "incidents", label: "Incidents", type: "number" },
     { name: "completion_rate", label: "Completion rate (%)", type: "number" },
+    { name: "active", label: "Active", type: "boolean" },
     { name: "status", label: "Status", type: "string" },
     { name: "unit", label: "Unit", type: "string" },
     { name: "series", label: "Series", type: "string" },
@@ -110,8 +112,8 @@ export const MOCK_DATASET: MockDataset = {
     { name: "wind_speed", label: "Wind speed", type: "number" },
     { name: "origin", label: "Origin", type: "string" },
     { name: "destination", label: "Destination", type: "string" },
-    { name: "geometry", label: "Geometry", type: "string" },
-    { name: "coordinates", label: "Coordinates", type: "string" },
+    { name: "geometry", label: "Geometry", type: "geometry" },
+    { name: "coordinates", label: "Coordinates", type: "geometry" },
   ],
   rows: buildRows(),
 };
@@ -142,21 +144,79 @@ export function columnLabel(name: string, dataset: MockDataset = MOCK_DATASET): 
   return columnByName(name, dataset)?.label ?? name;
 }
 
-const NUMERIC_FIELD = /y axis|x value|y value|value|amount|max|min|size|intensity|low|high|comparison|kpi value|frequency|wind speed|completion|incident|predicted|actual/i;
-const CATEGORY_FIELD = /status|category|series|unit|label|district|region|name|type|origin|destination|location/i;
-const TIME_FIELD = /timestamp|time|date|month/i;
+const NUMERIC_FIELDS = new Set([
+  "Y axis",
+  "Max/Total",
+  "Reference value",
+  "X value",
+  "Y value",
+  "Point size",
+  "Value",
+  "Min field",
+  "Max field",
+  "Max value",
+  "Comparison value",
+  "Low value",
+  "High value",
+  "Wind speed",
+  "Frequency",
+  "Intensity Value Field",
+  "U Component (Eastward)",
+  "V Component (Northward)",
+  "KPI value field",
+  "KPI min value field",
+  "KPI max value field",
+]);
+
+const GEOMETRY_FIELDS = new Set([
+  "Geometry Column",
+  "Coordinates (Geometry)",
+  "Geometry",
+  "Coordinates",
+]);
+
+const CATEGORY_FIELDS = new Set([
+  "Series",
+  "Y category",
+  "Category",
+  "Unit",
+  "Status",
+  "Metric label",
+  "Secondary label/context",
+  "Name",
+  "Type",
+  "KPI unit field",
+  "Color by category field",
+]);
+
+const FLEXIBLE_SCALAR_FIELDS = new Set([
+  "X axis",
+  "Color/Category",
+  "Color Source",
+  "Column",
+  "Data Field",
+  "Insight field",
+  "Hover tooltip field",
+]);
+
+export function acceptedColumnTypesForField(fieldName: string): ColumnType[] {
+  if (NUMERIC_FIELDS.has(fieldName)) return ["number"];
+  if (GEOMETRY_FIELDS.has(fieldName)) return ["geometry"];
+  if (CATEGORY_FIELDS.has(fieldName)) return ["string", "boolean", "datetime"];
+  if (fieldName === "Direction" || fieldName === "Band") return ["number", "string"];
+  if (fieldName === "Origin" || fieldName === "Destination") return ["string", "geometry"];
+  if (fieldName === "Location" || fieldName === "Location field") return ["string", "geometry"];
+  if (/timestamp|time|date|month/i.test(fieldName)) return ["datetime"];
+  if (FLEXIBLE_SCALAR_FIELDS.has(fieldName)) return ["number", "string", "boolean", "datetime"];
+  return ["number", "string", "boolean", "datetime", "geometry"];
+}
+
+export function isColumnCompatible(fieldName: string, type: ColumnType): boolean {
+  return acceptedColumnTypesForField(fieldName).includes(type);
+}
 
 export function columnsForField(fieldName: string, dataset: MockDataset = MOCK_DATASET): MockColumn[] {
-  if (NUMERIC_FIELD.test(fieldName) && !/category|label|status|unit/i.test(fieldName)) {
-    return dataset.columns.filter((c) => c.type === "number");
-  }
-  if (TIME_FIELD.test(fieldName)) {
-    return dataset.columns.filter((c) => c.type === "datetime" || c.type === "string");
-  }
-  if (CATEGORY_FIELD.test(fieldName)) {
-    return dataset.columns.filter((c) => c.type === "string" || c.type === "datetime");
-  }
-  return dataset.columns;
+  return dataset.columns.filter((column) => isColumnCompatible(fieldName, column.type));
 }
 
 export function defaultColumnForField(fieldName: string, dataset: MockDataset = MOCK_DATASET): string {
@@ -200,7 +260,16 @@ export function defaultColumnForField(fieldName: string, dataset: MockDataset = 
 }
 
 export function fieldOptionsFor(fieldName: string, dataset: MockDataset = MOCK_DATASET) {
-  return columnsForField(fieldName, dataset).map((c) => ({ value: c.name, label: c.label }));
+  return dataset.columns.map((column) => {
+    const compatible = isColumnCompatible(fieldName, column.type);
+    return {
+      value: column.name,
+      label: column.label,
+      dataType: column.type,
+      disabled: !compatible,
+      disabledReason: compatible ? undefined : "Incompatible",
+    };
+  });
 }
 
 export function numericExtent(column: string, dataset: MockDataset = MOCK_DATASET): { min: number; max: number } | null {

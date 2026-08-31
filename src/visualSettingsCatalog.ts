@@ -194,7 +194,6 @@ export const SUBCATEGORY_ORDER = [
   "Bin & extrusion",
   "Contour Terrain",
   "Extrusion",
-  "Opacity source",
   "Animation",
   "Zoom Scaling",
   "Advanced",
@@ -215,6 +214,7 @@ type FieldDef = {
   advanced?: boolean;
   def?: boolean;
   defaultValue?: unknown;
+  editableValue?: boolean;
   visibleWhen?: VisibleWhen;
 };
 
@@ -621,9 +621,7 @@ const FIELDS: FieldDef[] = [
     visibleWhen: { group: "Height", name: "Height Exaggeration", is: "true" },
   }),
   f("Max Height", "slider", "Size", ["Pillars"], { desc: "0–8000. Default 3000." }),
-  f("Zoom scaling", "repeatable", "Size", ["Pillars"]),
   f("Disc radius multiplier", "slider", "Disc Scaling", ["Discs"], { desc: "0.2–4. Default 1.2." }),
-  f("Disc scaling", "repeatable", "Disc Scaling", ["Discs"]),
   f("Show endpoint discs", "toggle", "Disc ring", ["Arcs"], { def: false }),
   f("Endpoint disc scaling", "slider", "Disc ring", ["Arcs"], {
     desc: "0.2–4. Default 1.2.",
@@ -636,15 +634,21 @@ const FIELDS: FieldDef[] = [
   f("Disc fill opacity", "slider", "Ground disc", ["Points"], { desc: "0–1. Default 0.18." }),
   f("Ground disc scaling", "repeatable", "Ground disc", ["Points"]),
   f("Marker type", "segmented", "Marker Shape", ["Points"], { values: ["2D", "3D"] }),
-  f("2D shape", "segmented", "Marker Shape", ["Points"], { values: ["Circle", "Square", "Diamond"] }),
-  f("3D shape", "segmented", "Marker Shape", ["Points"], { values: ["Sphere", "Cube", "Cone"] }),
+  f("2D shape", "dropdown", "Marker Shape", ["Points"], { values: ["Circle", "Square", "Diamond"] }),
+  f("3D shape", "dropdown", "Marker Shape", ["Points"], { values: ["Sphere", "Cube", "Cone"] }),
   f("Empty filled shape (no icon)", "toggle", "Marker Shape", ["Points"], { def: false }),
-  f("Icon mode", "segmented", "Marker Shape", ["Points"], { values: ["Static", "By category"] }),
-  f("Static Phosphor icon", "dropdown", "Marker Shape", ["Points"], {
+  f("Icon mode", "segmented", "Marker Shape", ["Points"], {
+    values: ["Static", "By category"],
+    visibleWhen: { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "true" },
+  }),
+  f("Icons", "dropdown", "Marker Shape", ["Points"], {
     values: ["MapPin", "Circle", "Warning", "Flag"],
     defaultValue: "MapPin",
+    visibleWhen: { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "true" },
   }),
-  f("Icon category field + mapping", "colorList", "Marker Shape", ["Points"]),
+  f("Icon category field + mapping", "colorList", "Marker Shape", ["Points"], {
+    visibleWhen: { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "true" },
+  }),
   f("Point Size", "slider", "Marker appearance", ["Points"], { desc: "0.2–8. Default 1.2." }),
   f("Marker size by data", "repeatable", "Marker appearance", ["Points"]),
   f("Style", "segmented", "Heatmap Style", ["Heatmap"], {
@@ -673,13 +677,16 @@ const FIELDS: FieldDef[] = [
   f("Max Height", "slider", "Contour Terrain", ["Heatmap"], { desc: "Default 500." }),
   f("Band count", "slider", "Contour Terrain", ["Heatmap"], { desc: "Default 8." }),
   f("Extrusion mode", "segmented", "Extrusion", ["Areas"], {
-    values: ["None", "Height", "Data"],
+    values: ["None", "Fixed height", "Data"],
   }),
-  f("Extrusion scaling", "repeatable", "Extrusion", ["Areas"]),
-  f("Opacity source", "segmented", "Opacity source", ["Areas"], {
-    values: ["Master", "Data"],
+  f("Extrusion scaling", "slider", "Extrusion", ["Areas"], {
+    desc: "0–100 m. Default 50.",
+    editableValue: true,
+    visibleWhen: { group: "Extrusion", name: "Extrusion mode", is: ["Fixed height", "Height"] },
   }),
-  f("Opacity scaling", "repeatable", "Opacity source", ["Areas"]),
+  f("Data range", "repeatable", "Extrusion", ["Areas"], {
+    visibleWhen: { group: "Extrusion", name: "Extrusion mode", is: "Data" },
+  }),
   f("Particle Density", "slider", "Animation", ["Wind"], { desc: "Default 16384." }),
   f("Trail Length", "slider", "Animation", ["Wind"], { desc: "Default 0.996." }),
   f("Animation Speed", "slider", "Animation", ["Wind"], { desc: "Default 0.20." }),
@@ -691,7 +698,7 @@ const FIELDS: FieldDef[] = [
   f("Falloff Rate", "slider", "Advanced", ["Heatmap"], { desc: "Default 0.2." }),
   f("Sprites per Point", "slider", "Advanced", ["Heatmap"], { desc: "Default 1." }),
   f("Size Multiplier", "slider", "Advanced", ["Heatmap"], { desc: "Default 1.0." }),
-  f("Fence zoom scaling", "repeatable", "Zoom Scaling", ["Fences"]),
+  f("Zoom scaling", "repeatable", "Zoom Scaling", ["All Map Layers"]),
   f("Show legend in Map Data", "toggle", "Map Legend", ["All Map Layers"]),
   f("Tooltip content fields", "multi", "Tooltips", MAP_TOOLTIPS, {
     desc: "Hover shows these mock-data columns: name, value, type, status.",
@@ -847,15 +854,13 @@ const FIELDS: FieldDef[] = [
     advanced: true,
     defaultValue: "5",
   }),
-  f("Ring stroke width", "number", "Colors", ["Polar"], {
-    desc: "px.",
+  f("Ring stroke width", "slider", "Colors", ["Polar"], {
+    desc: "0–1 px. Default 0.55.",
     advanced: true,
-    defaultValue: "0.55",
   }),
-  f("Spoke stroke width", "number", "Colors", ["Polar"], {
-    desc: "px.",
+  f("Spoke stroke width", "slider", "Colors", ["Polar"], {
+    desc: "0–1 px. Default 0.5.",
     advanced: true,
-    defaultValue: "0.5",
   }),
   f("Inner circle ratio", "slider", "Colors", ["Polar"], {
     desc: "0–1. Default 0.36.",
@@ -896,20 +901,17 @@ const FIELDS: FieldDef[] = [
     advanced: true,
     visibleWhen: { group: "Scaling / axes", name: "Show Axes Labels", is: "true" },
   }),
-  f("Axis offset", "number", "Scaling / axes", AXIS_CHARTS, {
-    desc: "px. Positive shifts the X axis downward.",
+  f("Axis offset", "slider", "Scaling / axes", AXIS_CHARTS, {
+    desc: "-20–20 px. Positive shifts the X axis downward. Default 0.",
     advanced: true,
-    defaultValue: "0",
   }),
-  f("Tick count", "number", "Scaling / axes", AXIS_CHARTS, {
-    desc: "Integer. 0 lets the renderer decide.",
+  f("Tick count", "slider", "Scaling / axes", AXIS_CHARTS, {
+    desc: "0–10, step 1. 0 lets the renderer decide. Default 0.",
     advanced: true,
-    defaultValue: "0",
   }),
-  f("Tick rotation", "number", "Scaling / axes", AXIS_CHARTS, {
-    desc: "Degrees.",
+  f("Tick rotation", "slider", "Scaling / axes", AXIS_CHARTS, {
+    desc: "-90–90°. Default 0.",
     advanced: true,
-    defaultValue: "0",
   }),
   f("Tick label formatter", "dropdown", "Scaling / axes", AXIS_CHARTS, {
     desc: "Preset for rendered tick labels. Non-Default overrides the Format field.",
@@ -970,10 +972,10 @@ const FIELDS: FieldDef[] = [
     advanced: true,
     visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
   }),
-  f("Stroke width", "number", "Annotations", AXIS_CHARTS, {
-    desc: "px.",
+  f("Stroke width", "slider", "Annotations", AXIS_CHARTS, {
+    desc: "0–5 px, step 0.5. Default 1.5.",
     advanced: true,
-    defaultValue: "1.5",
+    defaultValue: 30,
     visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
   }),
 
@@ -1034,10 +1036,9 @@ const FIELDS: FieldDef[] = [
     advanced: true,
     defaultValue: "rgba(0,0,0,0.1)",
   }),
-  f("Empty track stroke width", "number", "Track & marker styling", ["Score Indicator"], {
-    desc: "px.",
+  f("Empty track stroke width", "slider", "Track & marker styling", ["Score Indicator"], {
+    desc: "0–5 px, step 0.5. Default 1.",
     advanced: true,
-    defaultValue: "1",
   }),
 
   /* ---- Advanced: Bar gradient (Range) ---- */
@@ -1081,10 +1082,9 @@ const FIELDS: FieldDef[] = [
     desc: "0–1. Default 1.",
     advanced: true,
   }),
-  f("Ref line stroke width", "number", "Bar gradient", ["Range"], {
-    desc: "px. Drawn when a Reference value field is mapped.",
+  f("Ref line stroke width", "slider", "Bar gradient", ["Range"], {
+    desc: "0–5 px, step 0.5. Default 1.5. Drawn when a Reference value field is mapped.",
     advanced: true,
-    defaultValue: "1.5",
   }),
   f("Ref line opacity", "slider", "Bar gradient", ["Range"], {
     desc: "0–1. Default 0.7.",
@@ -1157,6 +1157,7 @@ function toOpt(def: FieldDef, notionType: NotionVisualType): Opt {
     group: def.subCategory,
     def: def.def !== false,
     defaultValue: def.defaultValue,
+    editableValue: def.editableValue,
     visibleWhen: def.visibleWhen,
   };
 }

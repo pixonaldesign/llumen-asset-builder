@@ -23,7 +23,11 @@ export type PreviewSeries = {
   badge?: { text: string; tone: "positive" | "warning" | "negative" | "neutral"; color?: string };
   markTips?: MarkTip[];
   scatterPoints?: { x: number; y: number; r?: number; category?: string }[];
-  table?: { columns: string[]; headers?: string[]; rows: Record<string, string | number>[] };
+  table?: {
+    columns: string[];
+    headers?: string[];
+    rows: Record<string, string | number | boolean>[];
+  };
   groups?: { name: string; values: number[] }[];
   ranges?: { label: string; low: number; high: number }[];
   reference?: number;

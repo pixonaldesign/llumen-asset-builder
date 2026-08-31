@@ -20,7 +20,7 @@ function cfgBool(config: Config, group: string, name: string): boolean | undefin
   return typeof v === "boolean" ? v : undefined;
 }
 
-function cell(row: MockRow, col: string): string | number | undefined {
+function cell(row: MockRow, col: string): string | number | boolean | undefined {
   if (!col) return undefined;
   return row[col];
 }

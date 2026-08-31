@@ -1,6 +1,6 @@
-import { Flag, MapPin, WarningCircle, Circle as CircleIcon } from "@phosphor-icons/react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { PreviewSeries } from "./componentPreviewProfiles";
+import { getPhosphorIcon } from "./phosphorIconCatalog";
 import {
   BRAND,
   PALETTE,
@@ -91,11 +91,9 @@ function Ground({ cfg }: { cfg: Cfg }) {
 }
 
 function MarkerIcon({ name, color, size }: { name: string; color: string; size: number }) {
+  const Icon = getPhosphorIcon(name);
   const props = { size, color, weight: "fill" as const };
-  if (name === "Warning") return <WarningCircle {...props} />;
-  if (name === "Flag") return <Flag {...props} />;
-  if (name === "Circle") return <CircleIcon {...props} />;
-  return <MapPin {...props} />;
+  return <Icon {...props} />;
 }
 
 export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter, onMarkLeave }: Props) {
@@ -109,6 +107,17 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
   const highlight = bool(cfg("Advanced", "Highlight borders", false), false);
   const hit = (index: number) => markHit(index, onMarkEnter, onMarkLeave);
   const orig = (p: (typeof points)[number]) => Math.max(0, points.findIndex((pt) => pt.id === p.id));
+  const legacyZoom =
+    visualId === "fences"
+      ? cfg("Zoom Scaling", "Fence zoom scaling", cfg("Advanced", "Fence zoom scaling", undefined))
+      : visualId === "pillars"
+        ? cfg("Size", "Zoom scaling", undefined)
+        : visualId === "discs"
+          ? cfg("Disc Scaling", "Disc scaling", undefined)
+          : undefined;
+  const zoomScaling = asZoomScaling(cfg("Zoom Scaling", "Zoom scaling", legacyZoom));
+  const zoomScale = sampleZoomScale(zoomScaling, 350);
+  const zoomFactor = Math.max(0.5, Math.min(2, 1 + zoomScale * 0.025));
 
   let layer: React.ReactNode = null;
 
@@ -117,7 +126,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     const ends = bool(cfg("Disc ring", "Show endpoint discs", false), false);
     const indicator = bool(cfg("Line Customization", "Source → Destination Indicator", false), false);
     const endScale = sliderMapped(cfg("Disc ring", "Endpoint disc scaling", 30), 0.2, 4, 1.2);
-    const endR = 6 * endScale;
+    const endR = 6 * endScale + zoomScale * 0.1;
     layer = (
       <>
         <Ground cfg={cfg} />
@@ -131,7 +140,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
           const y2 = P + to.y * (H - 2 * P);
           const color = mapColor(cfg, a.value, max, from.category, i);
           const d = `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${Math.min(y1, y2) - 28} ${x2} ${y2}`;
-          const sw = Math.max(1, stroke);
+          const sw = Math.max(1, stroke + zoomScale * 0.15);
           return (
             <g key={i} {...hit(orig(from))}>
               <path d={d} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
@@ -161,10 +170,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
   } else if (visualId === "fences") {
     const exaggerate = bool(cfg("Height", "Height Exaggeration", false), false);
     const h = sliderMapped(cfg("Height", "Fence height", 40), 0, 5000, 2000);
-    const zoom = asZoomScaling(
-      cfg("Zoom Scaling", "Fence zoom scaling", cfg("Advanced", "Fence zoom scaling", undefined)),
-    );
-    const width = (exaggerate ? 10 : 6) + h / 900 + sampleZoomScale(zoom, 350) * 0.35;
+    const width = (exaggerate ? 10 : 6) + h / 900 + zoomScale * 0.35;
     const d = visible
       .map((p, i) => `${i ? "L" : "M"} ${P + p.x * (W - 2 * P)} ${P + p.y * (H - 2 * P)}`)
       .join(" ");
@@ -186,8 +192,6 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     );
   } else if (visualId === "pillars") {
     const maxH = sliderMapped(cfg("Size", "Max Height", 38), 0, 8000, 3000);
-    const zoom = asZoomScaling(cfg("Size", "Zoom scaling", undefined));
-    const zScale = sampleZoomScale(zoom, 350);
     const normalize = bool(cfg("Color", "Normalize values", true), true);
     const peak = normalize ? max : Math.max(max, 80);
     layer = (
@@ -195,7 +199,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
         <Ground cfg={cfg} />
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
-          const bh = (p.value / peak) * (28 + maxH / 220 + zScale * 0.4);
+          const bh = (p.value / peak) * (28 + maxH / 220 + zoomScale * 0.4);
           const color = mapColor(cfg, p.value, max, p.category, i);
           return <rect key={p.id} x={x - 7} y={H - 32 - bh} width={14} height={bh} rx={3} fill={color} opacity={0.86} {...hit(orig(p))} />;
         })}
@@ -208,15 +212,13 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
       4,
       1.2,
     );
-    const zoom = asZoomScaling(cfg("Disc Scaling", "Disc scaling", undefined));
-    const zScale = sampleZoomScale(zoom, 350);
     layer = (
       <>
         <Ground cfg={cfg} />
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
           const y = P + p.y * (H - 2 * P);
-          const r = (6 + (p.value / max) * 16 + zScale * 0.35) * mult;
+          const r = (6 + (p.value / max) * 16 + zoomScale * 0.35) * mult;
           const color = mapColor(cfg, p.value, max, p.category, i);
           return (
             <ellipse
@@ -236,25 +238,32 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     );
   } else if (visualId === "map-area") {
     const extrusion = str(cfg("Extrusion", "Extrusion mode", "None"), "None");
-    const extScale = asRepeatable(cfg("Extrusion", "Extrusion scaling", undefined));
-    const opSrc = str(cfg("Opacity source", "Opacity source", "Master"), "Master");
-    const opScale = asRepeatable(cfg("Opacity source", "Opacity scaling", undefined));
+    const extScaleRaw = Number(cfg("Extrusion", "Extrusion scaling", 50));
+    const extScale = Number.isFinite(extScaleRaw) ? Math.max(0, Math.min(100, extScaleRaw)) : 50;
+    const dataRange = asZoomScaling(cfg("Extrusion", "Data range", undefined));
     layer = (
       <>
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
           const y = P + p.y * (H - 2 * P);
-          const lift = extrusion === "None" ? 0 : extrusion === "Height" ? 8 + extScale.length * 2 : (p.value / max) * 16;
+          const halfWidth = 28 * zoomFactor;
+          const topHeight = 18 * zoomFactor;
+          const bottomHeight = 16 * zoomFactor;
+          const lift =
+            extrusion === "None"
+              ? 0
+              : extrusion === "Fixed height" || extrusion === "Height"
+                ? 4 + (extScale / 100) * 20
+                : 4 + sampleZoomScale(dataRange, p.value) * 0.8;
           const color = catColor(cfg, p.category, mapColor(cfg, p.value, max, p.category, i), i);
-          const op = opSrc === "Data" ? 0.35 + (p.value / max) * 0.55 : 0.45 + opScale.length * 0.08;
           return (
             <polygon
               key={p.id}
-              points={`${x},${y - 18 - lift} ${x + 28},${y - lift} ${x},${y + 16 - lift} ${x - 28},${y - lift}`}
+              points={`${x},${y - topHeight - lift} ${x + halfWidth},${y - lift} ${x},${y + bottomHeight - lift} ${x - halfWidth},${y - lift}`}
               fill={color}
               stroke={highlight ? "#fff" : "none"}
               strokeWidth={highlight ? 1.5 : 0}
-              opacity={op}
+              opacity={0.45}
               {...hit(orig(p))}
             />
           );
@@ -309,8 +318,8 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
                 key={i}
                 x={x}
                 y={y - hLift}
-                width={cellW * sizeMul}
-                height={cellH * sizeMul}
+              width={cellW * sizeMul * zoomFactor}
+              height={cellH * sizeMul * zoomFactor}
                 fill="none"
                 stroke={color}
                 strokeWidth={sliderMapped(cfg("Contour Terrain", "Band width", 50), 0.02, 0.2, 0.06) * 40}
@@ -325,8 +334,8 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
               key={`${i}-${s}`}
               x={x + s}
               y={y - hLift - s}
-              width={cellW * sizeMul}
-              height={cellH * sizeMul}
+              width={cellW * sizeMul * zoomFactor}
+              height={cellH * sizeMul * zoomFactor}
               rx={rx}
               fill={color}
               opacity={0.2 + t * 0.75}
@@ -348,7 +357,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
           const p = visible[i % Math.max(visible.length, 1)];
           const x = P + (p?.x ?? 0.2 + (i % 5) * 0.15) * (W - 2 * P);
           const y = P + (p?.y ?? 0.3) * (H - 2 * P) + (i % 4) * 6;
-          const len = 10 + trail * 28;
+          const len = 10 + trail * 28 + zoomScale * 0.8;
           const color = mapColor(cfg, p?.value ?? 1, max, p?.category ?? "", i);
           return (
             <line
@@ -359,7 +368,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
               x2={x + len}
               y2={y - 6}
               stroke={color}
-              strokeWidth="1.6"
+              strokeWidth={1.2 + zoomScale * 0.04}
               strokeLinecap="round"
               {...(p ? hit(orig(p)) : {})}
               style={{
@@ -379,7 +388,10 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     const shape3d = str(cfg("Marker Shape", "3D shape", "Sphere"), "Sphere");
     const empty = bool(cfg("Marker Shape", "Empty filled shape (no icon)", false), false);
     const iconMode = str(cfg("Marker Shape", "Icon mode", "Static"), "Static");
-    const icon = str(cfg("Marker Shape", "Static Phosphor icon", "MapPin"), "MapPin");
+    const icon = str(
+      cfg("Marker Shape", "Icons", cfg("Marker Shape", "Static Phosphor icon", "MapPin")),
+      "MapPin",
+    );
     const sizeRows = asRepeatable(cfg("Marker appearance", "Marker size by data", undefined));
     layer = (
       <>
@@ -387,7 +399,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
           const y = P + p.y * (H - 2 * P);
-          const r = (4 + size * 2 + (p.value / max) * (2 + sizeRows.length)) ;
+          const r = (4 + size * 2 + (p.value / max) * (2 + sizeRows.length) + zoomScale * 0.3);
           const color = catColor(cfg, p.category, mapColor(cfg, p.value, max, p.category, i), i);
           const shape = kind === "3D" ? shape3d : shape2d;
           return (
