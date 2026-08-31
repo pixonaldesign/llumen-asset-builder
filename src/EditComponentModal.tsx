@@ -285,15 +285,42 @@ function defaultFor(o: Opt): unknown {
 }
 
 /* slider display value derived from the option's range description */
+function sliderScale(o: Opt): { lo: number; hi: number; ticks: number; unit: string } {
+  const desc = o.desc ?? "";
+  const range = desc.match(/(-?\d*\.?\d+)\s*[–—-]\s*(-?\d*\.?\d+)/);
+  const stepMatch = desc.match(/step\s+(-?\d*\.?\d+)/i);
+  const lo = range ? parseFloat(range[1]) : 0;
+  const hi = range ? parseFloat(range[2]) : 100;
+  const span = hi - lo;
+  let unit = "";
+  if (/%/.test(desc)) unit = "%";
+  else if (/\bpx\b/i.test(desc)) unit = "px";
+  else if (desc.includes("°")) unit = "°";
+  else if (/\(m\)/i.test(o.name)) unit = "m";
+
+  let step = stepMatch ? parseFloat(stepMatch[1]) : 0;
+  if (!step && Number.isInteger(lo) && Number.isInteger(hi) && span >= 1 && span <= 12) step = 1;
+  const ticks = step > 0 && span > 0 ? Math.round(span / step) + 1 : 0;
+  return { lo, hi, ticks: ticks >= 2 && ticks <= 12 ? ticks : 0, unit };
+}
+
+function sliderValue(o: Opt, pct: number): number {
+  const { lo, hi, ticks } = sliderScale(o);
+  const t = Math.max(0, Math.min(100, pct)) / 100;
+  if (ticks >= 2) {
+    const idx = Math.round(t * (ticks - 1));
+    return lo + (idx / (ticks - 1)) * (hi - lo);
+  }
+  return lo + t * (hi - lo);
+}
+
 function sliderDisplay(o: Opt, pct: number) {
-  const m = o.desc.match(/(-?\d*\.?\d+)\s*[–—-]\s*(-?\d*\.?\d+)/);
-  if (!m) return `${pct}%`;
-  const lo = parseFloat(m[1]);
-  const hi = parseFloat(m[2]);
-  const val = lo + (pct / 100) * (hi - lo);
-  const unit = o.desc.includes("px") ? " px" : o.desc.includes("°") ? "°" : lo === 0 && hi === 100 ? "%" : "";
-  const dec = hi <= 1 ? 2 : 0;
-  return `${val.toFixed(dec)}${unit}`;
+  const { lo, hi, ticks, unit } = sliderScale(o);
+  const val = sliderValue(o, pct);
+  const decimals = hi <= 1 ? 2 : ticks && (hi - lo) / (ticks - 1) < 1 ? 1 : 0;
+  const formatted = decimals === 0 ? String(Math.round(val)) : val.toFixed(decimals);
+  if (!unit) return formatted;
+  return unit === "°" || unit === "%" ? `${formatted}${unit}` : `${formatted} ${unit}`;
 }
 
 /* ---------- low-level interactive primitives ---------- */
@@ -656,27 +683,41 @@ function Control({
 
     case "slider": {
       const pct = Number(getVal(o));
-      const thumb = 36;
+      const scale = sliderScale(o);
+      const discrete = scale.ticks >= 2;
+      const max = discrete ? scale.ticks - 1 : 100;
+      const idx = discrete
+        ? Math.round((Math.max(0, Math.min(100, pct)) / 100) * max)
+        : Math.max(0, Math.min(100, pct));
+      const fillPct = discrete ? (idx / max) * 100 : idx;
       return (
-        <div className="ia-slider">
+        <div className={"ia-slider" + (discrete ? " ia-slider--steps" : "")}>
           <div className="ia-slider-track">
-            <div
-              className="ia-slider-fill"
-              style={{ width: `calc(${thumb}px + (100% - ${thumb}px) * ${Math.max(0, Math.min(100, pct))} / 100)` }}
-            >
+            {discrete && (
+              <div className="ia-slider-dots" aria-hidden="true">
+                {Array.from({ length: scale.ticks }, (_, i) => (
+                  <span key={i} className="ia-slider-dot" />
+                ))}
+              </div>
+            )}
+            <div className="ia-slider-fill" style={{ width: `${fillPct}%` }}>
               <span className="ia-slider-thumb" aria-hidden="true" />
             </div>
             <input
               type="range"
               className="ia-range"
               min={0}
-              max={100}
-              value={pct}
+              max={max}
+              step={1}
+              value={idx}
               aria-label={o.name}
-              onChange={(e) => setVal(o, Number(e.target.value))}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setVal(o, discrete ? (next / max) * 100 : next);
+              }}
             />
           </div>
-          <div className="ia-slider-val">{sliderDisplay(o, pct)}</div>
+          <div className="ia-slider-val">{sliderDisplay(o, fillPct)}</div>
         </div>
       );
     }
