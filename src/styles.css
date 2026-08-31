@@ -6386,7 +6386,7 @@ html[data-theme="light"] .dd-component-menu {
   z-index: 1;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  width: min(100%, 1200px);
+  width: min(100%, 1480px);
   height: min(92vh, 780px);
   border: 1px solid var(--lc-border-modal);
   border-radius: var(--radius-ui-x-large);
@@ -6475,12 +6475,12 @@ html[data-theme="light"] .dd-component-menu {
 
 .add-component-modal__body {
   display: grid;
-  grid-template-columns: 264px 1fr;
+  grid-template-columns: 264px minmax(0, 1fr) 280px;
   min-height: 0;
 }
 
 .add-component-modal__body--no-sidebar {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) 280px;
 }
 
 .add-component-modal__main-empty {
@@ -6564,6 +6564,12 @@ html[data-theme="light"] .dd-component-menu {
   gap: var(--line-height-28) var(--spacing-xl);
   min-height: 0;
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.add-component-modal__grid::-webkit-scrollbar {
+  display: none;
 }
 
 .add-component-modal__empty {
@@ -6578,6 +6584,87 @@ html[data-theme="light"] .dd-component-menu {
 
 .add-component-modal__empty p {
   margin: 0;
+}
+
+.add-component-modal__selected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--spacing-xl);
+  border-left: 1px solid var(--ac-border-subtle);
+  overflow: auto;
+}
+
+.add-component-modal__selected-title {
+  margin: 0;
+  font: var(--lc-font-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--lc-text-primary);
+}
+
+.add-component-modal__selected-list {
+  display: grid;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.add-component-modal__selected-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-ui-small);
+  background: var(--ac-surface-3);
+}
+
+.add-component-modal__selected-copy {
+  display: grid;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+}
+
+.add-component-modal__selected-name {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--lc-font-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--lc-text-primary);
+}
+
+.add-component-modal__selected-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  min-width: 0;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+}
+
+.add-component-modal__selected-remove {
+  display: grid;
+  place-items: center;
+  width: var(--spacing-4xl);
+  height: var(--spacing-4xl);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-ui-pill);
+  background: transparent;
+  color: var(--lc-text-negative);
+  cursor: pointer;
+  transition: background 0.14s;
+}
+
+.add-component-modal__selected-remove:hover,
+.add-component-modal__selected-remove:focus-visible {
+  background: var(--lc-bg-negative-subtle);
+  outline: none;
 }
 
 .add-component-card {
@@ -6867,6 +6954,10 @@ html[data-theme="light"] .dd-component-menu {
     grid-template-columns: 1fr;
   }
 
+  .add-component-modal__body--no-sidebar {
+    grid-template-columns: 1fr;
+  }
+
   .add-component-modal__sidebar {
     display: flex;
     gap: var(--spacing-2xs);
@@ -6879,6 +6970,11 @@ html[data-theme="light"] .dd-component-menu {
   .add-component-modal__sidebar-btn {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .add-component-modal__selected {
+    border-left: 0;
+    border-top: 1px solid var(--ac-border-subtle);
   }
 
   .add-component-modal__grid {

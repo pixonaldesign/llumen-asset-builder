@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle } from "@phosphor-icons/react";
+import { ChartBar, CheckCircle, Stack } from "@phosphor-icons/react";
 import ComponentChartPreview from "./ComponentChartPreview";
-import { SearchIcon } from "./icons";
+import { SearchIcon, TrashIcon } from "./icons";
 import {
   COMPONENT_LIBRARY,
   COMPONENT_SIDEBARS,
@@ -29,6 +29,16 @@ type Props = {
   onAdd: (items: ComponentLibraryItem[]) => void;
   excludedIds?: string[];
 };
+
+function selectedItemType(item: ComponentLibraryItem): { label: string; icon: ReactNode } {
+  if (item.visualCategory === "map-layer") {
+    return { label: "Map Layer", icon: <Stack size={14} aria-hidden="true" /> };
+  }
+  if (item.type === "Filter") {
+    return { label: "Filter", icon: <Stack size={14} aria-hidden="true" /> };
+  }
+  return { label: "Chart", icon: <ChartBar size={14} aria-hidden="true" /> };
+}
 
 function ComponentPickerCard({
   item,
@@ -116,6 +126,14 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
     });
   }, [hasSectionContent, query, section, sidebar]);
 
+  const selectedItems = useMemo(
+    () =>
+      Array.from(selectedIds)
+        .map((id) => COMPONENT_LIBRARY.find((item) => item.id === id))
+        .filter((item): item is ComponentLibraryItem => Boolean(item)),
+    [selectedIds],
+  );
+
   const toggleItem = (item: ComponentLibraryItem) => {
     if (excludedIds.includes(item.id)) return;
     setSelectedIds((current) => {
@@ -198,6 +216,36 @@ export default function AddComponentModal({ open, onClose, onAdd, excludedIds = 
               <div className="add-component-modal__main-empty" aria-hidden="true" />
             )}
           </div>
+
+          <aside className="add-component-modal__selected" aria-label="Selected assets">
+            <h3 className="add-component-modal__selected-title">Selected</h3>
+            {selectedItems.length > 0 ? (
+              <ul className="add-component-modal__selected-list">
+                {selectedItems.map((item) => {
+                  const type = selectedItemType(item);
+                  return (
+                    <li key={item.id} className="add-component-modal__selected-item">
+                      <div className="add-component-modal__selected-copy">
+                        <p className="add-component-modal__selected-name">{item.name}</p>
+                        <span className="add-component-modal__selected-type">
+                          {type.icon}
+                          {type.label}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="add-component-modal__selected-remove"
+                        aria-label={`Remove ${item.name}`}
+                        onClick={() => toggleItem(item)}
+                      >
+                        <TrashIcon width={16} height={16} aria-hidden="true" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </aside>
         </div>
 
         <footer className="add-component-modal__footer">
