@@ -1,6 +1,11 @@
 /**
  * Visual settings catalog remapped from Notion
- * "Visualization Configuration Fields" — Configurable = Yes only.
+ * "Visualization Configuration Fields".
+ * Configurable = Yes fields are the default controls.
+ * Configurable = No fields are marked `advanced` and shown when the
+ * modal-level Cmd+Ctrl+O shortcut is active.
+ * Alias / collision rows and mapping fields that already exist as
+ * Configurable = Yes are omitted.
  * Nav groups are Notion Sub Categories, filtered by the selected visual type.
  */
 
@@ -207,6 +212,7 @@ type FieldDef = {
   subCategory: string;
   types: NotionVisualType[];
   required?: boolean;
+  advanced?: boolean;
   def?: boolean;
   defaultValue?: unknown;
   visibleWhen?: VisibleWhen;
@@ -693,6 +699,436 @@ const FIELDS: FieldDef[] = [
     defaultValue: ["name", "value", "type"],
     visibleWhen: { group: "Tooltips", name: "Show tooltips", is: "true" },
   }),
+
+  /* ---- Advanced: Mapping ---- */
+  f("Insight field", "field", "Mapping", ["All Charts & KPIs"], {
+    desc: "Column used for footer / insight copy. General Info is the fallback when empty.",
+    advanced: true,
+  }),
+  f("Hover tooltip field", "field", "Mapping", ["KPI Grid"], {
+    desc: "Column shown on tile hover. Pair with Show hover tooltip.",
+    advanced: true,
+  }),
+
+  /* ---- Advanced: Layout & visibility ---- */
+  f("Show card outline", "toggle", "Layout & visibility", ["All Charts & KPIs"], {
+    desc: "Outline around the asset when it is not in card mode.",
+    advanced: true,
+    def: false,
+  }),
+  f("Chart header icon", "text", "Layout & visibility", ["All Charts & KPIs"], {
+    desc: "LlumenIcon name rendered before the chart title, e.g. folder.",
+    advanced: true,
+  }),
+  f("Show header info icon", "toggle", "Layout & visibility", ["All Charts & KPIs"], {
+    desc: "Trailing info icon in the header row.",
+    advanced: true,
+    def: false,
+  }),
+
+  /* ---- Advanced: Bar ---- */
+  f("Stroke width", "slider", "Bar", BARS, {
+    desc: "0–10 px (0 = hidden). Default 0.",
+    advanced: true,
+  }),
+  f("Show segment separators", "toggle", "Bar", ["Progress Bar"], {
+    desc: "Draw dividers between progress segments.",
+    advanced: true,
+  }),
+  f("Category label color", "color", "Bar", ["Horizontal Bar"], {
+    desc: "Color of the category labels beside each bar.",
+    advanced: true,
+    defaultValue: "#ffffff",
+  }),
+  f("Value label unit", "text", "Bar", ["Horizontal Bar"], {
+    desc: "Suffix appended to each value label, e.g. %.",
+    advanced: true,
+  }),
+  f("Value label position", "dropdown", "Bar", BARS.concat(["Progress Bar"]), {
+    desc: "Where value labels sit relative to the bar.",
+    values: ["Above bar", "Inline"],
+    valuesByType: {
+      "Horizontal Bar": ["Inline", "Above bar"],
+      "Progress Bar": ["Inline", "Above bar"],
+    },
+    advanced: true,
+  }),
+  f("Segment count", "number", "Bar", ["Availability"], {
+    desc: "How many rounded segments the availability track is split into.",
+    advanced: true,
+    defaultValue: "48",
+  }),
+  f("Corner radius", "slider", "Bar", ["Availability"], {
+    desc: "0–40 px. Default 24.",
+    advanced: true,
+  }),
+  f("Segment gap", "slider", "Bar", ["Availability"], {
+    desc: "0–12 px. Default 3.",
+    advanced: true,
+  }),
+  f("Segment width", "slider", "Bar", ["Availability"], {
+    desc: "1–12 px. Default 3.",
+    advanced: true,
+  }),
+
+  /* ---- Advanced: Line / Scatter / Pie ---- */
+  f("Stroke width", "slider", "Line", LINE_AREA, {
+    desc: "0–10 px (0 = hidden). Default 2.",
+    advanced: true,
+  }),
+  f("Show grid lines", "toggle", "Line", ["Area"], {
+    desc: "Area-only grid overlay. Scaling / axes also has a shared grid toggle.",
+    advanced: true,
+  }),
+  f("Point fill", "color", "Line", LINE_AREA, {
+    desc: "Fill color of line/area data points.",
+    advanced: true,
+    defaultValue: "#ffc401",
+    visibleWhen: { group: "Line", name: "Show data points", is: "true" },
+  }),
+  f("Point stroke", "color", "Line", LINE_AREA, {
+    desc: "Stroke color of line/area data points.",
+    advanced: true,
+    defaultValue: "#ffc401",
+    visibleWhen: { group: "Line", name: "Show data points", is: "true" },
+  }),
+  f("Point stroke width", "slider", "Line", LINE_AREA, {
+    desc: "0–8 px. Default 2.",
+    advanced: true,
+    visibleWhen: { group: "Line", name: "Show data points", is: "true" },
+  }),
+  f("Point radius", "slider", "Line", LINE_AREA, {
+    desc: "1–16 px. Default 5.",
+    advanced: true,
+    visibleWhen: { group: "Line", name: "Show data points", is: "true" },
+  }),
+  f("Fill color", "color", "Scatter", ["Scatter"], {
+    desc: "Marker fill. Solid or a translucent rgba.",
+    advanced: true,
+    defaultValue: "rgba(63, 167, 160, 0.3)",
+  }),
+  f("Point shape", "segmented", "Scatter", ["Scatter"], {
+    values: ["Circle", "Square", "Triangle"],
+    defaultValue: "Circle",
+    advanced: true,
+  }),
+  f("Inner radius", "slider", "Pie / Donut", ["Pie/Donut"], {
+    desc: "0–0.9. Default 0.05. Values ≥0.3 read as a donut.",
+    advanced: true,
+  }),
+
+  /* ---- Advanced: Colors (gradient type + Polar intensity ramp) ---- */
+  f("Gradient type", "segmented", "Colors", ["Line", "Area", "Scatter"], {
+    values: ["Linear", "Radial"],
+    defaultValue: "Linear",
+    advanced: true,
+  }),
+  f("Grid color", "color", "Colors", ["Polar"], {
+    desc: "Polar concentric-ring color.",
+    advanced: true,
+    defaultValue: "#454545",
+  }),
+  f("Spoke color", "color", "Colors", ["Polar"], {
+    desc: "Polar radial-spoke color.",
+    advanced: true,
+    defaultValue: "#696969",
+  }),
+  f("Show direction labels", "toggle", "Colors", ["Polar"], {
+    advanced: true,
+  }),
+  f("Show concentric rings", "toggle", "Colors", ["Polar"], {
+    advanced: true,
+  }),
+  f("Show value labels", "toggle", "Colors", ["Polar"], {
+    advanced: true,
+  }),
+  f("Ring count", "number", "Colors", ["Polar"], {
+    desc: "Number of concentric frequency rings.",
+    advanced: true,
+    defaultValue: "5",
+  }),
+  f("Ring stroke width", "number", "Colors", ["Polar"], {
+    desc: "px.",
+    advanced: true,
+    defaultValue: "0.55",
+  }),
+  f("Spoke stroke width", "number", "Colors", ["Polar"], {
+    desc: "px.",
+    advanced: true,
+    defaultValue: "0.5",
+  }),
+  f("Inner circle ratio", "slider", "Colors", ["Polar"], {
+    desc: "0–1. Default 0.36.",
+    advanced: true,
+  }),
+  f("Inner hole radius", "number", "Colors", ["Polar"], {
+    desc: "px. Combined with Inner circle ratio to size the hole.",
+    advanced: true,
+    defaultValue: "20",
+  }),
+  f("Outer radius ratio", "slider", "Colors", ["Polar"], {
+    desc: "0–1. Default 0.4.",
+    advanced: true,
+  }),
+  f("Direction label color", "color", "Colors", ["Polar"], {
+    advanced: true,
+    defaultValue: "#ffffff",
+  }),
+  f("Value label color", "color", "Colors", ["Polar"], {
+    advanced: true,
+    defaultValue: "#ffffff",
+  }),
+
+  /* ---- Advanced: Scaling / axes ---- */
+  f("Trim edge ticks", "toggle", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Remove empty ticks at the start and end of the X axis.",
+    advanced: true,
+    def: false,
+  }),
+  f("Axis label color", "color", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Fill color of the dimension titles.",
+    advanced: true,
+    defaultValue: "#ffffff",
+    visibleWhen: { group: "Scaling / axes", name: "Show Axes Labels", is: "true" },
+  }),
+  f("Axis label opacity", "slider", "Scaling / axes", AXIS_CHARTS, {
+    desc: "0–1. Default 1.",
+    advanced: true,
+    visibleWhen: { group: "Scaling / axes", name: "Show Axes Labels", is: "true" },
+  }),
+  f("Axis offset", "number", "Scaling / axes", AXIS_CHARTS, {
+    desc: "px. Positive shifts the X axis downward.",
+    advanced: true,
+    defaultValue: "0",
+  }),
+  f("Tick count", "number", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Integer. 0 lets the renderer decide.",
+    advanced: true,
+    defaultValue: "0",
+  }),
+  f("Tick rotation", "number", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Degrees.",
+    advanced: true,
+    defaultValue: "0",
+  }),
+  f("Tick label formatter", "dropdown", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Preset for rendered tick labels. Non-Default overrides the Format field.",
+    values: [
+      "Default",
+      "Compact number",
+      "Rounded number",
+      "Decimal comma",
+      "Time only",
+      "Date",
+      "Month & year",
+      "Date & time",
+    ],
+    defaultValue: "Default",
+    advanced: true,
+  }),
+
+  /* ---- Advanced: Tooltips ---- */
+  f("Show on click", "toggle", "Tooltips", TOOLTIPS, {
+    desc: "Show the tooltip on click instead of hover.",
+    advanced: true,
+    def: false,
+  }),
+  f("Enable hover effects", "toggle", "Tooltips", ["Scatter", "Pie/Donut"], {
+    desc: "Reveal Highlight on hover. Only Scatter and Pie/Donut honor this.",
+    advanced: true,
+    def: false,
+  }),
+  f("Highlight on hover", "toggle", "Tooltips", ["Scatter", "Pie/Donut"], {
+    advanced: true,
+    def: false,
+    visibleWhen: { group: "Tooltips", name: "Enable hover effects", is: "true" },
+  }),
+  f("Enable crosshair", "toggle", "Tooltips", LINE_AREA, {
+    desc: "Vertical guide line on hover with the value at the cursor.",
+    advanced: true,
+    def: false,
+  }),
+  f("Format", "dropdown", "Tooltips", MAP_TOOLTIPS, {
+    desc: "How tooltip field values are formatted.",
+    values: [
+      "Auto (default)",
+      "Whole number",
+      "Decimal",
+      "Abbreviated",
+      "Currency",
+      "Percentage",
+      "ID / Raw",
+    ],
+    defaultValue: "Auto (default)",
+    advanced: true,
+  }),
+
+  /* ---- Advanced: Annotations ---- */
+  f("Line style", "dropdown", "Annotations", AXIS_CHARTS, {
+    values: ["Solid", "Dashed", "Dotted"],
+    defaultValue: "Dashed",
+    advanced: true,
+    visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
+  }),
+  f("Stroke width", "number", "Annotations", AXIS_CHARTS, {
+    desc: "px.",
+    advanced: true,
+    defaultValue: "1.5",
+    visibleWhen: { group: "Annotations", name: "Show annotations", is: "true" },
+  }),
+
+  /* ---- Advanced: KPI Display / KPI card / KPI Grid ---- */
+  f("Show max value", "toggle", "KPI Display", STORY_KPI, {
+    desc: "When off, the configured max / denominator is hidden next to the headline.",
+    advanced: true,
+  }),
+  f("Show max value", "toggle", "KPI card", ["KPI Card"], {
+    desc: "When off, the configured max / denominator is hidden next to the headline.",
+    advanced: true,
+  }),
+  f("Show value / secondary text", "toggle", "KPI Grid", ["KPI Grid"], {
+    desc: "Show the tile value and secondary label.",
+    advanced: true,
+  }),
+  f("Show hover tooltip", "toggle", "KPI Grid", ["KPI Grid"], {
+    desc: "Needs Hover tooltip field mapped.",
+    advanced: true,
+    def: false,
+  }),
+
+  /* ---- Advanced: Track & marker styling ---- */
+  f("Track min height", "number", "Track & marker styling", ["Score Indicator"], {
+    desc: "px. Default 16.",
+    advanced: true,
+    defaultValue: "16",
+  }),
+  f("Track max height", "number", "Track & marker styling", ["Score Indicator"], {
+    desc: "px. Default 20.",
+    advanced: true,
+    defaultValue: "20",
+  }),
+  f("Track height ratio", "slider", "Track & marker styling", ["Score Indicator"], {
+    desc: "0–1. Default 1.",
+    advanced: true,
+  }),
+  f("Track Y ratio", "slider", "Track & marker styling", ["Score Indicator"], {
+    desc: "0–1. Default 0.",
+    advanced: true,
+  }),
+  f("Track Y max", "number", "Track & marker styling", ["Score Indicator"], {
+    desc: "px. Default 8.",
+    advanced: true,
+    defaultValue: "8",
+  }),
+  f("Show scale labels", "toggle", "Track & marker styling", ["Score Indicator"], {
+    desc: "Distinct from Show bar range labels.",
+    advanced: true,
+    def: false,
+  }),
+  f("Empty track fill", "color", "Track & marker styling", ["Score Indicator"], {
+    desc: "Unfilled remainder of the track, behind the gradient.",
+    advanced: true,
+    defaultValue: "rgba(255,255,255,0.1)",
+  }),
+  f("Empty track stroke", "color", "Track & marker styling", ["Score Indicator"], {
+    advanced: true,
+    defaultValue: "rgba(0,0,0,0.1)",
+  }),
+  f("Empty track stroke width", "number", "Track & marker styling", ["Score Indicator"], {
+    desc: "px.",
+    advanced: true,
+    defaultValue: "1",
+  }),
+
+  /* ---- Advanced: Bar gradient (Range) ---- */
+  f("Unit", "text", "Bar gradient", ["Range"], {
+    desc: "Suffix appended to the high / low value labels.",
+    advanced: true,
+    defaultValue: "°",
+  }),
+  f("Show range bars", "toggle", "Bar gradient", ["Range"], {
+    advanced: true,
+  }),
+  f("Show value labels", "toggle", "Bar gradient", ["Range"], {
+    advanced: true,
+    def: false,
+  }),
+  f("Show reference lines", "toggle", "Bar gradient", ["Range"], {
+    advanced: true,
+  }),
+  f("Show X axis", "toggle", "Bar gradient", ["Range"], {
+    advanced: true,
+  }),
+  f("Show Y axis", "toggle", "Bar gradient", ["Range"], {
+    advanced: true,
+  }),
+  f("Show grid", "toggle", "Bar gradient", ["Range"], {
+    advanced: true,
+  }),
+  f("Bar padding", "slider", "Bar gradient", ["Range"], {
+    desc: "0–1. Default 0.35.",
+    advanced: true,
+  }),
+  f("Bar width ratio", "slider", "Bar gradient", ["Range"], {
+    desc: "0–1. Default 0.7.",
+    advanced: true,
+  }),
+  f("Bar max radius", "slider", "Bar gradient", ["Range"], {
+    desc: "0–100 px. Default 100.",
+    advanced: true,
+  }),
+  f("Bar opacity", "slider", "Bar gradient", ["Range"], {
+    desc: "0–1. Default 1.",
+    advanced: true,
+  }),
+  f("Ref line stroke width", "number", "Bar gradient", ["Range"], {
+    desc: "px. Drawn when a Reference value field is mapped.",
+    advanced: true,
+    defaultValue: "1.5",
+  }),
+  f("Ref line opacity", "slider", "Bar gradient", ["Range"], {
+    desc: "0–1. Default 0.7.",
+    advanced: true,
+  }),
+  f("Grid color", "color", "Bar gradient", ["Range"], {
+    desc: "Range-specific grid color, separate from Scaling / axes.",
+    advanced: true,
+    defaultValue: "rgba(255,255,255,0.06)",
+  }),
+  f("Y tick count", "number", "Bar gradient", ["Range"], {
+    advanced: true,
+    defaultValue: "4",
+  }),
+
+  /* ---- Advanced: map layers ---- */
+  f("High value color", "color", "Color", ["Pillars"], {
+    desc: "Color used at the high end of the pillar ramp.",
+    advanced: true,
+    defaultValue: "#25C1E6",
+  }),
+  f("Disc border opacity", "slider", "Disc Scaling", ["Discs"], {
+    desc: "0.1–1.0. Default 0.7.",
+    advanced: true,
+  }),
+  f("Icon mode", "segmented", "Disc Scaling", ["Discs"], {
+    values: ["Static", "Field"],
+    defaultValue: "Static",
+    advanced: true,
+  }),
+  f("Stem Height", "slider", "Marker appearance", ["Points"], {
+    desc: "0–1500. Default 80.",
+    advanced: true,
+  }),
+  f("Render full detail", "toggle", "Advanced", ["Areas"], {
+    desc: "Off simplifies polygons for a faster map. On renders every vertex.",
+    advanced: true,
+    def: false,
+  }),
+  f("Emphasize on click", "toggle", "Advanced", ["Areas"], {
+    desc: "When on, clicking a polygon lerps its opacity to 100%.",
+    advanced: true,
+    def: false,
+  }),
 ];
 
 function expandTypes(types: NotionVisualType[]): Set<NotionVisualType> {
@@ -711,7 +1147,11 @@ function toOpt(def: FieldDef, notionType: NotionVisualType): Opt {
   return {
     name: def.name,
     desc: def.desc ?? "",
-    level: def.required || /\(required/i.test(def.name) ? "required" : "core",
+    level: def.advanced
+      ? "advanced"
+      : def.required || /\(required/i.test(def.name)
+        ? "required"
+        : "core",
     type: def.control,
     values,
     group: def.subCategory,
@@ -731,12 +1171,18 @@ export function visualHasGradientAxis(visualId: string): boolean {
   return notionType != null && (AXIS_CHARTS as readonly string[]).includes(notionType);
 }
 
+function levelRank(level: Opt["level"]): number {
+  if (level === "required") return 0;
+  if (level === "advanced") return 2;
+  return 1;
+}
+
 export function fieldsForVisual(visualId: string): Opt[] {
   const notionType = NOTION_TYPE_BY_VISUAL_ID[visualId];
   if (!notionType) return [];
   return FIELDS.filter((def) => expandTypes(def.types).has(notionType))
     .map((def) => toOpt(def, notionType))
-    .sort((a, b) => Number(a.level !== "required") - Number(b.level !== "required"));
+    .sort((a, b) => levelRank(a.level) - levelRank(b.level));
 }
 
 export function subCategoriesForVisual(visualId: string): string[] {

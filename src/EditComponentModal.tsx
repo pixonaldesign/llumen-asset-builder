@@ -203,6 +203,10 @@ function defaultColorList(o: Opt): Record<string, string> {
   return Object.fromEntries(keys.map((k, i) => [k, pal[i % pal.length]]));
 }
 
+function isPaletteField(o: Opt): boolean {
+  return o.type === "color" && o.name === "Palette" && (o.group === "Colors" || o.group === "Color");
+}
+
 function defaultSlider(o: Opt): number {
   const n = o.name.toLowerCase();
   if (n.includes("top n")) return 100;
@@ -238,7 +242,7 @@ function defaultFor(o: Opt): unknown {
     case "number":
       return o.name.toLowerCase().includes("range") ? "" : "24";
     case "color":
-      return o.group === "Colors" || o.group === "Color"
+      return isPaletteField(o)
         ? { ...DEFAULT_COLOR_MODE, stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })) }
         : "#3FA7A0";
     case "colorList":
@@ -746,7 +750,7 @@ function Control({
       );
 
     case "color":
-      if (o.group === "Colors" || o.group === "Color") {
+      if (isPaletteField(o)) {
         const current = asColorMode(getVal(o));
         return (
           <ColorPalette
@@ -1008,7 +1012,7 @@ function FieldBlock({
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
 }) {
-  if ((o.group === "Colors" || o.group === "Color") && o.type === "color") {
+  if (isPaletteField(o)) {
     return (
       <div className="ia-color-mode">
         <Control o={o} getVal={getVal} setVal={setVal} />
@@ -1157,18 +1161,12 @@ function RevealPanel({
   );
 }
 
-/* ---------- group card ---------- */
-function GroupCard({
-  items,
-  getVal,
-  setVal,
-  getValByKey,
-}: {
-  items: Opt[];
-  getVal: (o: Opt) => unknown;
-  setVal: (o: Opt, v: unknown) => void;
-  getValByKey: (group: string, name: string) => unknown;
-}) {
+function fieldClusterNodes(
+  items: Opt[],
+  getVal: (o: Opt) => unknown,
+  setVal: (o: Opt, v: unknown) => void,
+  getValByKey: (group: string, name: string) => unknown,
+): ReactNode[] {
   const clusters = clusterFields(items);
   const nodes: ReactNode[] = [];
   for (let i = 0; i < clusters.length; i++) {
@@ -1211,9 +1209,36 @@ function GroupCard({
       </div>,
     );
   }
+  return nodes;
+}
+
+/* ---------- group card ---------- */
+function GroupCard({
+  items,
+  advancedOpen,
+  getVal,
+  setVal,
+  getValByKey,
+}: {
+  items: Opt[];
+  advancedOpen: boolean;
+  getVal: (o: Opt) => unknown;
+  setVal: (o: Opt, v: unknown) => void;
+  getValByKey: (group: string, name: string) => unknown;
+}) {
+  const regular = items.filter((o) => o.level !== "advanced");
+  const advanced = items.filter((o) => o.level === "advanced");
+
   return (
     <section className="ia-group">
-      <div className="ia-card-fields">{nodes}</div>
+      <div className="ia-card-fields">
+        {fieldClusterNodes(regular, getVal, setVal, getValByKey)}
+        {advancedOpen && advanced.length > 0 && (
+          <div className="ia-advanced">
+            {fieldClusterNodes(advanced, getVal, setVal, getValByKey)}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -1256,6 +1281,7 @@ export default function EditComponentModal({
     restoredWizardProgress.maxUnlockedStep ?? (startAtVisualPicker ? 0 : 1),
   );
   const [query, setQuery] = useState("");
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
   const [config, setConfig] = useState<Config>({});
@@ -1296,6 +1322,42 @@ export default function EditComponentModal({
       setActiveSubCategory(subCategories[0] ?? "Mapping");
     }
   }, [displayVisualId, subCategories, activeSubCategory]);
+
+  useEffect(() => {
+    let handledOnKeyDown = false;
+    const isAdvancedShortcut = (e: KeyboardEvent) => {
+      const isO = e.code === "KeyO" || e.key === "o" || e.key === "O" || e.key === "\u000f";
+      if (!isO) return false;
+      const cmd = e.metaKey || e.getModifierState("Meta");
+      const ctrl = e.ctrlKey || e.getModifierState("Control");
+      return cmd && ctrl;
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!isAdvancedShortcut(e) || e.repeat) return;
+      e.preventDefault();
+      e.stopPropagation();
+      handledOnKeyDown = true;
+      setAdvancedSettingsOpen((open) => !open);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      const isO = e.code === "KeyO" || e.key === "o" || e.key === "O" || e.key === "\u000f";
+      if (!isO) return;
+      if (handledOnKeyDown) {
+        handledOnKeyDown = false;
+        return;
+      }
+      if (!isAdvancedShortcut(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setAdvancedSettingsOpen((open) => !open);
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("keyup", onKeyUp, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("keyup", onKeyUp, true);
+    };
+  }, []);
 
   const getVal = (o: Opt) => {
     const v = config[keyOf(o)];
@@ -1486,9 +1548,18 @@ export default function EditComponentModal({
               </p>
             )}
           </div>
-          <button className="icon-btn" aria-label="Close" onClick={onClose}>
-            <CloseIcon width={18} height={18} />
-          </button>
+          <div className="modal__header-actions">
+            <button
+              type="button"
+              className={"modal__dev-hint" + (advancedSettingsOpen ? " is-on" : "")}
+              onClick={() => setAdvancedSettingsOpen((open) => !open)}
+            >
+              For Dev only: <kbd>Cmd</kbd>+<kbd>Ctrl</kbd>+<kbd>O</kbd> toggles advanced settings
+            </button>
+            <button className="icon-btn" aria-label="Close" onClick={onClose}>
+              <CloseIcon width={18} height={18} />
+            </button>
+          </div>
         </header>
 
         <nav ref={stepperRef} className="wizard-stepper" aria-label="Asset setup steps">
@@ -1674,7 +1745,14 @@ export default function EditComponentModal({
                         <div className="ia-empty">No options for this visual in this section.</div>
                       ) : (
                         <div className="ia-stack">
-                          <GroupCard items={tabFields} getVal={getVal} setVal={setVal} getValByKey={getValByKey} />
+                          <GroupCard
+                            key={`${displayVisualId}:${activeSubCategory}`}
+                            items={tabFields}
+                            advancedOpen={advancedSettingsOpen}
+                            getVal={getVal}
+                            setVal={setVal}
+                            getValByKey={getValByKey}
+                          />
                         </div>
                       )}
                     </div>

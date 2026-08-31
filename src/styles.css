@@ -483,6 +483,35 @@ button {
   font: var(--lc-font-small);
   color: var(--lc-text-tertiary);
 }
+.modal__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-shrink: 0;
+}
+.modal__dev-hint {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: var(--lc-font-body);
+  color: var(--lc-text-tertiary);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.modal__dev-hint.is-on {
+  color: var(--lc-text-brand);
+}
+.modal__dev-hint kbd {
+  font: inherit;
+  font-family: var(--lc-font-mono);
+  color: var(--lc-text-secondary);
+  padding: 0 0.2em;
+}
+.modal__dev-hint.is-on kbd {
+  color: var(--lc-text-brand);
+}
 .modal .icon-btn {
   color: var(--lc-text-secondary);
   border-radius: var(--radius-full);
@@ -2383,6 +2412,10 @@ button {
   display: grid;
   gap: var(--space-3xl);
   min-width: 0;
+}
+.ia-advanced {
+  display: grid;
+  gap: var(--space-3xl);
 }
 .ia-adv-panel {
   display: grid;
