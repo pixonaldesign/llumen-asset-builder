@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon, PlusIcon, TrashIcon } from "./icons";
 import Dropdown from "./Dropdown";
@@ -24,7 +24,7 @@ type Props = {
 
 const RATE_OPTIONS = ZOOM_RATES.map((rate) => ({ value: rate, label: rate }));
 const DATA_FIELD_OPTIONS = fieldOptionsFor("Y axis");
-const STYLE_ZOOM_TICKS = ["0", "4", "6", "12", "16", "20"];
+const STYLE_ZOOM_TICKS = ["0", "4", "8", "12", "16", "20"];
 const MOUNTAINS_ASSET = `${import.meta.env.BASE_URL}figma/zoom-style-mountains.svg`;
 const HOUSE_ASSET = `${import.meta.env.BASE_URL}figma/zoom-style-house.svg`;
 
@@ -218,7 +218,7 @@ function CurveEditorModal({
         aria-labelledby="zs-curve-modal-title"
       >
         <header className="zs-curve-modal__header">
-          <h2 id="zs-curve-modal-title">Edit Curve Shape</h2>
+          <h2 id="zs-curve-modal-title">Edit zoom scaling</h2>
           <button type="button" className="icon-btn" aria-label="Close curve editor" onClick={onCancel}>
             <CloseIcon width={18} height={18} />
           </button>
@@ -262,8 +262,40 @@ function StyleAcrossZoomEditor({
   onChange: (stops: ZoomStyleStop[]) => void;
 }) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const updateStop = (index: number, zoom: string) =>
+  const [activeStopIndex, setActiveStopIndex] = useState(0);
+  const axisRef = useRef<HTMLDivElement>(null);
+  const activeStop = stops[Math.min(activeStopIndex, Math.max(stops.length - 1, 0))];
+  const axisMax = Math.max(
+    20,
+    ...stops.map((stop) => Number(stop.zoom)).filter((zoom) => Number.isFinite(zoom)),
+  );
+  const parsedMarkerValue = Number(activeStop?.zoom);
+  const markerValue = Math.max(
+    0,
+    Math.min(axisMax, Number.isFinite(parsedMarkerValue) ? parsedMarkerValue : 0),
+  );
+  const markerLeft = (markerValue / axisMax) * 100;
+  const markerLabel = Number.isInteger(markerValue) ? String(markerValue) : markerValue.toFixed(1);
+
+  useEffect(() => {
+    if (activeStopIndex >= stops.length) {
+      setActiveStopIndex(Math.max(0, stops.length - 1));
+    }
+  }, [activeStopIndex, stops.length]);
+
+  const updateStop = (index: number, zoom: string) => {
+    setActiveStopIndex(index);
     onChange(stops.map((stop, i) => (i === index ? { ...stop, zoom } : stop)));
+  };
+
+  const updateMarkerFromPointer = (clientX: number) => {
+    const axis = axisRef.current;
+    if (!axis) return;
+    const rect = axis.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(rect.width, 1)));
+    const next = Math.round(ratio * axisMax * 10) / 10;
+    updateStop(activeStopIndex, Number.isInteger(next) ? String(next) : next.toFixed(1));
+  };
 
   const addStop = () => {
     const lastZoom = Number(stops[stops.length - 1]?.zoom);
@@ -283,37 +315,77 @@ function StyleAcrossZoomEditor({
           <img src={MOUNTAINS_ASSET} width={20} height={20} alt="" />
           <img src={HOUSE_ASSET} width={20} height={20} alt="" />
         </div>
-        <div className="zs-style-axis" aria-label="Style zoom range from 0 to 20">
-          {STYLE_ZOOM_TICKS.map((tick, i) => (
+        <div
+          ref={axisRef}
+          className="zs-style-axis"
+          aria-label={`Style zoom range from 0 to ${axisMax}`}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            updateMarkerFromPointer(event.clientX);
+          }}
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              updateMarkerFromPointer(event.clientX);
+            }
+          }}
+          onPointerUp={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+          }}
+        >
+          {STYLE_ZOOM_TICKS.map((tick) => (
             <span
               key={tick}
               className="zs-style-axis__tick"
               style={{
-                left:
-                  i === STYLE_ZOOM_TICKS.length - 1
-                    ? "calc(100% - 1px)"
-                    : `${(i / (STYLE_ZOOM_TICKS.length - 1)) * 100}%`,
+                left: `${(Number(tick) / axisMax) * 100}%`,
               }}
             >
               <span>{tick}</span>
             </span>
           ))}
-          <div className="zs-style-axis__marker">
+          {axisMax > 20 && (
+            <span
+              className="zs-style-axis__tick zs-style-axis__tick--edge"
+              style={{ left: "calc(100% - 1px)" }}
+              aria-hidden="true"
+            />
+          )}
+          <div
+            className="zs-style-axis__marker"
+            role="slider"
+            tabIndex={0}
+            aria-label={`Style stop ${activeStopIndex + 1} zoom`}
+            aria-valuemin={0}
+            aria-valuemax={axisMax}
+            aria-valuenow={markerValue}
+            style={{ left: `${markerLeft}%` }}
+            onKeyDown={(event) => {
+              if (!["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp"].includes(event.key)) return;
+              event.preventDefault();
+              const direction = event.key === "ArrowLeft" || event.key === "ArrowDown" ? -1 : 1;
+              const next = Math.max(0, Math.min(axisMax, markerValue + direction * 0.1));
+              updateStop(activeStopIndex, Number.isInteger(next) ? String(next) : next.toFixed(1));
+            }}
+          >
             <span className="zs-style-axis__marker-dot" />
             <span className="zs-style-axis__marker-line" />
-            <span className="zs-style-axis__marker-value">4.6</span>
+            <span className="zs-style-axis__marker-value">{markerLabel}</span>
           </div>
         </div>
       </div>
 
       <div className="zs-style-stops">
         {stops.map((stop, i) => (
-          <div className="zs-style-row" key={i}>
+          <div className={"zs-style-row" + (i === activeStopIndex ? " is-active" : "")} key={i}>
             <div className="zs-style-input">
               <input
                 value={stop.zoom}
                 inputMode="decimal"
                 aria-label={`Style stop ${i + 1} zoom`}
+                onFocus={() => setActiveStopIndex(i)}
+                onPointerDown={() => setActiveStopIndex(i)}
                 onChange={(e) => updateStop(i, e.target.value)}
               />
               <span>z</span>

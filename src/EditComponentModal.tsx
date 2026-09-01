@@ -713,6 +713,7 @@ function Control({
           ? ((numericValue - scale.lo) / (scale.hi - scale.lo)) * 100
           : numericValue;
       const discrete = scale.ticks >= 2;
+      const isOpacity = /opacity/i.test(o.name);
       const max = discrete ? scale.ticks - 1 : 100;
       const idx = discrete
         ? Math.round((Math.max(0, Math.min(100, pct)) / 100) * max)
@@ -769,7 +770,24 @@ function Control({
               }}
             />
           </div>
-          {o.editableValue ? (
+          {isOpacity ? (
+            <label className="ia-slider-val ia-slider-val--percent-input">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={Math.round(fillPct)}
+                aria-label={`${o.name} percentage`}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  if (!Number.isFinite(next)) return;
+                  setVal(o, Math.max(0, Math.min(100, next)));
+                }}
+              />
+              <span>%</span>
+            </label>
+          ) : o.editableValue ? (
             <input
               className="ia-slider-val ia-slider-val--input"
               type="number"

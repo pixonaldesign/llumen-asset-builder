@@ -596,15 +596,17 @@ const FIELDS: FieldDef[] = [
   }),
 
   /* ---- Map: Color ---- */
+  f("Color Source", "dropdown", "Color", MAP_COLOR, {
+    values: ["Value", "Type"],
+    defaultValue: "Value",
+  }),
   f("Palette", "color", "Color", MAP_COLOR, {
     desc: "Pick a palette, then apply it as a single color, a gradient, or discrete steps.",
+    visibleWhen: { group: "Color", name: "Color Source", is: "Value" },
   }),
-  f("Data Field", "field", "Color", MAP_COLOR),
-  f("Distribution", "dropdown", "Color", ["Arcs", "Discs", "Fences", "Heatmap", "Wind", "Areas"], {
-    values: ["Linear", "Quantile", "Quantize"],
-    defaultValue: "Linear",
+  f("Categorical color stops + Other", "colorList", "Color", MAP_COLOR, {
+    visibleWhen: { group: "Color", name: "Color Source", is: "Type" },
   }),
-  f("Categorical color stops + Other", "colorList", "Color", ["Points", "Areas"]),
   f("Color by category field", "field", "Color", ["Points"]),
   f("Marker color", "color", "Color", ["Points"]),
   f("Normalize values", "toggle", "Color", ["Pillars"]),

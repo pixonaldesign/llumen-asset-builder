@@ -27,10 +27,17 @@ function mapPalette(cfg: Cfg) {
   return asColorMode(cfg("Color", "Palette", cfg("Color", "Solid color", BRAND)));
 }
 
+function colorsByType(cfg: Cfg): boolean {
+  return str(cfg("Color", "Color Source", "Value"), "Value") === "Type";
+}
+
 function mapColor(cfg: Cfg, value: number, max: number, category: string, index: number): string {
-  const catMap = asRecord(cfg("Color", "Categorical color stops + Other", {}));
-  if (category && catMap[category]) return catMap[category];
   const mode = mapPalette(cfg);
+  if (colorsByType(cfg)) {
+    const catMap = asRecord(cfg("Color", "Categorical color stops + Other", {}));
+    if (category && catMap[category]) return catMap[category];
+    return resolveColorMode(mode, 0, index);
+  }
   const t = max ? value / max : 0;
   const dist = str(cfg("Color", "Distribution", "Linear"), "Linear");
   const stepped = dist === "Quantize" ? Math.round(t * 4) / 4 : dist === "Quantile" ? Math.ceil(t * 3) / 3 : t;
@@ -38,6 +45,7 @@ function mapColor(cfg: Cfg, value: number, max: number, category: string, index:
 }
 
 function catColor(cfg: Cfg, category: string, fallback: string, index: number) {
+  if (!colorsByType(cfg)) return fallback;
   const map = {
     ...asRecord(cfg("Color", "Categorical color stops + Other", {})),
     ...asRecord(cfg("Marker Shape", "Icon category field + mapping", {})),

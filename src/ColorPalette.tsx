@@ -437,6 +437,7 @@ function StopRow({
 }) {
   const committedHex = toHex(stop.color).toUpperCase();
   const [hexDraft, setHexDraft] = useState(committedHex);
+  const [opacityDraft, setOpacityDraft] = useState(String(stop.opacity));
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const swatchRef = useRef<HTMLButtonElement>(null);
@@ -446,6 +447,10 @@ function StopRow({
   useEffect(() => {
     setHexDraft(committedHex);
   }, [committedHex]);
+
+  useEffect(() => {
+    setOpacityDraft(String(stop.opacity));
+  }, [stop.opacity]);
 
   const syncMenuPosition = useCallback(() => {
     const el = swatchRef.current;
@@ -604,7 +609,35 @@ function StopRow({
             value={stop.opacity}
             onChange={(e) => onChange({ ...stop, opacity: Number(e.target.value) })}
           />
-          <span className="cp-pct">{stop.opacity}%</span>
+          <label className="cp-pct-input">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={opacityDraft}
+              aria-label="Opacity percentage"
+              onChange={(e) => {
+                const draft = e.target.value;
+                setOpacityDraft(draft);
+                if (draft === "") return;
+                const next = Number(draft);
+                if (!Number.isFinite(next)) return;
+                onChange({ ...stop, opacity: Math.max(0, Math.min(100, next)) });
+              }}
+              onBlur={() => {
+                const next = Number(opacityDraft);
+                if (!Number.isFinite(next) || opacityDraft === "") {
+                  setOpacityDraft(String(stop.opacity));
+                  return;
+                }
+                const clamped = Math.max(0, Math.min(100, next));
+                setOpacityDraft(String(clamped));
+                onChange({ ...stop, opacity: clamped });
+              }}
+            />
+            <span>%</span>
+          </label>
         </div>
       </div>
 
