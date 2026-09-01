@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useState,
   useRef,
   useCallback,
@@ -674,10 +675,12 @@ function Control({
   o,
   getVal,
   setVal,
+  multiOptionExtra,
 }: {
   o: Opt;
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
+  multiOptionExtra?: { after: string; content: ReactNode };
 }) {
   if (o.group === "Marker Shape" && o.name === "Icons") {
     return (
@@ -746,6 +749,23 @@ function Control({
               onChange={(e) => {
                 const next = Number(e.target.value);
                 setVal(o, discrete ? (next / max) * 100 : next);
+              }}
+              onPointerMove={(e) => {
+                const track = e.currentTarget.parentElement;
+                const thumb = track?.querySelector<HTMLElement>(".ia-slider-thumb");
+                if (!track || !thumb) return;
+
+                const rect = thumb.getBoundingClientRect();
+                const hitSlop = 6;
+                const isOverThumb =
+                  e.clientX >= rect.left - hitSlop &&
+                  e.clientX <= rect.right + hitSlop &&
+                  e.clientY >= rect.top - hitSlop &&
+                  e.clientY <= rect.bottom + hitSlop;
+                track.classList.toggle("is-thumb-hovered", isOverThumb);
+              }}
+              onPointerLeave={(e) => {
+                e.currentTarget.parentElement?.classList.remove("is-thumb-hovered");
               }}
             />
           </div>
@@ -919,12 +939,15 @@ function Control({
         return (
           <>
             {values.map((v) => (
-              <div key={v} className="ia-toggle-flat">
-                <div className="ia-toggle-line">
-                  <strong>{v}</strong>
-                  <Switch value={selected.includes(v)} onChange={() => toggle(v)} />
+              <Fragment key={v}>
+                <div className="ia-toggle-flat">
+                  <div className="ia-toggle-line">
+                    <strong>{v}</strong>
+                    <Switch value={selected.includes(v)} onChange={() => toggle(v)} />
+                  </div>
                 </div>
-              </div>
+                {multiOptionExtra?.after === v && multiOptionExtra.content}
+              </Fragment>
             ))}
           </>
         );
@@ -1107,10 +1130,12 @@ function FieldBlock({
   o,
   getVal,
   setVal,
+  multiOptionExtra,
 }: {
   o: Opt;
   getVal: (o: Opt) => unknown;
   setVal: (o: Opt, v: unknown) => void;
+  multiOptionExtra?: { after: string; content: ReactNode };
 }) {
   if (isPaletteField(o)) {
     return (
@@ -1133,7 +1158,7 @@ function FieldBlock({
     );
   }
   if (o.type === "multi" && isMultiToggle(o, multiChoices(o))) {
-    return <Control o={o} getVal={getVal} setVal={setVal} />;
+    return <Control o={o} getVal={getVal} setVal={setVal} multiOptionExtra={multiOptionExtra} />;
   }
   if (o.type === "posgrid") {
     return (
@@ -1273,9 +1298,23 @@ function fieldClusterNodes(
   getVal: (o: Opt) => unknown,
   setVal: (o: Opt, v: unknown) => void,
   getValByKey: (group: string, name: string) => unknown,
+  tickLabelAdvanced?: ReactNode,
 ): ReactNode[] {
   const clusters = clusterFields(items);
   const nodes: ReactNode[] = [];
+  const renderClusterField = (o: Opt, key = `${o.group}:${o.name}`) => (
+    <FieldBlock
+      key={key}
+      o={o}
+      getVal={getVal}
+      setVal={setVal}
+      multiOptionExtra={
+        o.name === "Show ticks / tick labels / gridlines" && tickLabelAdvanced
+          ? { after: "Show Tick Labels", content: tickLabelAdvanced }
+          : undefined
+      }
+    />
+  );
   for (let i = 0; i < clusters.length; i++) {
     const cluster = clusters[i];
     const next = clusters[i + 1];
@@ -1289,8 +1328,8 @@ function fieldClusterNodes(
     ) {
       nodes.push(
         <div className="ia-two-col" key={cluster.parent.group + cluster.parent.name}>
-          <FieldBlock o={cluster.parent} getVal={getVal} setVal={setVal} />
-          <FieldBlock o={next.parent} getVal={getVal} setVal={setVal} />
+          {renderClusterField(cluster.parent)}
+          {renderClusterField(next.parent)}
         </div>,
       );
       i += 1;
@@ -1306,12 +1345,12 @@ function fieldClusterNodes(
       continue;
     }
     if (!cluster.reveals.length) {
-      nodes.push(<FieldBlock key={cluster.parent.group + cluster.parent.name} o={cluster.parent} getVal={getVal} setVal={setVal} />);
+      nodes.push(renderClusterField(cluster.parent));
       continue;
     }
     nodes.push(
       <div className="ia-field-cluster" key={cluster.parent.group + cluster.parent.name}>
-        <FieldBlock o={cluster.parent} getVal={getVal} setVal={setVal} />
+        {renderClusterField(cluster.parent)}
         {reveals}
       </div>,
     );
@@ -1320,6 +1359,12 @@ function fieldClusterNodes(
 }
 
 /* ---------- group card ---------- */
+const INLINE_TICK_LABEL_ADVANCED = new Set([
+  "Tick count",
+  "Tick rotation",
+  "Tick label formatter",
+]);
+
 function GroupCard({
   items,
   advancedOpen,
@@ -1335,14 +1380,29 @@ function GroupCard({
 }) {
   const regular = items.filter((o) => o.level !== "advanced");
   const advanced = items.filter((o) => o.level === "advanced");
+  const canInlineTickLabelAdvanced = regular.some(
+    (o) => o.name === "Show ticks / tick labels / gridlines",
+  );
+  const inlineTickLabelAdvanced = canInlineTickLabelAdvanced
+    ? advanced.filter((o) => INLINE_TICK_LABEL_ADVANCED.has(o.name))
+    : [];
+  const remainingAdvanced = canInlineTickLabelAdvanced
+    ? advanced.filter((o) => !INLINE_TICK_LABEL_ADVANCED.has(o.name))
+    : advanced;
+  const inlineTickLabelNodes =
+    advancedOpen && inlineTickLabelAdvanced.length > 0 ? (
+      <div className="ia-advanced">
+        {fieldClusterNodes(inlineTickLabelAdvanced, getVal, setVal, getValByKey)}
+      </div>
+    ) : undefined;
 
   return (
     <section className="ia-group">
       <div className="ia-card-fields">
-        {fieldClusterNodes(regular, getVal, setVal, getValByKey)}
-        {advancedOpen && advanced.length > 0 && (
+        {fieldClusterNodes(regular, getVal, setVal, getValByKey, inlineTickLabelNodes)}
+        {advancedOpen && remainingAdvanced.length > 0 && (
           <div className="ia-advanced">
-            {fieldClusterNodes(advanced, getVal, setVal, getValByKey)}
+            {fieldClusterNodes(remainingAdvanced, getVal, setVal, getValByKey)}
           </div>
         )}
       </div>
@@ -1488,11 +1548,17 @@ export default function EditComponentModal({
     return getVal(field);
   };
 
-  const tabFields = visualFields.filter((o) => {
-    if (o.group !== activeSubCategory) return false;
-    if (query && !`${o.name} ${o.desc}`.toLowerCase().includes(query.toLowerCase())) return false;
-    return true;
-  });
+  const normalizedSettingsQuery = query.trim().toLowerCase();
+  const searchingVisualSettings = normalizedSettingsQuery.length > 0;
+  const tabFields = visualFields.filter((o) => o.group === activeSubCategory);
+  const settingsSearchResults = searchingVisualSettings
+    ? visualFields.filter(
+        (o) =>
+          (o.level !== "advanced" || advancedSettingsOpen) &&
+          isFieldVisible(o, getValByKey) &&
+          `${o.group} ${o.name} ${o.desc}`.toLowerCase().includes(normalizedSettingsQuery),
+      )
+    : [];
 
   const mappingFields = visualFields.filter((o) => o.group === "Mapping");
 
@@ -1793,16 +1859,52 @@ export default function EditComponentModal({
                 <>
                   <div className="settings__subbar">
                     <p className="settings__subbar-label">Visual Settings</p>
-                    <label className="settings__search">
-                      <SearchIcon className="settings__search-ico" width={20} height={20} aria-hidden="true" />
-                      <input
-                        className="settings__search-input"
-                        type="search"
-                        placeholder="Search options…"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                      />
-                    </label>
+                    <div className="settings__search-wrap">
+                      <label className="settings__search">
+                        <SearchIcon className="settings__search-ico" width={20} height={20} aria-hidden="true" />
+                        <input
+                          className="settings__search-input"
+                          type="search"
+                          role="combobox"
+                          aria-expanded={searchingVisualSettings}
+                          aria-controls="visual-settings-search-menu"
+                          placeholder="Search options…"
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                        />
+                      </label>
+                      {searchingVisualSettings && (
+                        <div
+                          id="visual-settings-search-menu"
+                          className="settings-search-menu"
+                          role="listbox"
+                          aria-label="Visual settings search results"
+                        >
+                          {settingsSearchResults.map((item) => (
+                            <button
+                              type="button"
+                              className="settings-search-menu__item"
+                              role="option"
+                              aria-selected="false"
+                              key={`${item.group}:${item.name}`}
+                              onClick={() => {
+                                setActiveSubCategory(item.group);
+                                setQuery("");
+                              }}
+                            >
+                              <span>{item.group}</span>
+                              <ArrowRightIcon width={12} height={12} aria-hidden="true" />
+                              <strong>{item.name}</strong>
+                            </button>
+                          ))}
+                          {settingsSearchResults.length === 0 && (
+                            <div className="settings-search-menu__empty">
+                              No visual settings match “{query.trim()}”.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="vs-panel">
@@ -1825,7 +1927,10 @@ export default function EditComponentModal({
                                 type="button"
                                 className={"vs-tab" + (selected ? " is-selected" : "")}
                                 aria-current={selected ? "true" : undefined}
-                                onClick={() => setActiveSubCategory(label)}
+                                onClick={() => {
+                                  setActiveSubCategory(label);
+                                  setQuery("");
+                                }}
                               >
                                 <span className="vs-tab__main">
                                   <TabIcon className="vs-tab__icon" size={16} weight="regular" aria-hidden="true" />

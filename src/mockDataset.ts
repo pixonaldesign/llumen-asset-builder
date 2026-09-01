@@ -195,7 +195,6 @@ const FLEXIBLE_SCALAR_FIELDS = new Set([
   "Color Source",
   "Column",
   "Data Field",
-  "Insight field",
   "Hover tooltip field",
 ]);
 
@@ -206,6 +205,7 @@ export function acceptedColumnTypesForField(fieldName: string): ColumnType[] {
   if (fieldName === "Direction" || fieldName === "Band") return ["number", "string"];
   if (fieldName === "Origin" || fieldName === "Destination") return ["string", "geometry"];
   if (fieldName === "Location" || fieldName === "Location field") return ["string", "geometry"];
+  if (fieldName === "Insight field") return ["string"];
   if (/timestamp|time|date|month/i.test(fieldName)) return ["datetime"];
   if (FLEXIBLE_SCALAR_FIELDS.has(fieldName)) return ["number", "string", "boolean", "datetime"];
   return ["number", "string", "boolean", "datetime", "geometry"];

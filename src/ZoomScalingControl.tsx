@@ -1,12 +1,17 @@
-import { PlusIcon, TrashIcon } from "./icons";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { CloseIcon, PlusIcon, TrashIcon } from "./icons";
 import Dropdown from "./Dropdown";
 import { fieldOptionsFor } from "./mockDataset";
 import {
+  DEFAULT_ZOOM_SCALING,
   ZOOM_RATES,
   asZoomScaling,
   parsedZoomStops,
   type ZoomRate,
   type ZoomScalingStop,
+  type ZoomStyleCurveConfig,
+  type ZoomStyleStop,
   type ZoomScalingValue,
 } from "./previewTheme";
 
@@ -14,10 +19,14 @@ type Props = {
   value: unknown;
   onChange: (next: ZoomScalingValue) => void;
   dataRangeOnly?: boolean;
+  showStyleAcrossZoom?: boolean;
 };
 
 const RATE_OPTIONS = ZOOM_RATES.map((rate) => ({ value: rate, label: rate }));
 const DATA_FIELD_OPTIONS = fieldOptionsFor("Y axis");
+const STYLE_ZOOM_TICKS = ["0", "4", "6", "12", "16", "20"];
+const MOUNTAINS_ASSET = `${import.meta.env.BASE_URL}figma/zoom-style-mountains.svg`;
+const HOUSE_ASSET = `${import.meta.env.BASE_URL}figma/zoom-style-house.svg`;
 
 function meterSuffix(scale: string): string {
   const n = Number(scale);
@@ -136,12 +145,238 @@ function ScaleChart({ value }: { value: ZoomScalingValue }) {
   );
 }
 
-export default function ZoomScalingControl({ value, onChange, dataRangeOnly = false }: Props) {
+function curveEditorValue(stop: ZoomStyleStop): ZoomScalingValue {
+  const config = stop.curveConfig;
+  const defaultStops = DEFAULT_ZOOM_SCALING.stops.filter(
+    (_, index, stops) => index === 0 || index === stops.length - 1,
+  );
+  return {
+    dataField: config?.dataField ?? DEFAULT_ZOOM_SCALING.dataField,
+    rate: config?.rate ?? (stop.curve === "ease" ? "Exponential" : "Linear"),
+    styleAcrossZoom: false,
+    stops: (config?.stops ?? defaultStops).map((value) => ({ ...value })),
+    styleStops: DEFAULT_ZOOM_SCALING.styleStops.map((value) => ({ ...value })),
+  };
+}
+
+function StyleCurve({ stop }: { stop: ZoomStyleStop }) {
+  const value = curveEditorValue(stop);
+  const parsed = parsedZoomStops(value);
+  const zooms = parsed.map((point) => point.zoom);
+  const scales = parsed.map((point) => point.scale);
+  const zMin = Math.min(...zooms);
+  const zMax = Math.max(...zooms);
+  const sMin = Math.min(...scales);
+  const sMax = Math.max(...scales);
+  const points = parsed.map((point) => ({
+    x: 3 + ((point.zoom - zMin) / (zMax - zMin || 1)) * 50,
+    y: 14 - ((point.scale - sMin) / (sMax - sMin || 1)) * 11,
+  }));
+  const first = points[0] ?? { x: 3, y: 14 };
+  const last = points[points.length - 1] ?? { x: 53, y: 3 };
+
+  return (
+    <svg className="zs-style-curve" viewBox="0 0 56 18" aria-hidden="true">
+      <path d={curvePath(points, value.rate, first, last)} />
+      {points.map((point, i) => (
+        <circle key={i} cx={point.x} cy={point.y} r={i === 0 || i === points.length - 1 ? 2.5 : 1.8} />
+      ))}
+    </svg>
+  );
+}
+
+function CurveEditorModal({
+  stop,
+  onCancel,
+  onDone,
+}: {
+  stop: ZoomStyleStop;
+  onCancel: () => void;
+  onDone: (config: ZoomStyleCurveConfig) => void;
+}) {
+  const [draft, setDraft] = useState<ZoomScalingValue>(() => curveEditorValue(stop));
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onCancel]);
+
+  return createPortal(
+    <div
+      className="zs-curve-modal-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <section
+        className="zs-curve-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="zs-curve-modal-title"
+      >
+        <header className="zs-curve-modal__header">
+          <h2 id="zs-curve-modal-title">Edit Curve Shape</h2>
+          <button type="button" className="icon-btn" aria-label="Close curve editor" onClick={onCancel}>
+            <CloseIcon width={18} height={18} />
+          </button>
+        </header>
+        <div className="zs-curve-modal__body">
+          <ZoomScalingControl
+            value={draft}
+            onChange={setDraft}
+            showStyleAcrossZoom={false}
+          />
+        </div>
+        <footer className="zs-curve-modal__footer">
+          <button type="button" className="btn btn--ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() =>
+              onDone({
+                dataField: draft.dataField,
+                rate: draft.rate,
+                stops: draft.stops.map((value) => ({ ...value })),
+              })
+            }
+          >
+            Done
+          </button>
+        </footer>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
+function StyleAcrossZoomEditor({
+  stops,
+  onChange,
+}: {
+  stops: ZoomStyleStop[];
+  onChange: (stops: ZoomStyleStop[]) => void;
+}) {
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const updateStop = (index: number, zoom: string) =>
+    onChange(stops.map((stop, i) => (i === index ? { ...stop, zoom } : stop)));
+
+  const addStop = () => {
+    const lastZoom = Number(stops[stops.length - 1]?.zoom);
+    onChange([
+      ...stops,
+      {
+        zoom: String(Number.isFinite(lastZoom) ? lastZoom + 4 : stops.length * 4),
+        curve: stops.length % 2 === 0 ? "linear" : "ease",
+      },
+    ]);
+  };
+
+  return (
+    <div className="zs-style-editor">
+      <div className="zs-style-axis-wrap">
+        <div className="zs-style-axis-icons" aria-hidden="true">
+          <img src={MOUNTAINS_ASSET} width={20} height={20} alt="" />
+          <img src={HOUSE_ASSET} width={20} height={20} alt="" />
+        </div>
+        <div className="zs-style-axis" aria-label="Style zoom range from 0 to 20">
+          {STYLE_ZOOM_TICKS.map((tick, i) => (
+            <span
+              key={tick}
+              className="zs-style-axis__tick"
+              style={{
+                left:
+                  i === STYLE_ZOOM_TICKS.length - 1
+                    ? "calc(100% - 1px)"
+                    : `${(i / (STYLE_ZOOM_TICKS.length - 1)) * 100}%`,
+              }}
+            >
+              <span>{tick}</span>
+            </span>
+          ))}
+          <div className="zs-style-axis__marker">
+            <span className="zs-style-axis__marker-dot" />
+            <span className="zs-style-axis__marker-line" />
+            <span className="zs-style-axis__marker-value">4.6</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="zs-style-stops">
+        {stops.map((stop, i) => (
+          <div className="zs-style-row" key={i}>
+            <div className="zs-style-input">
+              <input
+                value={stop.zoom}
+                inputMode="decimal"
+                aria-label={`Style stop ${i + 1} zoom`}
+                onChange={(e) => updateStop(i, e.target.value)}
+              />
+              <span>z</span>
+              <button
+                type="button"
+                className="zs-style-curve-button"
+                aria-label={`Edit curve for style stop ${i + 1}`}
+                onClick={() => setEditingIndex(i)}
+              >
+                <StyleCurve stop={stop} />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="zs-row__del"
+              aria-label={`Remove style stop ${i + 1}`}
+              disabled={stops.length <= 1}
+              onClick={() => onChange(stops.filter((_, j) => j !== i))}
+            >
+              <TrashIcon width={20} height={20} aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+        <button type="button" className="cp-add" onClick={addStop}>
+          <PlusIcon width={20} height={20} aria-hidden="true" />
+          <span>Add Another Stop</span>
+        </button>
+      </div>
+      {editingIndex !== null && stops[editingIndex] && (
+        <CurveEditorModal
+          stop={stops[editingIndex]}
+          onCancel={() => setEditingIndex(null)}
+          onDone={(curveConfig) => {
+            onChange(
+              stops.map((stop, i) =>
+                i === editingIndex
+                  ? {
+                      ...stop,
+                      curve: curveConfig.rate === "Exponential" ? "ease" : "linear",
+                      curveConfig,
+                    }
+                  : stop,
+              ),
+            );
+            setEditingIndex(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function ZoomScalingControl({
+  value,
+  onChange,
+  dataRangeOnly = false,
+  showStyleAcrossZoom = true,
+}: Props) {
   const current = asZoomScaling(value);
   const parsed = parsedZoomStops(current);
   const zMin = parsed.length ? parsed[0].zoom : 0;
   const zMax = parsed.length ? parsed[parsed.length - 1].zoom : 0;
-  const custom = current.rate === "Custom";
+  const custom = dataRangeOnly || current.rate === "Custom";
 
   const commit = (patch: Partial<ZoomScalingValue>) =>
     onChange({
@@ -149,6 +384,17 @@ export default function ZoomScalingControl({ value, onChange, dataRangeOnly = fa
       rate: patch.rate ?? current.rate,
       styleAcrossZoom: patch.styleAcrossZoom ?? current.styleAcrossZoom,
       stops: (patch.stops ?? current.stops).map((s) => ({ zoom: s.zoom, scale: s.scale })),
+      styleStops: (patch.styleStops ?? current.styleStops).map((s) => ({
+        zoom: s.zoom,
+        curve: s.curve,
+        curveConfig: s.curveConfig
+          ? {
+              dataField: s.curveConfig.dataField,
+              rate: s.curveConfig.rate,
+              stops: s.curveConfig.stops.map((stop) => ({ ...stop })),
+            }
+          : undefined,
+      })),
     });
 
   const updateStop = (index: number, patch: Partial<ZoomScalingStop>) =>
@@ -177,7 +423,7 @@ export default function ZoomScalingControl({ value, onChange, dataRangeOnly = fa
   };
 
   return (
-    <div className="zs">
+    <div className={"zs" + (dataRangeOnly ? " zs--data-range" : "")}>
       {!dataRangeOnly && <ScaleChart value={current} />}
 
       <div className="zs-block">
@@ -274,8 +520,8 @@ export default function ZoomScalingControl({ value, onChange, dataRangeOnly = fa
         </button>
       </div>
 
-      {!dataRangeOnly && (
-        <div className="ia-toggle-flat">
+      {!dataRangeOnly && showStyleAcrossZoom && (
+        <div className={"ia-toggle-flat zs-style-toggle" + (current.styleAcrossZoom ? " is-open" : "")}>
           <div className="ia-toggle-line">
             <div className="ia-toggle-line-label">
               <strong>Style Across Zoom Range</strong>
@@ -287,6 +533,12 @@ export default function ZoomScalingControl({ value, onChange, dataRangeOnly = fa
               onClick={() => commit({ styleAcrossZoom: !current.styleAcrossZoom })}
             />
           </div>
+          {current.styleAcrossZoom && (
+            <StyleAcrossZoomEditor
+              stops={current.styleStops}
+              onChange={(styleStops) => commit({ styleStops })}
+            />
+          )}
         </div>
       )}
     </div>

@@ -418,6 +418,10 @@ const FIELDS: FieldDef[] = [
   f("Show status badge", "toggle", "Status badge", BADGE, {
     desc: "One toggle fans out to the renderer and KPI-card paths.",
   }),
+  f("Column", "field", "Status badge", BADGE, {
+    desc: "Column that supplies the badge text.",
+    visibleWhen: { group: "Status badge", name: "Show status badge", is: "true" },
+  }),
   f("Text source", "dropdown", "Status badge", BADGE, {
     values: ["Specific column", "Manual text", "Template"],
     defaultValue: "Specific column",
@@ -430,10 +434,6 @@ const FIELDS: FieldDef[] = [
   f("Color thresholds", "repeatable", "Status badge", BADGE, {
     desc: "min/max → color, first match wins, inclusive bounds.",
     visibleWhen: { group: "Status badge", name: "Show status badge", is: "true" },
-  }),
-  f("Column", "field", "Status badge", BADGE, {
-    desc: "Column that supplies the badge text.",
-    visibleWhen: { group: "Status badge", name: "Text source", is: "Specific column" },
   }),
   f("Template", "text", "Status badge", BADGE, {
     desc: "Supports tokens like {status}, {value}, {columnName}.",
@@ -523,6 +523,9 @@ const FIELDS: FieldDef[] = [
   }),
 
   /* ---- Scaling / axes ---- */
+  f("Manual range (min/max)", "number", "Scaling / axes", AXIS_CHARTS, {
+    desc: "Hard-set the domain; blank = auto.",
+  }),
   f("Show Axes Labels", "toggle", "Scaling / axes", AXIS_CHARTS, { def: false }),
   f("X axis label", "text", "Scaling / axes", AXIS_CHARTS, {
     desc: "Caption under the X axis. Empty uses the mapped field name.",
@@ -542,9 +545,6 @@ const FIELDS: FieldDef[] = [
   f("Show ticks / tick labels / gridlines", "multi", "Scaling / axes", AXIS_CHARTS, {
     desc: "Three independent toggles.",
     values: ["Show Ticks", "Show Tick Labels", "Show Grid Lines"],
-  }),
-  f("Manual range (min/max)", "number", "Scaling / axes", AXIS_CHARTS, {
-    desc: "Hard-set the domain; blank = auto.",
   }),
 
   /* ---- Tooltips / Annotations ---- */

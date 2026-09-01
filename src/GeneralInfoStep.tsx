@@ -101,6 +101,22 @@ const LOCATION_CHILDREN: Record<string, LocationOption[]> = {
   ],
 };
 
+function locationBreadcrumb(location: string): string[] {
+  const path = [location];
+  const visited = new Set(path);
+  let current = location;
+
+  while (true) {
+    const parent = Object.entries(LOCATION_CHILDREN).find(([, children]) =>
+      children.some((child) => child.value === current),
+    )?.[0];
+    if (!parent || visited.has(parent)) return path;
+    path.unshift(parent);
+    visited.add(parent);
+    current = parent;
+  }
+}
+
 const TAG_OPTIONS = [
   { value: "Operations", count: 35 },
   { value: "Commerce", count: 32 },
@@ -186,6 +202,8 @@ function LocationMetadataPicker({
   const currentOptions = activeParent
     ? LOCATION_CHILDREN[activeParent] ?? []
     : ALL_LOCATION_OPTIONS;
+  const breadcrumb = activeParent ? locationBreadcrumb(activeParent) : [];
+  const backTarget = breadcrumb.length > 1 ? breadcrumb[breadcrumb.length - 2] : null;
   const normalizedSearch = search.trim().toLowerCase();
   const menuOptions = normalizedSearch
     ? currentOptions.filter(
@@ -269,15 +287,31 @@ function LocationMetadataPicker({
                   <button
                     type="button"
                     className="general-info-location-menu__back"
-                    aria-label={`Back from ${activeParent}`}
-                  onClick={() => {
-                      setActiveParent(null);
+                    aria-label={`Back to ${backTarget ?? "all locations"}`}
+                    onClick={() => {
+                      setActiveParent(backTarget);
                       setSearch("");
                     }}
                   >
                     <ArrowLeft size={16} aria-hidden="true" />
                   </button>
-                  <span className="general-info-location-menu__parent">{activeParent}</span>
+                  <nav className="general-info-location-menu__breadcrumb" aria-label="Location path">
+                    <button type="button" onClick={() => setActiveParent(null)}>
+                      All locations
+                    </button>
+                    {breadcrumb.map((location, index) => (
+                      <span className="general-info-location-menu__crumb" key={location}>
+                        <CaretRight size={12} aria-hidden="true" />
+                        {index === breadcrumb.length - 1 ? (
+                          <span aria-current="location">{location}</span>
+                        ) : (
+                          <button type="button" onClick={() => setActiveParent(location)}>
+                            {location}
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </nav>
                 </>
               ) : (
                 <span>All locations</span>

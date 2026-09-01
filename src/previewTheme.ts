@@ -106,12 +106,23 @@ export const ZOOM_RATES = ["Linear", "Exponential", "Custom"] as const;
 export type ZoomRate = (typeof ZOOM_RATES)[number];
 
 export type ZoomScalingStop = { zoom: string; scale: string };
+export type ZoomStyleCurveConfig = {
+  dataField: string;
+  rate: ZoomRate;
+  stops: ZoomScalingStop[];
+};
+export type ZoomStyleStop = {
+  zoom: string;
+  curve: "linear" | "ease";
+  curveConfig?: ZoomStyleCurveConfig;
+};
 
 export type ZoomScalingValue = {
   dataField: string;
   rate: ZoomRate;
   styleAcrossZoom: boolean;
   stops: ZoomScalingStop[];
+  styleStops: ZoomStyleStop[];
 };
 
 export const DEFAULT_ZOOM_SCALING: ZoomScalingValue = {
@@ -123,6 +134,10 @@ export const DEFAULT_ZOOM_SCALING: ZoomScalingValue = {
     { zoom: "300", scale: "5" },
     { zoom: "350", scale: "10" },
     { zoom: "600", scale: "20" },
+  ],
+  styleStops: [
+    { zoom: "0", curve: "linear" },
+    { zoom: "22", curve: "ease" },
   ],
 };
 
@@ -138,6 +153,17 @@ function cloneZoomScaling(v: ZoomScalingValue): ZoomScalingValue {
     rate: v.rate,
     styleAcrossZoom: v.styleAcrossZoom,
     stops: v.stops.map((s) => ({ zoom: s.zoom, scale: s.scale })),
+    styleStops: v.styleStops.map((s) => ({
+      zoom: s.zoom,
+      curve: s.curve,
+      curveConfig: s.curveConfig
+        ? {
+            dataField: s.curveConfig.dataField,
+            rate: s.curveConfig.rate,
+            stops: s.curveConfig.stops.map((stop) => ({ ...stop })),
+          }
+        : undefined,
+    })),
   };
 }
 
@@ -170,6 +196,34 @@ export function asZoomScaling(v: unknown): ZoomScalingValue {
           const row = (s ?? {}) as Partial<ZoomScalingStop> & Partial<RepeatableRow>;
           return parseStopPair(row.zoom ?? row.min ?? i, row.scale ?? row.max ?? "");
         }),
+        styleStops:
+          Array.isArray(o.styleStops) && o.styleStops.length
+            ? o.styleStops.map((s, i) => {
+                const row = (s ?? {}) as Partial<ZoomStyleStop>;
+              const curveConfig = row.curveConfig;
+                return {
+                  zoom: String(row.zoom ?? i * 22),
+                  curve: row.curve === "ease" ? "ease" : "linear",
+                curveConfig:
+                  curveConfig &&
+                  typeof curveConfig === "object" &&
+                  isZoomRate(curveConfig.rate) &&
+                  Array.isArray(curveConfig.stops) &&
+                  curveConfig.stops.length
+                    ? {
+                        dataField:
+                          typeof curveConfig.dataField === "string" && curveConfig.dataField
+                            ? curveConfig.dataField
+                            : "value",
+                        rate: curveConfig.rate,
+                        stops: curveConfig.stops.map((stop, stopIndex) =>
+                          parseStopPair(stop?.zoom ?? stopIndex, stop?.scale ?? ""),
+                        ),
+                      }
+                    : undefined,
+                };
+              })
+            : DEFAULT_ZOOM_SCALING.styleStops.map((s) => ({ ...s })),
       };
     }
   }
@@ -184,6 +238,7 @@ export function asZoomScaling(v: unknown): ZoomScalingValue {
           const row = (s ?? {}) as Partial<ZoomScalingStop> & Partial<RepeatableRow>;
           return parseStopPair(row.zoom ?? row.min ?? i, row.scale ?? row.max ?? "");
         }),
+        styleStops: DEFAULT_ZOOM_SCALING.styleStops.map((s) => ({ ...s })),
       };
     }
     return {
