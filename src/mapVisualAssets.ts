@@ -11,7 +11,7 @@ export const MAP_VISUAL_SRC: Record<string, string> = {
 export function getMapVisualSrc(visualId: string): string | undefined {
   const path = MAP_VISUAL_SRC[visualId];
   if (!path) return undefined;
-  return encodeURI(path);
+  return encodeURI(`${import.meta.env.BASE_URL}${path.replace(/^\/+/, "")}`);
 }
 
 export function isMapVisualAsset(visualId: string): boolean {

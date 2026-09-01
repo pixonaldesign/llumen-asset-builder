@@ -81,7 +81,12 @@ export const COMPONENT_PREVIEW_IMAGES: Record<string, ComponentPreviewImage> = {
 };
 
 export function getComponentPreviewImage(componentId: string): ComponentPreviewImage | undefined {
-  return COMPONENT_PREVIEW_IMAGES[componentId];
+  const image = COMPONENT_PREVIEW_IMAGES[componentId];
+  if (!image) return undefined;
+  return {
+    ...image,
+    src: `${import.meta.env.BASE_URL}${image.src.replace(/^\/+/, "")}`,
+  };
 }
 
 export function isSquarePreviewComponent(componentId: string): boolean {

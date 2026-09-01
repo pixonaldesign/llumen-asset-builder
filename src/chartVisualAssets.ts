@@ -20,7 +20,7 @@ export const CHART_VISUAL_SRC: Record<string, string> = {
 export function getChartVisualSrc(visualId: string): string | undefined {
   const path = CHART_VISUAL_SRC[visualId];
   if (!path) return undefined;
-  return encodeURI(path);
+  return encodeURI(`${import.meta.env.BASE_URL}${path.replace(/^\/+/, "")}`);
 }
 
 export function isChartVisualAsset(visualId: string): boolean {
