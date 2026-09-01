@@ -418,14 +418,14 @@ const FIELDS: FieldDef[] = [
   f("Show status badge", "toggle", "Status badge", BADGE, {
     desc: "One toggle fans out to the renderer and KPI-card paths.",
   }),
-  f("Column", "field", "Status badge", BADGE, {
-    desc: "Column that supplies the badge text.",
-    visibleWhen: { group: "Status badge", name: "Show status badge", is: "true" },
-  }),
   f("Text source", "dropdown", "Status badge", BADGE, {
     values: ["Specific column", "Manual text", "Template"],
     defaultValue: "Specific column",
     visibleWhen: { group: "Status badge", name: "Show status badge", is: "true" },
+  }),
+  f("Column", "field", "Status badge", BADGE, {
+    desc: "Column that supplies the badge text.",
+    visibleWhen: { group: "Status badge", name: "Text source", is: "Specific column" },
   }),
   f("Color Source", "field", "Status badge", BADGE, {
     desc: "Numeric column → thresholds, text column → value map.",

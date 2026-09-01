@@ -2542,6 +2542,9 @@ html[data-theme="light"] .settings-search-menu {
   margin-top: var(--space-3xl);
   pointer-events: auto;
 }
+.ia-standalone-reveal > .ia-reveal.is-open {
+  margin-top: 0;
+}
 .ia-reveal__inner {
   display: grid;
   gap: var(--space-3xl);

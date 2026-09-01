@@ -1341,7 +1341,11 @@ function fieldClusterNodes(
       </RevealPanel>
     ));
     if (!cluster.parent) {
-      nodes.push(<div key={cluster.reveals[0]?.key ?? i}>{reveals}</div>);
+      nodes.push(
+        <div className="ia-standalone-reveal" key={cluster.reveals[0]?.key ?? i}>
+          {reveals}
+        </div>,
+      );
       continue;
     }
     if (!cluster.reveals.length) {
