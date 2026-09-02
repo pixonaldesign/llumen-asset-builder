@@ -3022,6 +3022,151 @@ html[data-theme="light"] .settings-search-menu {
   appearance: none;
 }
 
+.ia-minmax-range-field {
+  gap: var(--space-lg);
+}
+.ia-dual-range {
+  --ia-dual-range-end-inset: var(--spacing-lg);
+  position: relative;
+  height: var(--spacing-4xl);
+  border: 1px solid var(--lc-border-default);
+  border-radius: var(--radius-ui-small);
+  background: var(--lc-bg-default);
+  overflow: hidden;
+}
+.ia-dual-range__track {
+  position: absolute;
+  inset: 0;
+}
+.ia-dual-range__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(
+    var(--ia-dual-range-end-inset) +
+      var(--ia-range-low) * (100% - 2 * var(--ia-dual-range-end-inset)) -
+      var(--ia-dual-range-end-inset)
+  );
+  width: calc(
+    (var(--ia-range-high) - var(--ia-range-low)) *
+      (100% - 2 * var(--ia-dual-range-end-inset)) +
+      2 * var(--ia-dual-range-end-inset)
+  );
+  border-radius: var(--radius-ui-small);
+  background: color-mix(in srgb, var(--white) 24%, transparent);
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+}
+.ia-dual-range__thumb {
+  position: absolute;
+  top: var(--spacing-xs);
+  bottom: var(--spacing-xs);
+  z-index: 1;
+  width: var(--spacing-3xs);
+  border-radius: var(--radius-full);
+  transform: translateX(-50%);
+  background: var(--lc-text-primary);
+  transition: width 0.16s ease;
+}
+.ia-dual-range__thumb--min {
+  left: calc(
+    var(--ia-dual-range-end-inset) +
+      var(--ia-range-low) * (100% - 2 * var(--ia-dual-range-end-inset))
+  );
+}
+.ia-dual-range__thumb--max {
+  left: calc(
+    var(--ia-dual-range-end-inset) +
+      var(--ia-range-high) * (100% - 2 * var(--ia-dual-range-end-inset))
+  );
+}
+.ia-dual-range.is-min-thumb-hovered .ia-dual-range__thumb--min,
+.ia-dual-range:has(.ia-dual-range__input--min:active) .ia-dual-range__thumb--min,
+.ia-dual-range:has(.ia-dual-range__input--min:focus-visible) .ia-dual-range__thumb--min,
+.ia-dual-range.is-max-thumb-hovered .ia-dual-range__thumb--max,
+.ia-dual-range:has(.ia-dual-range__input--max:active) .ia-dual-range__thumb--max,
+.ia-dual-range:has(.ia-dual-range__input--max:focus-visible) .ia-dual-range__thumb--max {
+  width: var(--spacing-2xs);
+}
+.ia-dual-range__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: var(--spacing-4xl);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+.ia-dual-range__input--min {
+  z-index: 2;
+}
+.ia-dual-range__input--max {
+  z-index: 3;
+}
+.ia-dual-range__input::-webkit-slider-runnable-track {
+  height: var(--spacing-4xl);
+  background: transparent;
+}
+.ia-dual-range__input::-webkit-slider-thumb {
+  width: var(--spacing-3xl);
+  height: var(--spacing-4xl);
+  margin-top: 0;
+  border: 0;
+  appearance: none;
+  background: transparent;
+  cursor: grab;
+  pointer-events: auto;
+}
+.ia-dual-range__input::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+.ia-dual-range__input:focus-visible {
+  outline: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ia-dual-range__thumb {
+    transition: none;
+  }
+}
+.ia-dual-range__values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+.ia-dual-range__values label {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-md);
+  height: var(--spacing-4xl);
+  padding-inline: var(--space-lg);
+  border: 1px solid var(--lc-border-default);
+  border-radius: var(--radius-ui-small);
+  background: var(--lc-bg-default);
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-micro);
+  text-transform: uppercase;
+}
+.ia-dual-range__values input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  appearance: textfield;
+  background: transparent;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-caption);
+  text-align: right;
+}
+.ia-dual-range__values input::-webkit-inner-spin-button,
+.ia-dual-range__values input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
 /* margins grid */
 .ia-margins {
   display: grid;

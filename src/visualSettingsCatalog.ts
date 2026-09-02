@@ -494,6 +494,10 @@ const FIELDS: FieldDef[] = [
   }),
 
   /* ---- Gauge / Score / Polar / Range ---- */
+  f("Gauge type", "dropdown", "Meter & Labels", ["Gauge"], {
+    values: ["Vertical gauge", "Circular gauge"],
+    defaultValue: "Vertical gauge",
+  }),
   f("Movement state", "dropdown", "Meter & Labels", ["Gauge"], {
     values: ["Rising", "Falling", "Stabilizing"],
     defaultValue: "Rising",

@@ -1217,6 +1217,133 @@ function FieldBlock({
   );
 }
 
+function MinMaxRangeField({
+  minOption,
+  maxOption,
+  getVal,
+  setVal,
+}: {
+  minOption: Opt;
+  maxOption: Opt;
+  getVal: (o: Opt) => unknown;
+  setVal: (o: Opt, v: unknown) => void;
+}) {
+  const rawMin = String(getVal(minOption));
+  const rawMax = String(getVal(maxOption));
+  const parsedMin = Number(rawMin);
+  const parsedMax = Number(rawMax);
+  const minValue = Number.isFinite(parsedMin) ? parsedMin : 0;
+  const maxValue = Number.isFinite(parsedMax) ? parsedMax : 100;
+  const domainMin = Math.min(0, minValue, maxValue - 1);
+  const domainMax = Math.max(100, maxValue, minValue + 1);
+  const span = domainMax - domainMin;
+  const low = Math.min(minValue, maxValue);
+  const high = Math.max(minValue, maxValue);
+  const lowPct = ((low - domainMin) / span) * 100;
+  const highPct = ((high - domainMin) / span) * 100;
+  const step = span <= 10 ? 0.1 : 1;
+
+  return (
+    <div className="ia-field ia-minmax-range-field">
+      <div className="ia-field-top">
+        <div className="ia-field-label">
+          <div className="ia-field-name">Min / Max</div>
+          <FieldInfoTip desc={`${minOption.desc} ${maxOption.desc}`.trim()} />
+        </div>
+      </div>
+      <div
+        className="ia-dual-range"
+        style={{
+          ["--ia-range-low" as string]: lowPct / 100,
+          ["--ia-range-high" as string]: highPct / 100,
+        }}
+      >
+        <div className="ia-dual-range__track" aria-hidden="true">
+          <span className="ia-dual-range__fill" />
+          <span className="ia-dual-range__thumb ia-dual-range__thumb--min" />
+          <span className="ia-dual-range__thumb ia-dual-range__thumb--max" />
+        </div>
+        <input
+          className="ia-dual-range__input ia-dual-range__input--min"
+          type="range"
+          min={domainMin}
+          max={domainMax}
+          step={step}
+          value={low}
+          aria-label="Minimum"
+          onChange={(event) =>
+            setVal(minOption, String(Math.min(Number(event.target.value), maxValue)))
+          }
+          onPointerMove={(event) => {
+            const control = event.currentTarget.parentElement;
+            const thumb = control?.querySelector<HTMLElement>(".ia-dual-range__thumb--min");
+            if (!control || !thumb) return;
+            const rect = thumb.getBoundingClientRect();
+            control.classList.toggle(
+              "is-min-thumb-hovered",
+              event.clientX >= rect.left - 6 &&
+                event.clientX <= rect.right + 6 &&
+                event.clientY >= rect.top - 6 &&
+                event.clientY <= rect.bottom + 6,
+            );
+          }}
+          onPointerLeave={(event) =>
+            event.currentTarget.parentElement?.classList.remove("is-min-thumb-hovered")
+          }
+        />
+        <input
+          className="ia-dual-range__input ia-dual-range__input--max"
+          type="range"
+          min={domainMin}
+          max={domainMax}
+          step={step}
+          value={high}
+          aria-label="Maximum"
+          onChange={(event) =>
+            setVal(maxOption, String(Math.max(Number(event.target.value), minValue)))
+          }
+          onPointerMove={(event) => {
+            const control = event.currentTarget.parentElement;
+            const thumb = control?.querySelector<HTMLElement>(".ia-dual-range__thumb--max");
+            if (!control || !thumb) return;
+            const rect = thumb.getBoundingClientRect();
+            control.classList.toggle(
+              "is-max-thumb-hovered",
+              event.clientX >= rect.left - 6 &&
+                event.clientX <= rect.right + 6 &&
+                event.clientY >= rect.top - 6 &&
+                event.clientY <= rect.bottom + 6,
+            );
+          }}
+          onPointerLeave={(event) =>
+            event.currentTarget.parentElement?.classList.remove("is-max-thumb-hovered")
+          }
+        />
+      </div>
+      <div className="ia-dual-range__values">
+        <label>
+          <span>Min</span>
+          <input
+            type="number"
+            value={rawMin}
+            aria-label="Minimum value"
+            onChange={(event) => setVal(minOption, event.target.value)}
+          />
+        </label>
+        <label>
+          <span>Max</span>
+          <input
+            type="number"
+            value={rawMax}
+            aria-label="Maximum value"
+            onChange={(event) => setVal(maxOption, event.target.value)}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 /* Pair adjacent X / Y mapping fields and min / max siblings so they render side-by-side. */
 const isXField = (o: Opt) => /^x[\s-]?(axis|value|category)\b/i.test(o.name);
 const isYField = (o: Opt) => /^y[\s-]?(axis|value|category)\b/i.test(o.name);
@@ -1336,6 +1463,28 @@ function fieldClusterNodes(
   for (let i = 0; i < clusters.length; i++) {
     const cluster = clusters[i];
     const next = clusters[i + 1];
+    if (
+      cluster.parent?.group === "Mapping" &&
+      cluster.parent.name === "Min" &&
+      cluster.parent.type === "number" &&
+      !cluster.reveals.length &&
+      next?.parent?.group === "Mapping" &&
+      next.parent.name === "Max" &&
+      next.parent.type === "number" &&
+      !next.reveals.length
+    ) {
+      nodes.push(
+        <MinMaxRangeField
+          key="mapping-min-max"
+          minOption={cluster.parent}
+          maxOption={next.parent}
+          getVal={getVal}
+          setVal={setVal}
+        />,
+      );
+      i += 1;
+      continue;
+    }
     if (
       cluster.parent &&
       !cluster.reveals.length &&

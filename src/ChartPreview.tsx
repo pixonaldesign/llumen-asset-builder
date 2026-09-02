@@ -896,8 +896,16 @@ function PolarRose({ cfg, series, setHover, onMarkEnter, onMarkLeave }: RenderPr
   );
 }
 
-function Gauge({ cfg, minimal, compact, series, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+function Gauge({ cfg, visualId, minimal, compact, series, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
   const mode = colorFromCfg(cfg);
+  const gaugeType = str(
+    cfg(
+      "Meter & Labels",
+      "Gauge type",
+      visualId === "gauge-circular" ? "Circular gauge" : "Vertical gauge",
+    ),
+    "Vertical gauge",
+  );
   const showCenter = !minimal && !compact && bool(cfg("Meter & Labels", "Show center value", true), true);
   const base = mode.color;
   const ticksN = Math.round(sliderMapped(cfg("Meter & Labels", "Tick subdivisions", 40), 12, 120, 36));
@@ -914,6 +922,92 @@ function Gauge({ cfg, minimal, compact, series, setHover, onMarkEnter, onMarkLea
   const paletteZones = (mode.colors?.length ? mode.colors : mode.stops.map((s) => s.color)).filter(Boolean);
   const zones = paletteZones.length >= 2 ? paletteZones.slice(0, 5) : ["#34d399", "#fbbf24", "#f87171"];
   const zonesOn = (minimal && !series) || mode.style !== "Single";
+
+  if (gaugeType === "Vertical gauge") {
+    const clampedValue = Math.max(0, Math.min(100, value));
+    const trackHeight = Math.min(H * 0.68, 190);
+    const trackTop = (H - trackHeight) / 2 - 8;
+    const trackBottom = trackTop + trackHeight;
+    const trackWidth = Math.max(12, Math.min(20, W * 0.06));
+    const trackX = cx - trackWidth / 2;
+    const valueY = trackBottom - (trackHeight * clampedValue) / 100;
+    const labelX = trackX + trackWidth + 22;
+
+    return (
+      <g {...markHover({ setHover, onMarkEnter, onMarkLeave }, 0)}>
+        <rect
+          x={trackX}
+          y={trackTop}
+          width={trackWidth}
+          height={trackHeight}
+          rx={trackWidth / 2}
+          fill="rgba(255,255,255,.12)"
+        />
+        {zonesOn ? (
+          zones.map((color, i) => {
+            const segmentHeight = trackHeight / zones.length;
+            return (
+              <rect
+                key={color + i}
+                x={trackX}
+                y={trackBottom - segmentHeight * (i + 1)}
+                width={trackWidth}
+                height={segmentHeight + 0.5}
+                fill={color}
+              />
+            );
+          })
+        ) : (
+          <rect
+            x={trackX}
+            y={valueY}
+            width={trackWidth}
+            height={trackBottom - valueY}
+            rx={trackWidth / 2}
+            fill={base}
+          />
+        )}
+        {Array.from({ length: ticksN }).map((_, i) => {
+          const y = trackBottom - (trackHeight * i) / Math.max(ticksN - 1, 1);
+          return (
+            <line
+              key={i}
+              x1={trackX + trackWidth + 3}
+              y1={y}
+              x2={trackX + trackWidth + 7}
+              y2={y}
+              stroke="rgba(255,255,255,.35)"
+              strokeWidth="1"
+            />
+          );
+        })}
+        <line
+          x1={trackX - 4}
+          y1={valueY}
+          x2={trackX + trackWidth + 10}
+          y2={valueY}
+          stroke="#fff"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        {showCenter && (
+          <text x={labelX} y={valueY + 5} fill="#fff" fontSize="20" fontWeight="500">
+            {Math.round(value)}
+          </text>
+        )}
+        <text
+          x={cx}
+          y={trackBottom + 24}
+          fill={INK}
+          fontSize={FS_CAPTION}
+          fontWeight="500"
+          textAnchor="middle"
+        >
+          {movement}
+        </text>
+      </g>
+    );
+  }
 
   return (
     <g {...markHover({ setHover, onMarkEnter, onMarkLeave }, 0)}>

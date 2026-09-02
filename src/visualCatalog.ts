@@ -71,14 +71,7 @@ export const VISUAL_TYPES: VisualType[] = [
   {
     id: "gauge-linear",
     label: "Gauge / Meter",
-    description: "Display a value against a linear scale or target.",
-    chartId: "gauge",
-    category: "chart",
-  },
-  {
-    id: "gauge-circular",
-    label: "Gauge / Meter",
-    description: "Display a value on a circular meter or dial.",
+    description: "Display a value on a vertical or circular gauge.",
     chartId: "gauge",
     category: "chart",
   },
