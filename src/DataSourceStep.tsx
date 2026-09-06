@@ -67,6 +67,7 @@ type ApiMethod = "GET" | "POST";
 type ApiAuth = "No Authentication" | "Bearer Token" | "Basic Auth" | "API Key";
 type ApiSort = "default" | "updated" | "name-asc" | "name-desc";
 type FileSort = "default" | "updated" | "name-asc" | "name-desc";
+type DataFlowSort = "default" | "updated" | "name-asc" | "name-desc";
 
 type ApiRequest = {
   id: string;
@@ -93,6 +94,7 @@ type DataFlow = {
   name: string;
   description: string;
   columns: string[];
+  lastUpdated: string;
 };
 
 type MarketplaceProvider = {
@@ -478,6 +480,12 @@ const FILE_SORT_LABELS: Record<FileSort, string> = {
   "name-asc": "Name (A-Z)",
   "name-desc": "Name (Z-A)",
 };
+const DATA_FLOW_SORT_LABELS: Record<DataFlowSort, string> = {
+  default: "Default",
+  updated: "Last Updated",
+  "name-asc": "Name (A-Z)",
+  "name-desc": "Name (Z-A)",
+};
 
 function relativeTimeMinutes(value: string) {
   const amount = Number.parseInt(value, 10);
@@ -577,6 +585,7 @@ const DATA_FLOWS: DataFlow[] = [
     name: "Untitled ETL Flow",
     description: "No description",
     columns: ["id", "source", "transformed_value", "status", "updated_at"],
+    lastUpdated: "8/17/2026",
   },
   {
     id: "incident",
@@ -595,18 +604,21 @@ const DATA_FLOWS: DataFlow[] = [
       "id_1",
       "name_1",
     ],
+    lastUpdated: "8/16/2026",
   },
   {
     id: "untitled-data-flow-1",
     name: "Untitled DataFlow",
     description: "No description",
     columns: ["id", "name", "value", "category", "created_at", "updated_at"],
+    lastUpdated: "8/12/2026",
   },
   {
     id: "untitled-data-flow-2",
     name: "Untitled DataFlow",
     description: "No description",
     columns: ["id", "source", "status", "result", "timestamp"],
+    lastUpdated: "8/11/2026",
   },
 ];
 
@@ -1927,10 +1939,20 @@ function DataFlowPicker({
   onSelect: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<DataFlowSort>("default");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const isEtlFlow = flowMode === "etl-flow";
-  const visibleFlows = DATA_FLOWS.filter((flow) =>
+  const filteredFlows = DATA_FLOWS.filter((flow) =>
     `${flow.name} ${flow.description}`.toLowerCase().includes(search.trim().toLowerCase()),
   );
+  const visibleFlows = [...filteredFlows].sort((left, right) => {
+    if (sort === "updated") {
+      return new Date(right.lastUpdated).getTime() - new Date(left.lastUpdated).getTime();
+    }
+    if (sort === "name-asc") return left.name.localeCompare(right.name);
+    if (sort === "name-desc") return right.name.localeCompare(left.name);
+    return 0;
+  });
 
   return (
     <section className="ds-db-manager ds-data-flow-manager">
@@ -1956,9 +1978,46 @@ function DataFlowPicker({
         </div>
       </div>
 
+      <div className="ds-db-manager__filters">
+        <span aria-hidden="true" />
+        <div className="ds-db-manager__menu-wrap">
+          <button
+            type="button"
+            className={sortMenuOpen ? "is-open" : ""}
+            aria-expanded={sortMenuOpen}
+            aria-haspopup="menu"
+            onClick={() => setSortMenuOpen((open) => !open)}
+          >
+            <FunnelSimple size={15} aria-hidden="true" />
+            {DATA_FLOW_SORT_LABELS[sort]}
+            <CaretDown size={15} aria-hidden="true" />
+          </button>
+          {sortMenuOpen && (
+            <div className="ds-db-manager__menu ds-db-manager__sort-menu" role="menu">
+              {(Object.entries(DATA_FLOW_SORT_LABELS) as [DataFlowSort, string][]).map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={sort === value ? "is-selected" : ""}
+                    role="menuitem"
+                    onClick={() => {
+                      setSort(value);
+                      setSortMenuOpen(false);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="ds-db-manager__columns" aria-hidden="true">
         <span>{isEtlFlow ? "ETL Flows" : "Data Flows"}</span>
-        <span>{isEtlFlow ? "Type" : "Output Schema"}</span>
+        <span>Last Updated</span>
       </div>
 
       <div className="ds-db-manager__list" role="listbox" aria-label="Data flows">
@@ -1986,14 +2045,11 @@ function DataFlowPicker({
                   <strong>{flow.name}</strong>
                   <div>
                     <span>{flow.description}</span>
-                    {isEtlFlow && <span>ETL Flow</span>}
                   </div>
                 </div>
               </div>
               <span className="ds-db-manager-row__actions">
-                <span className="ds-data-flow-manager-row__columns">
-                  {isEtlFlow ? "ETL Flow" : `${flow.columns.length} Columns`}
-                </span>
+                <time className="ds-db-manager-row__updated">{flow.lastUpdated}</time>
                 <button
                   type="button"
                   aria-label={`Information about ${flow.name}`}
@@ -2026,75 +2082,6 @@ function DataFlowPicker({
         </button>
       </footer>
     </section>
-  );
-}
-
-function DataFlowSettings({
-  flow,
-  projection,
-  onProjectionChange,
-}: {
-  flow: DataFlow;
-  projection: string;
-  onProjectionChange: (value: string) => void;
-}) {
-  return (
-    <div className="ds-flow-settings">
-      <section className="ds-flow-execution">
-        <header>
-          <h3>{flow.name}</h3>
-          <button type="button">
-            <Play size={12} weight="fill" aria-hidden="true" />
-            Execute Flow
-          </button>
-        </header>
-      </section>
-
-      <section className="ds-flow-schema">
-        <header>
-          <h3>Output schema</h3>
-          <span>{flow.columns.length} Columns</span>
-        </header>
-        <div className="ds-flow-schema__columns">
-          {flow.columns.map((column) => (
-            <span key={column}>{column}</span>
-          ))}
-        </div>
-      </section>
-
-      <section className="ds-flow-projection">
-        <header className="ds-flow-projection__header">
-          <h3>
-            Output projection <span>• optional</span>
-          </h3>
-          <div>
-            <button type="button" className="ds-query__generate">
-              <Sparkle size={12} weight="fill" aria-hidden="true" />
-              Generate
-            </button>
-            <button type="button" className="ds-query__execute" disabled={!projection}>
-              <Play size={12} weight="fill" aria-hidden="true" />
-              Test projection
-            </button>
-          </div>
-        </header>
-        <p className="ds-flow-projection__helper">
-          Query the flow&apos;s cached output as <code>flow</code>. Use $name placeholders to build
-          filters — unlike parameters above, changing a filter here re-uses the cached result
-          instead of re-running the flow.
-          <small>Available columns: {flow.columns.join(", ")}</small>
-        </p>
-        <div className="ds-flow-projection__editor">
-          <span aria-hidden="true">1</span>
-          <textarea
-            aria-label="Output projection query"
-            value={projection}
-            onChange={(event) => onProjectionChange(event.target.value)}
-            spellCheck={false}
-          />
-        </div>
-      </section>
-    </div>
   );
 }
 
@@ -3509,18 +3496,24 @@ function SourceConfiguration({
       <section className="ds-config">
         <FieldHeader title={isEtlFlow ? "Select ETL Flow" : "Select Data Flow"} />
         {selectedDataFlow ? (
-          <button type="button" className="ds-flow-selected" onClick={onOpenDataFlowPicker}>
+          <div className="ds-db-selected ds-db-selected--no-trailing">
             {isEtlFlow ? (
               <GitBranch size={18} aria-hidden="true" />
             ) : (
               <FlowArrow size={18} aria-hidden="true" />
             )}
-            <span className="ds-flow-selected__content">
+            <span className="ds-db-selected__content">
               <strong>{selectedDataFlow.name}</strong>
               <small>{selectedDataFlow.columns.length} columns</small>
             </span>
-            <span className="ds-flow-selected__change">Change</span>
-          </button>
+            <button
+              type="button"
+              className="ds-db-selected__change"
+              onClick={onOpenDataFlowPicker}
+            >
+              Change
+            </button>
+          </div>
         ) : (
           <SourceActionField
             label={isEtlFlow ? "Select ETL Flow" : "Select Data Flow"}
@@ -3534,13 +3527,9 @@ function SourceConfiguration({
             onClick={onOpenDataFlowPicker}
           />
         )}
-            </section>
+      </section>
       {selectedDataFlow && (
-        <DataFlowSettings
-          flow={selectedDataFlow}
-          projection={outputProjection}
-          onProjectionChange={onOutputProjectionChange}
-        />
+        <QueryEditor value={outputProjection} onChange={onOutputProjectionChange} />
       )}
     </div>
   );
@@ -3636,6 +3625,8 @@ export default function DataSourceStep({
   const shouldFillQuery =
     (sourceType === "database" && Boolean(selectedDatabase)) ||
     (sourceType === "file-upload" && Boolean(selectedFile)) ||
+    ((sourceType === "data-flow" || sourceType === "etl-flow") &&
+      Boolean(selectedDataFlow)) ||
     (sourceType === "ml-model" &&
       ((mlInputSource === "database" && Boolean(mlSelectedDatabase)) ||
         (mlInputSource === "file-source" && Boolean(mlSelectedFile))));
@@ -3859,7 +3850,10 @@ export default function DataSourceStep({
           onSelect={() => {
             if (!draftDataFlowId) return;
             setSelectedDataFlowId(draftDataFlowId);
-            setOutputProjection("");
+            const flow = DATA_FLOWS.find((item) => item.id === draftDataFlowId);
+            setOutputProjection(
+              flow ? `SELECT\n  ${flow.columns.join(",\n  ")}\nFROM flow;` : "",
+            );
             setDataFlowPickerOpen(false);
           }}
         />

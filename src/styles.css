@@ -9965,7 +9965,7 @@ html[data-theme="light"] .dd-component-menu {
 }
 
 .ds-data-flow-manager {
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
 }
 
 .ds-db-manager__titlebar,

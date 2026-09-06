@@ -1197,8 +1197,34 @@ export function subCategoriesForVisual(visualId: string): string[] {
   return SUBCATEGORY_ORDER.filter((name) => groups.has(name));
 }
 
-/** Always-on mapping / appearance tabs. Everything else sits under Extra. */
-export const SETTINGS_NAV_CORE = ["Mapping", "KPI Display", "Colors", "Color"] as const;
+/** Primary mapping and visual-attribute tabs. Everything else sits under Additional. */
+export const SETTINGS_NAV_CORE = [
+  "Mapping",
+  "KPI Display",
+  "Bar",
+  "Line",
+  "Area styling",
+  "Scatter",
+  "Pie / Donut",
+  "Meter & Labels",
+  "Track & marker styling",
+  "Bar gradient",
+  "KPI card",
+  "KPI Grid",
+  "Status",
+  "Line Customization",
+  "Height",
+  "Size",
+  "Disc Scaling",
+  "Disc ring",
+  "Ground disc",
+  "Marker Shape",
+  "Marker appearance",
+  "Heatmap Style",
+  "Bin & extrusion",
+  "Contour Terrain",
+  "Extrusion",
+] as const;
 
 /** Extra tabs whose first control is a master show/hide toggle. */
 export const FEATURE_TAB_MASTERS: Record<string, string> = {
@@ -1246,8 +1272,10 @@ export function settingsNavSections(visualId: string): SettingsNavSection[] {
   const extraToggles = extra.filter((name) => hasMaster(name));
   const extraOrdered = [...extraPlain, ...extraToggles];
   const sections: SettingsNavSection[] = [];
-  if (core.length) sections.push({ id: "core", label: "Core", tabs: core });
-  if (extraOrdered.length) sections.push({ id: "extra", label: "Extra", tabs: extraOrdered });
+  if (core.length) sections.push({ id: "core", label: "Main", tabs: core });
+  if (extraOrdered.length) {
+    sections.push({ id: "extra", label: "Additional", tabs: extraOrdered });
+  }
   return sections;
 }
 
