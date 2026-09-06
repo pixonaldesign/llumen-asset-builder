@@ -3956,7 +3956,7 @@ html[data-theme="light"] .settings-search-menu {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 0;
+  z-index: auto;
 }
 .cp-track-mark {
   position: absolute;
@@ -4034,12 +4034,24 @@ html[data-theme="light"] .settings-search-menu {
   background: var(--color-neutral-900);
   border: 2px solid var(--white);
   box-shadow: 0 0 0 1px var(--lc-border-subtle);
-  z-index: 1;
+  z-index: 2;
   cursor: grab;
   touch-action: none;
+  transform-origin: center;
+  transition: transform 0.14s ease;
+}
+.cp-track-knob--step:hover,
+.cp-track-knob--step:active,
+.cp-track-knob--step:focus-visible {
+  transform: translate(-50%, -50%) scale(1.3333);
 }
 .cp-track-knob--step:active {
   cursor: grabbing;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-track-knob--step {
+    transition: none;
+  }
 }
 
 /* stop rows */
@@ -10976,7 +10988,8 @@ html[data-theme="light"] .dd-component-menu {
 
 .ds-api-parameter-table header {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: var(--spacing-4xl) minmax(0, 1fr) minmax(0, 1fr) var(--spacing-4xl);
+  gap: var(--spacing-sm);
   padding: var(--spacing-lg);
   border-bottom: 1px solid var(--lc-border-control);
   font: var(--lc-font-small);
@@ -10985,15 +10998,13 @@ html[data-theme="light"] .dd-component-menu {
   color: var(--lc-text-tertiary);
 }
 
-.ds-api-parameter-table p {
-  display: grid;
-  place-items: center;
-  min-height: var(--spacing-8xl);
-  margin: 0;
-  padding: var(--spacing-xl);
-  font: var(--lc-font-body);
-  font-style: normal;
-  color: var(--lc-text-tertiary);
+.ds-api-parameter-table__heading {
+  padding-inline: var(--spacing-xl);
+}
+
+.ds-api-parameter-table.is-single-row header,
+.ds-api-parameter-table.is-single-row .ds-api-parameter-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .ds-api-parameter-table__rows {
@@ -11001,14 +11012,21 @@ html[data-theme="light"] .dd-component-menu {
 }
 
 .ds-api-parameter-row {
-  position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: var(--spacing-4xl) minmax(0, 1fr) minmax(0, 1fr) var(--spacing-4xl);
+  align-items: stretch;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-lg);
   border-bottom: 1px solid var(--lc-border-subtle);
+  transition: opacity 0.14s ease;
 }
 
 .ds-api-parameter-row:last-child {
   border-bottom: 0;
+}
+
+.ds-api-parameter-row.is-dragging {
+  opacity: 0.5;
 }
 
 .ds-api-parameter-row input {
@@ -11022,12 +11040,8 @@ html[data-theme="light"] .dd-component-menu {
   color: var(--lc-text-primary);
 }
 
-.ds-api-parameter-row input:first-child {
+.ds-api-parameter-row input.ds-api-parameter-row__key {
   border-right: 1px solid var(--lc-border-subtle);
-}
-
-.ds-api-parameter-row input:nth-child(2) {
-  padding-right: var(--spacing-6xl);
 }
 
 .ds-api-parameter-row input::placeholder {
@@ -11039,55 +11053,43 @@ html[data-theme="light"] .dd-component-menu {
 }
 
 .ds-api-parameter-row > button {
-  position: absolute;
-  top: 50%;
-  right: var(--spacing-lg);
   display: grid;
   place-items: center;
   width: var(--spacing-4xl);
   height: var(--spacing-4xl);
+  align-self: center;
   padding: 0;
   border: 0;
   border-radius: var(--radius-ui-pill);
   background: transparent;
   color: var(--lc-text-tertiary);
-  opacity: 0;
   cursor: pointer;
-  pointer-events: none;
-  transform: translateY(-50%);
   transition:
-    opacity 0.14s ease,
     background 0.14s ease,
     color 0.14s ease;
 }
 
-.ds-api-parameter-row:hover > button,
-.ds-api-parameter-row:focus-within > button {
-  opacity: 1;
-  pointer-events: auto;
+.ds-api-parameter-row__drag:not(:disabled) {
+  cursor: grab;
 }
 
-.ds-api-parameter-row > button:hover {
+.ds-api-parameter-row__drag:not(:disabled):active {
+  cursor: grabbing;
+}
+
+.ds-api-parameter-row__drag:hover:not(:disabled) {
+  background: var(--lc-bg-neutral-subtle);
+  color: var(--lc-text-primary);
+}
+
+.ds-api-parameter-row__delete:hover:not(:disabled) {
   background: var(--lc-bg-negative-subtle);
   color: var(--lc-text-negative);
 }
 
-.ds-api-parameter-section > button {
-  display: inline-flex;
-  align-items: center;
-  justify-self: start;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm);
-  border: 0;
-  border-radius: var(--radius-ui-small);
-  background: transparent;
-  font: var(--lc-font-body);
-  color: var(--lc-text-brand);
-  cursor: pointer;
-}
-
-.ds-api-parameter-section > button:hover {
-  background: var(--lc-bg-brand-subtle);
+.ds-api-parameter-row > button:disabled {
+  color: var(--foreground-disabled);
+  cursor: not-allowed;
 }
 
 .ds-api-request__tab-empty {

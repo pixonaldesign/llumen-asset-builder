@@ -8,6 +8,7 @@ import {
   CheckCircle,
   CirclesFour,
   Database,
+  DotsSixVertical,
   File,
   FileArrowUp,
   FunnelSimple,
@@ -2084,12 +2085,12 @@ function ApiRequestPanel({
 
             {activeTab === "parameters" ? (
               <div className="ds-api-request__parameters">
-                <ApiParameterSection title="Query Parameters" emptyText="No query parameters defined." />
-                <ApiParameterSection title="Path Parameters" emptyText="No path parameters defined." />
+                <ApiParameterSection title="Query Parameters" />
+                <ApiParameterSection title="Path Parameters" />
                 </div>
             ) : activeTab === "headers" ? (
               <div className="ds-api-request__headers">
-                <ApiParameterSection emptyText="No specific headers defined." />
+                <ApiParameterSection />
               </div>
             ) : (
               <div className="ds-api-request__body-config">
@@ -2112,7 +2113,7 @@ function ApiRequestPanel({
                   <JsonBodyEditor value={bodyValue} onChange={setBodyValue} />
                 )}
                 {bodyType === "form-data" && (
-                  <ApiParameterSection emptyText="No form data fields defined." />
+                  <ApiParameterSection />
                 )}
                 {bodyType === "none" && (
                   <div className="ds-api-request__tab-empty">No request body.</div>
@@ -2189,71 +2190,136 @@ function JsonBodyEditor({
   );
 }
 
-function ApiParameterSection({ title, emptyText }: { title?: string; emptyText: string }) {
-  const [rows, setRows] = useState<Array<{ id: number; key: string; value: string }>>([]);
+type ApiParameterRow = { id: number; key: string; value: string };
+
+function ApiParameterSection({ title }: { title?: string }) {
+  const [rows, setRows] = useState<ApiParameterRow[]>([{ id: 1, key: "", value: "" }]);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const rowLabel = title ?? "Header";
+  const canManageRows = rows.length > 1;
+
+  const withTrailingEmptyRow = (nextRows: ApiParameterRow[]) => {
+    const next = nextRows.length ? [...nextRows] : [{ id: 1, key: "", value: "" }];
+    const isEmpty = (row: ApiParameterRow) => !row.key.trim() && !row.value.trim();
+    while (
+      next.length > 1 &&
+      isEmpty(next[next.length - 1]) &&
+      isEmpty(next[next.length - 2])
+    ) {
+      next.pop();
+    }
+    const last = next[next.length - 1];
+    if (!isEmpty(last)) {
+      next.push({
+        id: next.reduce((highest, row) => Math.max(highest, row.id), 0) + 1,
+        key: "",
+        value: "",
+      });
+    }
+    return next;
+  };
+
   const updateRow = (id: number, field: "key" | "value", value: string) => {
     setRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
+      withTrailingEmptyRow(
+        current.map((row) => (row.id === id ? { ...row, [field]: value } : row)),
+      ),
     );
+  };
+
+  const removeRow = (id: number) => {
+    if (!canManageRows) return;
+    setRows((current) => withTrailingEmptyRow(current.filter((row) => row.id !== id)));
+  };
+
+  const moveRow = (targetId: number) => {
+    if (!canManageRows || draggingId === null || draggingId === targetId) return;
+    setRows((current) => {
+      const fromIndex = current.findIndex((row) => row.id === draggingId);
+      const targetIndex = current.findIndex((row) => row.id === targetId);
+      if (fromIndex < 0 || targetIndex < 0) return current;
+      const next = [...current];
+      const [dragged] = next.splice(fromIndex, 1);
+      next.splice(targetIndex, 0, dragged);
+      return withTrailingEmptyRow(next);
+    });
+    setDraggingId(null);
   };
 
   return (
     <section className="ds-api-parameter-section">
       {title && <h4>{title}</h4>}
-      <div className="ds-api-parameter-table">
+      <div
+        className={
+          "ds-api-parameter-table" + (!canManageRows ? " is-single-row" : "")
+        }
+      >
         <header>
-          <span>Key</span>
-          <span>Value</span>
+          {canManageRows && <span aria-hidden="true" />}
+          <span className="ds-api-parameter-table__heading">Key</span>
+          <span className="ds-api-parameter-table__heading">Value</span>
+          {canManageRows && <span aria-hidden="true" />}
         </header>
-        {rows.length === 0 ? (
-          <p>{emptyText}</p>
-        ) : (
-          <div className="ds-api-parameter-table__rows">
-            {rows.map((row) => (
-              <div className="ds-api-parameter-row" key={row.id}>
-                  <input
-                  value={row.key}
-                  onChange={(event) => updateRow(row.id, "key", event.target.value)}
-                    placeholder="Key"
-                  aria-label={`${title ?? "Header"} key`}
-                  />
-                  <input
-                  value={row.value}
-                  onChange={(event) => updateRow(row.id, "value", event.target.value)}
-                    placeholder="Value"
-                  aria-label={`${title ?? "Header"} value`}
-                />
+        <div className="ds-api-parameter-table__rows">
+          {rows.map((row) => (
+            <div
+              className={
+                "ds-api-parameter-row" + (draggingId === row.id ? " is-dragging" : "")
+              }
+              key={row.id}
+              onDragOver={(event) => {
+                if (canManageRows) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                moveRow(row.id);
+              }}
+            >
+              {canManageRows ? (
                 <button
                   type="button"
-                  aria-label={`Remove ${title ?? "header"} row`}
-                  onClick={() =>
-                    setRows((current) => current.filter((item) => item.id !== row.id))
-                  }
+                  className="ds-api-parameter-row__drag"
+                  draggable
+                  aria-label={`Reorder ${rowLabel} row`}
+                  onDragStart={(event) => {
+                    setDraggingId(row.id);
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", String(row.id));
+                  }}
+                  onDragEnd={() => setDraggingId(null)}
+                >
+                  <DotsSixVertical size={18} weight="bold" aria-hidden="true" />
+                </button>
+              ) : null}
+              <input
+                  className="ds-api-parameter-row__key"
+                  value={row.key}
+                  onChange={(event) => updateRow(row.id, "key", event.target.value)}
+                  placeholder="Key"
+                  aria-label={`${rowLabel} key`}
+              />
+              <input
+                  className="ds-api-parameter-row__value"
+                  value={row.value}
+                  onChange={(event) => updateRow(row.id, "value", event.target.value)}
+                  placeholder="Value"
+                  aria-label={`${rowLabel} value`}
+              />
+              {canManageRows && (
+                <button
+                  type="button"
+                  className="ds-api-parameter-row__delete"
+                  aria-label={`Remove ${rowLabel} row`}
+                  onClick={() => removeRow(row.id)}
                 >
                   <Trash size={17} aria-hidden="true" />
                 </button>
-                </div>
-            ))}
-              </div>
-        )}
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-      <button
-        type="button"
-        onClick={() =>
-          setRows((current) => [
-            ...current,
-            {
-              id: current.reduce((highest, row) => Math.max(highest, row.id), 0) + 1,
-              key: "",
-              value: "",
-            },
-          ])
-        }
-      >
-        <Plus size={16} aria-hidden="true" />
-        Add Item
-      </button>
-            </section>
+    </section>
   );
 }
 
