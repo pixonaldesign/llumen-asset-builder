@@ -66,6 +66,7 @@ type ApiSource = {
 type ApiMethod = "GET" | "POST";
 type ApiAuth = "No Authentication" | "Bearer Token" | "Basic Auth" | "API Key";
 type ApiSort = "default" | "updated" | "name-asc" | "name-desc";
+type FileSort = "default" | "updated" | "name-asc" | "name-desc";
 
 type ApiRequest = {
   id: string;
@@ -467,7 +468,13 @@ const API_AUTH_OPTIONS: ApiAuth[] = [
 const API_METHOD_OPTIONS: ApiMethod[] = ["GET", "POST"];
 const API_SORT_LABELS: Record<ApiSort, string> = {
   default: "Default",
-  updated: "Last Updated",
+  updated: "Last Tested",
+  "name-asc": "Name (A-Z)",
+  "name-desc": "Name (Z-A)",
+};
+const FILE_SORT_LABELS: Record<FileSort, string> = {
+  default: "Default",
+  updated: "Last Tested",
   "name-asc": "Name (A-Z)",
   "name-desc": "Name (Z-A)",
 };
@@ -1347,6 +1354,7 @@ function ApiSourcePicker({
           <button
             type="button"
             className="ds-db-manager__new"
+            disabled
             onClick={() => setCreateModalOpen(true)}
           >
             <Plus size={17} aria-hidden="true" />
@@ -1467,7 +1475,7 @@ function ApiSourcePicker({
 
       <div className="ds-api-manager__columns" aria-hidden="true">
         <span>API Collections &amp; Requests</span>
-        <span>Last Updated</span>
+        <span>Last Tested</span>
         <span />
       </div>
 
@@ -1728,18 +1736,30 @@ function FileSourcePicker({
   onChange,
   onCancel,
   onSelect,
+  onUploadNewFile,
 }: {
   selectedId: string | null;
   onChange: (id: string) => void;
   onCancel: () => void;
   onSelect: () => void;
+  onUploadNewFile: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const visibleFiles = FILE_SOURCES.filter((source) =>
+  const [sort, setSort] = useState<FileSort>("default");
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const filteredFiles = FILE_SOURCES.filter((source) =>
     `${source.name} ${source.fileName} ${source.tableName}`
       .toLowerCase()
       .includes(search.trim().toLowerCase()),
   );
+  const visibleFiles = [...filteredFiles].sort((left, right) => {
+    if (sort === "updated") {
+      return new Date(right.lastUpdated).getTime() - new Date(left.lastUpdated).getTime();
+    }
+    if (sort === "name-asc") return left.name.localeCompare(right.name);
+    if (sort === "name-desc") return right.name.localeCompare(left.name);
+    return 0;
+  });
   const canSelectFile = FILE_SOURCES.some(
     (source) => source.id === selectedId && source.active,
   );
@@ -1765,12 +1785,57 @@ function FileSourcePicker({
               placeholder="Search files..."
             />
           </label>
+          <button
+            type="button"
+            className="ds-db-manager__new"
+            onClick={onUploadNewFile}
+          >
+            <Plus size={17} aria-hidden="true" />
+            Upload New File
+          </button>
+        </div>
+      </div>
+
+      <div className="ds-db-manager__filters">
+        <span aria-hidden="true" />
+        <div className="ds-db-manager__menu-wrap">
+          <button
+            type="button"
+            className={sortMenuOpen ? "is-open" : ""}
+            aria-expanded={sortMenuOpen}
+            aria-haspopup="menu"
+            onClick={() => setSortMenuOpen((open) => !open)}
+          >
+            <FunnelSimple size={15} aria-hidden="true" />
+            {FILE_SORT_LABELS[sort]}
+            <CaretDown size={15} aria-hidden="true" />
+          </button>
+          {sortMenuOpen && (
+            <div className="ds-db-manager__menu ds-db-manager__sort-menu" role="menu">
+              {(Object.entries(FILE_SORT_LABELS) as [FileSort, string][]).map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={sort === value ? "is-selected" : ""}
+                    role="menuitem"
+                    onClick={() => {
+                      setSort(value);
+                      setSortMenuOpen(false);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="ds-db-manager__columns" aria-hidden="true">
         <span>Uploaded Files</span>
-        <span>Last Updated</span>
+        <span>Last Tested</span>
       </div>
 
       <div className="ds-db-manager__list" role="listbox" aria-label="Uploaded files">
@@ -3055,7 +3120,6 @@ function SourceConfiguration({
   query: string;
   onQueryChange: (query: string) => void;
 }) {
-  const [uploadFileModalOpen, setUploadFileModalOpen] = useState(false);
   const selectedApiRequest =
     selectedApi?.requests.find((request) => request.id === selectedRequest) ?? null;
   const mlSelectedApiRequest =
@@ -3166,20 +3230,7 @@ function SourceConfiguration({
             </section>
           )}
           <section className="ds-config">
-            <FieldHeader
-              title="Select File"
-              required={false}
-              action={
-                <button
-                  type="button"
-                  className="ds-config__upload-action"
-                  onClick={() => setUploadFileModalOpen(true)}
-                >
-                  <Plus size={16} aria-hidden="true" />
-                  Upload New File
-                </button>
-              }
-            />
+            <FieldHeader title="Select File" required={false} />
             {selectedFile ? (
               <div className="ds-db-selected ds-db-selected--no-trailing">
                 <FileArrowUp size={18} aria-hidden="true" />
@@ -3220,14 +3271,6 @@ function SourceConfiguration({
           </section>
           {selectedFile && <QueryEditor value={fileQuery} onChange={onFileQueryChange} />}
         </div>
-        {uploadFileModalOpen && (
-          <SourcePickerModal
-            variant="upload-file"
-            onClose={() => setUploadFileModalOpen(false)}
-          >
-            <UploadFileModal onClose={() => setUploadFileModalOpen(false)} />
-          </SourcePickerModal>
-        )}
       </>
     );
   }
@@ -3528,6 +3571,7 @@ export default function DataSourceStep({
   const [draftApiRequest, setDraftApiRequest] = useState("");
   const [selectedRequest, setSelectedRequest] = useState("");
   const [filePickerOpen, setFilePickerOpen] = useState(false);
+  const [uploadFileModalOpen, setUploadFileModalOpen] = useState(false);
   const [filePickerContext, setFilePickerContext] = useState<PickerContext>("source");
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [draftFileId, setDraftFileId] = useState<string | null>(null);
@@ -3763,12 +3807,20 @@ export default function DataSourceStep({
           }}
         />
     </SourcePickerModal>
+  ) : uploadFileModalOpen ? (
+    <SourcePickerModal
+      variant="upload-file"
+      onClose={() => setUploadFileModalOpen(false)}
+    >
+      <UploadFileModal onClose={() => setUploadFileModalOpen(false)} />
+    </SourcePickerModal>
   ) : filePickerOpen ? (
     <SourcePickerModal variant="file" onClose={() => setFilePickerOpen(false)}>
         <FileSourcePicker
           selectedId={draftFileId}
           onChange={setDraftFileId}
           onCancel={() => setFilePickerOpen(false)}
+          onUploadNewFile={() => setUploadFileModalOpen(true)}
           onSelect={() => {
             if (!draftFileId) return;
             const file = FILE_SOURCES.find((source) => source.id === draftFileId);
@@ -3834,6 +3886,7 @@ export default function DataSourceStep({
                   setDatabasePickerOpen(false);
                   setApiPickerOpen(false);
                   setFilePickerOpen(false);
+                  setUploadFileModalOpen(false);
                   setDataFlowPickerOpen(false);
                   setMarketplacePickerOpen(false);
                 }}
@@ -3860,6 +3913,7 @@ export default function DataSourceStep({
                     setDatabasePickerOpen(false);
                     setApiPickerOpen(false);
                     setFilePickerOpen(false);
+                    setUploadFileModalOpen(false);
                     setDataFlowPickerOpen(false);
                     setMarketplacePickerOpen(false);
                   }}

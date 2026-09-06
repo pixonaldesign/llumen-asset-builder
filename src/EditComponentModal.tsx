@@ -2182,11 +2182,13 @@ export default function EditComponentModal({
           <section className="preview">
             {isDataSourceStep ? (
               <>
-                <div className="preview__head">
-                  <div className="preview__head-row">
-                    <h3 className="preview__title">Data query</h3>
+                {!dataSourceLoading && dataSourceConfigured && dataSourceQuery.trim() && (
+                  <div className="preview__head">
+                    <div className="preview__head-row">
+                      <h3 className="preview__title">Data (1,467 rows)</h3>
+                    </div>
                   </div>
-                </div>
+                )}
                 {dataSourceLoading ? (
                   <div className="preview__empty preview__empty--loading" role="status">
                     <span className="preview__loading-spinner" aria-hidden="true" />
