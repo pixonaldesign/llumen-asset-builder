@@ -87,7 +87,7 @@ type WizardStepId =
   | "general-info";
 
 const WIZARD_STEPS: { id: WizardStepId; label: string }[] = [
-  { id: "data-source", label: "Data Source" },
+  { id: "data-source", label: "Source" },
   { id: "viz-mapping", label: "Visualization & Mapping" },
   { id: "filters", label: "Filters" },
   { id: "deep-dive", label: "Deep Dive" },
@@ -1573,16 +1573,6 @@ function GroupCard({
 }
 
 /* ---------- modal ---------- */
-const WIZARD_PROGRESS_KEY = "llumen.dev.wizard-progress";
-
-function readWizardProgress(): { currentStep?: number; maxUnlockedStep?: number } {
-  try {
-    return JSON.parse(sessionStorage.getItem(WIZARD_PROGRESS_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
-
 export default function EditComponentModal({
   onClose,
   componentName,
@@ -1596,19 +1586,14 @@ export default function EditComponentModal({
   startAtVisualPicker?: boolean;
   creating?: boolean;
 }) {
-  const [restoredWizardProgress] = useState(readWizardProgress);
   const [activeChart, setActiveChart] = useState("bar");
   const [selectedVisualId, setSelectedVisualId] = useState<string | null>(
     startAtVisualPicker ? null : "vertical-bar",
   );
   const [vizPhase, setVizPhase] = useState<VizPhase>(startAtVisualPicker ? "picker" : "settings");
   const [activeSubCategory, setActiveSubCategory] = useState("Mapping");
-  const [currentStep, setCurrentStep] = useState(
-    restoredWizardProgress.currentStep ?? (startAtVisualPicker ? 0 : 1),
-  );
-  const [maxUnlockedStep, setMaxUnlockedStep] = useState(
-    restoredWizardProgress.maxUnlockedStep ?? (startAtVisualPicker ? 0 : 1),
-  );
+  const [currentStep, setCurrentStep] = useState(startAtVisualPicker ? 0 : 1);
+  const [maxUnlockedStep, setMaxUnlockedStep] = useState(startAtVisualPicker ? 0 : 1);
   const [query, setQuery] = useState("");
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const [size, setSize] = useState<PreviewSize>("medium");
@@ -1648,13 +1633,6 @@ export default function EditComponentModal({
       return next;
     });
   }, [visualFields]);
-
-  useEffect(() => {
-    sessionStorage.setItem(
-      WIZARD_PROGRESS_KEY,
-      JSON.stringify({ currentStep, maxUnlockedStep }),
-    );
-  }, [currentStep, maxUnlockedStep]);
 
   useEffect(() => {
     if (!subCategories.includes(activeSubCategory)) {

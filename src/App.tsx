@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import CreateComponentPopup from "./CreateComponentPopup";
 import EditComponentModal from "./EditComponentModal";
 import { COMPONENT_LIST_ROWS } from "./componentCatalog";
@@ -27,16 +27,6 @@ const NAV: { label: string; d: string }[] = [
 ];
 
 const ROWS = COMPONENT_LIST_ROWS;
-const DEV_MODAL_OPEN_KEY = "llumen.dev.edit-modal-open";
-const DEV_MODAL_DRAFT_KEY = "llumen.dev.edit-modal-draft";
-
-function readPersistedDraft(): { name: string } | null {
-  try {
-    return JSON.parse(sessionStorage.getItem(DEV_MODAL_DRAFT_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-}
 
 function Sparkline() {
   return (
@@ -55,18 +45,8 @@ function Sparkline() {
 
 export default function App() {
   const [createPopupOpen, setCreatePopupOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(
-    () => sessionStorage.getItem(DEV_MODAL_OPEN_KEY) === "true",
-  );
-  const [draftComponent, setDraftComponent] = useState<{ name: string } | null>(readPersistedDraft);
-
-  useEffect(() => {
-    sessionStorage.setItem(DEV_MODAL_OPEN_KEY, String(editModalOpen));
-  }, [editModalOpen]);
-
-  useEffect(() => {
-    sessionStorage.setItem(DEV_MODAL_DRAFT_KEY, JSON.stringify(draftComponent));
-  }, [draftComponent]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [draftComponent, setDraftComponent] = useState<{ name: string } | null>(null);
 
   const openEditModal = (draft?: { name: string } | null) => {
     setDraftComponent(draft ?? null);

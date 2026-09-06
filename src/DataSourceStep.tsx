@@ -83,6 +83,7 @@ type FileSource = {
   rows: number;
   tableName: string;
   active: boolean;
+  lastUpdated: string;
 };
 
 type DataFlow = {
@@ -98,6 +99,7 @@ type MarketplaceProvider = {
   description: string;
   category: string;
   active: boolean;
+  lastUpdated: string;
 };
 
 type SourceTypeOption = {
@@ -114,40 +116,6 @@ type MlInputOption = {
   icon: ReactNode;
 };
 
-type DevDataSourceState = {
-  sourceType: SourceType | null;
-  mlInputSource: MlInputSource | null;
-  databasePickerOpen: boolean;
-  databasePickerContext: PickerContext;
-  selectedDatabaseId: string | null;
-  draftDatabaseId: string | null;
-  apiPickerOpen: boolean;
-  apiPickerContext: PickerContext;
-  selectedApiId: string | null;
-  draftApiId: string | null;
-  selectedRequest: string;
-  filePickerOpen: boolean;
-  filePickerContext: PickerContext;
-  selectedFileId: string | null;
-  draftFileId: string | null;
-  fileQuery: string;
-  mlSelectedDatabaseId: string | null;
-  mlDatabaseQuery: string;
-  mlSelectedApiId: string | null;
-  mlSelectedRequest: string;
-  mlSelectedFileId: string | null;
-  mlFileQuery: string;
-  dataFlowPickerOpen: boolean;
-  selectedDataFlowId: string | null;
-  draftDataFlowId: string | null;
-  outputProjection: string;
-  marketplacePickerOpen: boolean;
-  selectedMarketplaceProviderId: string | null;
-  draftMarketplaceProviderId: string | null;
-  query: string;
-};
-
-const DEV_DATA_SOURCE_STATE_KEY = "llumen.dev.data-source-state.v2";
 const DEFAULT_DATABASE_QUERY = `SELECT
     g.grid_id,
     g.longitude,
@@ -161,14 +129,6 @@ WHERE g.district_name = 'Abu Dhabi Island'
     AND p.date BETWEEN '2024-04-10 00:00:00'
     AND '2024-04-12 23:59:59'
 ORDER BY population_density DESC;`;
-
-function readDevDataSourceState(): Partial<DevDataSourceState> {
-  try {
-    return JSON.parse(sessionStorage.getItem(DEV_DATA_SOURCE_STATE_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
 
 const SOURCE_TYPES: SourceTypeOption[] = [
   {
@@ -185,33 +145,21 @@ const SOURCE_TYPES: SourceTypeOption[] = [
   },
   {
     id: "file-upload",
-    title: "File Upload",
+    title: "File",
     description: "Select from source-backed uploaded files",
     icon: <FileArrowUp size={20} aria-hidden="true" />,
-  },
-  {
-    id: "ai-model",
-    title: "AI Model",
-    description: "Select from available AI models for data processing",
-    icon: <Sparkle size={20} aria-hidden="true" />,
-  },
-  {
-    id: "ml-model",
-    title: "ML Model",
-    description: "Connect prediction APIs or upload PKL/Joblib model files",
-    icon: <Stack size={20} aria-hidden="true" />,
-  },
-  {
-    id: "data-flow",
-    title: "Data Flow",
-    description: "Use a data-flow pipeline with transformations and analytics",
-    icon: <FlowArrow size={20} aria-hidden="true" />,
   },
   {
     id: "marketplace",
     title: "Marketplace",
     description: "Query an onboarded data marketplace provider",
     icon: <Storefront size={20} aria-hidden="true" />,
+  },
+  {
+    id: "ml-model",
+    title: "ML Model",
+    description: "Connect prediction APIs or upload PKL/Joblib model files",
+    icon: <Stack size={20} aria-hidden="true" />,
   },
   {
     id: "etl-flow",
@@ -229,6 +177,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
       "Road-traffic data from TomTom: live incidents and flow, junction-level delays and turn ratios",
     category: "Marketplace",
     active: true,
+    lastUpdated: "8/17/2026",
   },
   {
     id: "here-traffic-api",
@@ -237,6 +186,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
       "Real-time traffic flow, incidents, road closures, and travel-time analytics",
     category: "Marketplace",
     active: true,
+    lastUpdated: "8/16/2026",
   },
   {
     id: "google-maps-platform",
@@ -245,6 +195,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
       "Routes, places, geocoding, distance matrices, and mobility intelligence",
     category: "Marketplace",
     active: true,
+    lastUpdated: "8/15/2026",
   },
   {
     id: "openweather",
@@ -253,6 +204,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
       "Current weather, forecasts, historical observations, and environmental conditions",
     category: "Marketplace",
     active: true,
+    lastUpdated: "8/14/2026",
   },
   {
     id: "arcgis-living-atlas",
@@ -261,6 +213,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
       "Curated global geographic layers for demographics, land use, and infrastructure",
     category: "Marketplace",
     active: false,
+    lastUpdated: "8/13/2026",
   },
   {
     id: "mapbox-traffic-data",
@@ -269,6 +222,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
       "Live road speeds, congestion patterns, routing conditions, and map-ready traffic data",
     category: "Marketplace",
     active: true,
+    lastUpdated: "8/12/2026",
   },
   {
     id: "safegraph-places",
@@ -277,6 +231,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
       "Points of interest, business attributes, brand relationships, and location metadata",
     category: "Marketplace",
     active: false,
+    lastUpdated: "8/11/2026",
   },
 ];
 
@@ -362,17 +317,17 @@ const DATABASE_CONNECTION_META: Record<
   string,
   { type: DatabaseType; lastUpdated: string; updatedMinutes: number }
 > = {
-  itc: { type: "MySQL", lastUpdated: "1 hour ago", updatedMinutes: 60 },
-  dubai: { type: "PostgreSQL", lastUpdated: "3 hours ago", updatedMinutes: 180 },
-  aimsun: { type: "SQL Server", lastUpdated: "6 hours ago", updatedMinutes: 360 },
-  energy: { type: "Oracle", lastUpdated: "2 hours ago", updatedMinutes: 120 },
-  "itc-pg": { type: "PostgreSQL", lastUpdated: "30 mins ago", updatedMinutes: 30 },
-  "itc-fusion": { type: "SQL Server", lastUpdated: "5 hours ago", updatedMinutes: 300 },
-  waste: { type: "SQLite", lastUpdated: "45 mins ago", updatedMinutes: 45 },
-  "itc-postgres": { type: "PostgreSQL", lastUpdated: "4 hours ago", updatedMinutes: 240 },
-  security: { type: "MySQL", lastUpdated: "2 hours ago", updatedMinutes: 120 },
-  employees: { type: "PostgreSQL", lastUpdated: "1 day ago", updatedMinutes: 1440 },
-  commerce: { type: "MySQL", lastUpdated: "1 day ago", updatedMinutes: 1440 },
+  itc: { type: "MySQL", lastUpdated: "8/17/2026", updatedMinutes: 60 },
+  dubai: { type: "PostgreSQL", lastUpdated: "8/11/2026", updatedMinutes: 180 },
+  aimsun: { type: "SQL Server", lastUpdated: "8/11/2026", updatedMinutes: 360 },
+  energy: { type: "Oracle", lastUpdated: "8/16/2026", updatedMinutes: 120 },
+  "itc-pg": { type: "PostgreSQL", lastUpdated: "8/17/2026", updatedMinutes: 30 },
+  "itc-fusion": { type: "SQL Server", lastUpdated: "8/12/2026", updatedMinutes: 300 },
+  waste: { type: "SQLite", lastUpdated: "8/17/2026", updatedMinutes: 45 },
+  "itc-postgres": { type: "PostgreSQL", lastUpdated: "8/13/2026", updatedMinutes: 240 },
+  security: { type: "MySQL", lastUpdated: "8/16/2026", updatedMinutes: 120 },
+  employees: { type: "PostgreSQL", lastUpdated: "8/11/2026", updatedMinutes: 1440 },
+  commerce: { type: "MySQL", lastUpdated: "8/11/2026", updatedMinutes: 1440 },
 };
 
 const SCHEMA_TABLES: SchemaTable[] = [
@@ -532,6 +487,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 15940,
     tableName: "ds_5cccff50c4644f7b5068a48711efe4e__results",
     active: true,
+    lastUpdated: "8/17/2026",
   },
   {
     id: "sultan-workflow-1",
@@ -540,6 +496,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 21,
     tableName: "ds_d0b8d812bd040be9573ada2db652221",
     active: false,
+    lastUpdated: "8/11/2026",
   },
   {
     id: "sultan-workflow-2",
@@ -548,6 +505,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 21,
     tableName: "ds_5ae68eef3f184554810c382be0a6d394",
     active: false,
+    lastUpdated: "8/11/2026",
   },
   {
     id: "capacity-region",
@@ -556,6 +514,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 18,
     tableName: "ds_288a25da839945228c93b8674181d1a8",
     active: false,
+    lastUpdated: "8/11/2026",
   },
   {
     id: "capacity-trajectory",
@@ -564,6 +523,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 18,
     tableName: "ds_e39d26283ab647839634e0bb225fe507",
     active: false,
+    lastUpdated: "8/11/2026",
   },
   {
     id: "workflow-asset-1",
@@ -572,6 +532,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 26,
     tableName: "ds_70bf6e1c09eb42179ba6376650178f8e",
     active: false,
+    lastUpdated: "8/11/2026",
   },
   {
     id: "workflow-asset-2",
@@ -580,6 +541,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 26,
     tableName: "ds_3633efaf71da4ec88df18de7454f3c22",
     active: false,
+    lastUpdated: "8/11/2026",
   },
   {
     id: "wind-hour",
@@ -588,6 +550,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 1024,
     tableName: "ds_378739805bf04501932b2ff632cdd153",
     active: false,
+    lastUpdated: "8/11/2026",
   },
   {
     id: "climatology",
@@ -596,6 +559,7 @@ const FILE_SOURCES: FileSource[] = [
     rows: 4,
     tableName: "ds_900907603ae14ce09b4398d222c035e4",
     active: false,
+    lastUpdated: "8/11/2026",
   },
 ];
 
@@ -948,6 +912,9 @@ function DatabaseConnectionPicker({
     if (sort === "name-desc") return right.name.localeCompare(left.name);
     return 0;
   });
+  const canSelectConnection = DATABASE_CONNECTIONS.some(
+    (connection) => connection.id === selectedId && connection.active,
+  );
   const sortLabel: Record<DatabaseSort, string> = {
     default: "Default",
     updated: "Last Updated",
@@ -1064,22 +1031,34 @@ function DatabaseConnectionPicker({
 
       <div className="ds-db-manager__columns" aria-hidden="true">
         <span>Database Connections</span>
-        <span>Status</span>
+        <span>Last Updated</span>
       </div>
 
       <div className="ds-db-manager__list" role="listbox" aria-label="Database connections">
         {visibleConnections.map((connection) => {
-          const selected = selectedId === connection.id;
+          const selected = connection.active && selectedId === connection.id;
+          const meta = DATABASE_CONNECTION_META[connection.id];
           return (
             <div
               key={connection.id}
               role="option"
-              tabIndex={0}
+              tabIndex={connection.active ? 0 : -1}
               aria-selected={selected}
-              className={"ds-db-manager-row" + (selected ? " is-selected" : "")}
-              onClick={() => onChange(connection.id)}
+              aria-disabled={!connection.active}
+              className={
+                "ds-db-manager-row" +
+                (selected ? " is-selected" : "") +
+                (!connection.active ? " is-disabled" : "")
+              }
+              onClick={() => {
+                if (connection.active) onChange(connection.id);
+              }}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
+                if (
+                  connection.active &&
+                  event.currentTarget === event.target &&
+                  (event.key === "Enter" || event.key === " ")
+                ) {
                   event.preventDefault();
                   onChange(connection.id);
                 }
@@ -1092,14 +1071,7 @@ function DatabaseConnectionPicker({
                 </div>
               </div>
               <span className="ds-db-manager-row__actions">
-                <span
-                  className={
-                    "ds-db-manager-row__status" + (connection.active ? " is-active" : "")
-                  }
-                >
-                  <i aria-hidden="true" />
-                  {connection.active ? "Active" : "Inactive"}
-                </span>
+                <time className="ds-db-manager-row__updated">{meta.lastUpdated}</time>
                 <button
                   type="button"
                   aria-label={`Information about ${connection.name}`}
@@ -1123,7 +1095,7 @@ function DatabaseConnectionPicker({
         <button
           type="button"
           className="ds-db-manager__select"
-          disabled={!selectedId}
+          disabled={!canSelectConnection}
           onClick={onSelect}
         >
           Select Connection
@@ -1246,6 +1218,11 @@ function ApiSourcePicker({
   const [methodMenuOpen, setMethodMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const selectedCollection = API_SOURCES.find((collection) => collection.id === selectedId);
+  const canSelectRequest = Boolean(
+    selectedCollection?.active &&
+      selectedCollection.requests.some((request) => request.id === selectedRequestId),
+  );
   const searchValue = search.trim().toLowerCase();
   const hasRequestFilters = selectedAuths.length > 0 || selectedMethods.length > 0;
   const compareItems = (
@@ -1503,13 +1480,21 @@ function ApiSourcePicker({
               aria-busy={open && loading}
             >
               <div
-                className="ds-api-collection__row"
+                className={
+                  "ds-api-collection__row" + (!collection.active ? " is-disabled" : "")
+                }
                 role="button"
-                tabIndex={0}
+                tabIndex={collection.active ? 0 : -1}
                 aria-expanded={open}
-                onClick={() => toggleCollection(collection.id)}
+                aria-disabled={!collection.active}
+                onClick={() => {
+                  if (collection.active) toggleCollection(collection.id);
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
+                  if (
+                    collection.active &&
+                    (event.key === "Enter" || event.key === " ")
+                  ) {
                     event.preventDefault();
                     toggleCollection(collection.id);
                   }
@@ -1552,13 +1537,16 @@ function ApiSourcePicker({
                 ) : (
                   collection.requests.map((request) => {
                   const selected =
-                    selectedId === collection.id && selectedRequestId === request.id;
+                    collection.active &&
+                    selectedId === collection.id &&
+                    selectedRequestId === request.id;
                   return (
                     <button
                       key={request.id}
                       type="button"
                       role="option"
                       aria-selected={selected}
+                      disabled={!collection.active}
                       className={"ds-api-request-row" + (selected ? " is-selected" : "")}
                       onClick={() => onChange(collection.id, request.id)}
                     >
@@ -1592,7 +1580,7 @@ function ApiSourcePicker({
         <button
           type="button"
           className="ds-db-manager__select"
-          disabled={!selectedId || !selectedRequestId}
+          disabled={!canSelectRequest}
           onClick={onSelect}
         >
           Select Request
@@ -1625,6 +1613,9 @@ function MarketplaceProviderPicker({
       .toLowerCase()
       .includes(search.trim().toLowerCase()),
   );
+  const canSelectProvider = MARKETPLACE_PROVIDERS.some(
+    (provider) => provider.id === selectedId && provider.active,
+  );
 
   return (
     <section className="ds-db-manager ds-marketplace-manager">
@@ -1652,7 +1643,7 @@ function MarketplaceProviderPicker({
 
       <div className="ds-db-manager__columns" aria-hidden="true">
         <span>Marketplace Providers</span>
-        <span>Status</span>
+        <span>Last Updated</span>
       </div>
 
       <div
@@ -1661,17 +1652,28 @@ function MarketplaceProviderPicker({
         aria-label="Marketplace providers"
       >
         {visibleProviders.map((provider) => {
-          const selected = selectedId === provider.id;
+          const selected = provider.active && selectedId === provider.id;
           return (
             <div
               key={provider.id}
               role="option"
-              tabIndex={0}
+              tabIndex={provider.active ? 0 : -1}
               aria-selected={selected}
-              className={"ds-db-manager-row" + (selected ? " is-selected" : "")}
-              onClick={() => onChange(provider.id)}
+              aria-disabled={!provider.active}
+              className={
+                "ds-db-manager-row" +
+                (selected ? " is-selected" : "") +
+                (!provider.active ? " is-disabled" : "")
+              }
+              onClick={() => {
+                if (provider.active) onChange(provider.id);
+              }}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
+                if (
+                  provider.active &&
+                  event.currentTarget === event.target &&
+                  (event.key === "Enter" || event.key === " ")
+                ) {
                   event.preventDefault();
                   onChange(provider.id);
                 }
@@ -1685,14 +1687,7 @@ function MarketplaceProviderPicker({
                 </div>
               </div>
               <span className="ds-db-manager-row__actions">
-                <span
-                  className={
-                    "ds-db-manager-row__status" + (provider.active ? " is-active" : "")
-                  }
-                >
-                  <i aria-hidden="true" />
-                  {provider.active ? "Active" : "Inactive"}
-                </span>
+                <time className="ds-db-manager-row__updated">{provider.lastUpdated}</time>
                 <button
                   type="button"
                   aria-label={`Information about ${provider.name}`}
@@ -1716,7 +1711,7 @@ function MarketplaceProviderPicker({
         <button
           type="button"
           className="ds-db-manager__select"
-          disabled={!selectedId}
+          disabled={!canSelectProvider}
           onClick={onSelect}
         >
           Select Provider
@@ -1742,6 +1737,9 @@ function FileSourcePicker({
     `${source.name} ${source.fileName} ${source.tableName}`
       .toLowerCase()
       .includes(search.trim().toLowerCase()),
+  );
+  const canSelectFile = FILE_SOURCES.some(
+    (source) => source.id === selectedId && source.active,
   );
 
   return (
@@ -1770,22 +1768,33 @@ function FileSourcePicker({
 
       <div className="ds-db-manager__columns" aria-hidden="true">
         <span>Uploaded Files</span>
-        <span>Status</span>
+        <span>Last Updated</span>
       </div>
 
       <div className="ds-db-manager__list" role="listbox" aria-label="Uploaded files">
         {visibleFiles.map((source) => {
-          const selected = selectedId === source.id;
+          const selected = source.active && selectedId === source.id;
   return (
             <div
               key={source.id}
               role="option"
-              tabIndex={0}
+              tabIndex={source.active ? 0 : -1}
               aria-selected={selected}
-              className={"ds-db-manager-row ds-file-manager-row" + (selected ? " is-selected" : "")}
-              onClick={() => onChange(source.id)}
+              aria-disabled={!source.active}
+              className={
+                "ds-db-manager-row ds-file-manager-row" +
+                (selected ? " is-selected" : "") +
+                (!source.active ? " is-disabled" : "")
+              }
+              onClick={() => {
+                if (source.active) onChange(source.id);
+              }}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
+                if (
+                  source.active &&
+                  event.currentTarget === event.target &&
+                  (event.key === "Enter" || event.key === " ")
+                ) {
                   event.preventDefault();
                   onChange(source.id);
                 }
@@ -1803,14 +1812,7 @@ function FileSourcePicker({
                 </div>
               </div>
               <span className="ds-db-manager-row__actions">
-                <span
-                  className={
-                    "ds-db-manager-row__status" + (source.active ? " is-active" : "")
-                  }
-                >
-                  <i aria-hidden="true" />
-                  {source.active ? "Active" : "Inactive"}
-                </span>
+                <time className="ds-db-manager-row__updated">{source.lastUpdated}</time>
                 <button
                   type="button"
                   aria-label={`Information about ${source.name}`}
@@ -1834,7 +1836,7 @@ function FileSourcePicker({
         <button
           type="button"
           className="ds-db-manager__select"
-          disabled={!selectedId}
+          disabled={!canSelectFile}
           onClick={onSelect}
         >
           Select File
@@ -2375,7 +2377,7 @@ function DatabaseSchemaBrowser({
   return (
     <section className="ds-schema-browser">
       <header className="ds-schema-browser__titlebar">
-        <h2>{database.name} Schema Browser</h2>
+        <h2>Schema Browser</h2>
         <button type="button" aria-label="Close schema browser" onClick={onClose}>
           <X size={18} aria-hidden="true" />
         </button>
@@ -2394,17 +2396,6 @@ function DatabaseSchemaBrowser({
           </div>
           <small>Read-only schema visibility for this database connection.</small>
         </div>
-        <div className="ds-schema-browser__source-actions">
-          <label className="ds-schema-browser__search">
-            <MagnifyingGlass size={16} aria-hidden="true" />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search objects..."
-            />
-          </label>
-        </div>
       </div>
 
       <div className="ds-schema-browser__body">
@@ -2420,6 +2411,15 @@ function DatabaseSchemaBrowser({
             <strong>Objects</strong>
             <span>{SCHEMA_TABLES.length} total</span>
           </div>
+          <label className="ds-schema-browser__search">
+            <MagnifyingGlass size={16} aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search objects..."
+            />
+          </label>
           <div className="ds-schema-browser__table-list">
             {visibleTables.map((table) => (
               <button
@@ -2928,7 +2928,7 @@ function SourceConfiguration({
                     className="ds-db-selected__schema-browser"
                     onClick={onOpenDatabaseSchemaBrowser}
                   >
-                    Schema Browser
+                    Schema
                   </button>
                 )}
                 <button
@@ -3034,7 +3034,7 @@ function SourceConfiguration({
                     className="ds-db-selected__schema-browser"
                     onClick={onOpenFileSchemaBrowser}
                   >
-                    Schema Browser
+                    Schema
                   </button>
                   <button
                     type="button"
@@ -3152,7 +3152,7 @@ function SourceConfiguration({
                         className="ds-db-selected__schema-browser"
                         onClick={onOpenMlDatabaseSchemaBrowser}
                       >
-                        Schema Browser
+                        Schema
                       </button>
                     )}
                     <button
@@ -3354,99 +3354,67 @@ export default function DataSourceStep({
   onQueryPreviewChange?: (query: string) => void;
   onLoadingChange?: (loading: boolean) => void;
 }) {
-  const [restoredState] = useState(readDevDataSourceState);
-  const [sourceType, setSourceType] = useState<SourceType | null>(
-    restoredState.sourceType ?? null,
-  );
-  const [mlInputSource, setMlInputSource] = useState<MlInputSource | null>(
-    restoredState.mlInputSource ?? null,
-  );
-  const [databasePickerOpen, setDatabasePickerOpen] = useState(
-    restoredState.databasePickerOpen ?? false,
-  );
-  const [databasePickerContext, setDatabasePickerContext] = useState<PickerContext>(
-    restoredState.databasePickerContext ?? "source",
-  );
-  const [selectedDatabaseId, setSelectedDatabaseId] = useState<string | null>(
-    restoredState.selectedDatabaseId ?? null,
-  );
-  const [draftDatabaseId, setDraftDatabaseId] = useState<string | null>(
-    restoredState.draftDatabaseId ?? null,
-  );
-  const [apiPickerOpen, setApiPickerOpen] = useState(restoredState.apiPickerOpen ?? false);
-  const [apiPickerContext, setApiPickerContext] = useState<PickerContext>(
-    restoredState.apiPickerContext ?? "source",
-  );
-  const [selectedApiId, setSelectedApiId] = useState<string | null>(
-    restoredState.selectedApiId ?? null,
-  );
-  const [draftApiId, setDraftApiId] = useState<string | null>(
-    restoredState.draftApiId ?? null,
-  );
+  const [sourceType, setSourceType] = useState<SourceType | null>(null);
+  const [mlInputSource, setMlInputSource] = useState<MlInputSource | null>(null);
+  const [databasePickerOpen, setDatabasePickerOpen] = useState(false);
+  const [databasePickerContext, setDatabasePickerContext] =
+    useState<PickerContext>("source");
+  const [selectedDatabaseId, setSelectedDatabaseId] = useState<string | null>(null);
+  const [draftDatabaseId, setDraftDatabaseId] = useState<string | null>(null);
+  const [apiPickerOpen, setApiPickerOpen] = useState(false);
+  const [apiPickerContext, setApiPickerContext] = useState<PickerContext>("source");
+  const [selectedApiId, setSelectedApiId] = useState<string | null>(null);
+  const [draftApiId, setDraftApiId] = useState<string | null>(null);
   const [draftApiRequest, setDraftApiRequest] = useState("");
-  const [selectedRequest, setSelectedRequest] = useState(restoredState.selectedRequest ?? "");
-  const [filePickerOpen, setFilePickerOpen] = useState(restoredState.filePickerOpen ?? false);
-  const [filePickerContext, setFilePickerContext] = useState<PickerContext>(
-    restoredState.filePickerContext ?? "source",
-  );
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(
-    restoredState.selectedFileId ?? null,
-  );
-  const [draftFileId, setDraftFileId] = useState<string | null>(
-    restoredState.draftFileId ?? null,
-  );
-  const [fileQuery, setFileQuery] = useState(restoredState.fileQuery ?? "");
-  const [mlSelectedDatabaseId, setMlSelectedDatabaseId] = useState<string | null>(
-    restoredState.mlSelectedDatabaseId ?? null,
-  );
-  const [mlDatabaseQuery, setMlDatabaseQuery] = useState(restoredState.mlDatabaseQuery ?? "");
-  const [mlSelectedApiId, setMlSelectedApiId] = useState<string | null>(
-    restoredState.mlSelectedApiId ?? null,
-  );
-  const [mlSelectedRequest, setMlSelectedRequest] = useState(
-    restoredState.mlSelectedRequest ?? "",
-  );
-  const [mlSelectedFileId, setMlSelectedFileId] = useState<string | null>(
-    restoredState.mlSelectedFileId ?? null,
-  );
-  const [mlFileQuery, setMlFileQuery] = useState(restoredState.mlFileQuery ?? "");
-  const [dataFlowPickerOpen, setDataFlowPickerOpen] = useState(
-    restoredState.dataFlowPickerOpen ?? false,
-  );
-  const [selectedDataFlowId, setSelectedDataFlowId] = useState<string | null>(
-    restoredState.selectedDataFlowId ?? null,
-  );
-  const [draftDataFlowId, setDraftDataFlowId] = useState<string | null>(
-    restoredState.draftDataFlowId ?? null,
-  );
-  const [outputProjection, setOutputProjection] = useState(
-    restoredState.outputProjection ?? "",
-  );
-  const [marketplacePickerOpen, setMarketplacePickerOpen] = useState(
-    restoredState.marketplacePickerOpen ?? false,
-  );
+  const [selectedRequest, setSelectedRequest] = useState("");
+  const [filePickerOpen, setFilePickerOpen] = useState(false);
+  const [filePickerContext, setFilePickerContext] = useState<PickerContext>("source");
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [draftFileId, setDraftFileId] = useState<string | null>(null);
+  const [fileQuery, setFileQuery] = useState("");
+  const [mlSelectedDatabaseId, setMlSelectedDatabaseId] = useState<string | null>(null);
+  const [mlDatabaseQuery, setMlDatabaseQuery] = useState("");
+  const [mlSelectedApiId, setMlSelectedApiId] = useState<string | null>(null);
+  const [mlSelectedRequest, setMlSelectedRequest] = useState("");
+  const [mlSelectedFileId, setMlSelectedFileId] = useState<string | null>(null);
+  const [mlFileQuery, setMlFileQuery] = useState("");
+  const [dataFlowPickerOpen, setDataFlowPickerOpen] = useState(false);
+  const [selectedDataFlowId, setSelectedDataFlowId] = useState<string | null>(null);
+  const [draftDataFlowId, setDraftDataFlowId] = useState<string | null>(null);
+  const [outputProjection, setOutputProjection] = useState("");
+  const [marketplacePickerOpen, setMarketplacePickerOpen] = useState(false);
   const [selectedMarketplaceProviderId, setSelectedMarketplaceProviderId] = useState<
     string | null
-  >(restoredState.selectedMarketplaceProviderId ?? null);
+  >(null);
   const [draftMarketplaceProviderId, setDraftMarketplaceProviderId] = useState<
     string | null
-  >(restoredState.draftMarketplaceProviderId ?? null);
-  const [query, setQuery] = useState(restoredState.query ?? "");
+  >(null);
+  const [query, setQuery] = useState("");
   const [databaseConnecting, setDatabaseConnecting] = useState(false);
   const [mlDatabaseConnecting, setMlDatabaseConnecting] = useState(false);
   const [schemaBrowserDatabase, setSchemaBrowserDatabase] =
     useState<DatabaseConnection | null>(null);
   const selectedDatabase =
-    DATABASE_CONNECTIONS.find((connection) => connection.id === selectedDatabaseId) ?? null;
-  const selectedApi = API_SOURCES.find((source) => source.id === selectedApiId) ?? null;
-  const selectedFile = FILE_SOURCES.find((source) => source.id === selectedFileId) ?? null;
+    DATABASE_CONNECTIONS.find(
+      (connection) => connection.id === selectedDatabaseId && connection.active,
+    ) ?? null;
+  const selectedApi =
+    API_SOURCES.find((source) => source.id === selectedApiId && source.active) ?? null;
+  const selectedFile =
+    FILE_SOURCES.find((source) => source.id === selectedFileId && source.active) ?? null;
   const mlSelectedDatabase =
-    DATABASE_CONNECTIONS.find((connection) => connection.id === mlSelectedDatabaseId) ?? null;
-  const mlSelectedApi = API_SOURCES.find((source) => source.id === mlSelectedApiId) ?? null;
-  const mlSelectedFile = FILE_SOURCES.find((source) => source.id === mlSelectedFileId) ?? null;
+    DATABASE_CONNECTIONS.find(
+      (connection) => connection.id === mlSelectedDatabaseId && connection.active,
+    ) ?? null;
+  const mlSelectedApi =
+    API_SOURCES.find((source) => source.id === mlSelectedApiId && source.active) ?? null;
+  const mlSelectedFile =
+    FILE_SOURCES.find((source) => source.id === mlSelectedFileId && source.active) ?? null;
   const selectedDataFlow = DATA_FLOWS.find((flow) => flow.id === selectedDataFlowId) ?? null;
   const selectedMarketplaceProvider =
-    MARKETPLACE_PROVIDERS.find((provider) => provider.id === selectedMarketplaceProviderId) ?? null;
+    MARKETPLACE_PROVIDERS.find(
+      (provider) => provider.id === selectedMarketplaceProviderId && provider.active,
+    ) ?? null;
   const selectedSourceOption =
     SOURCE_TYPES.find((source) => source.id === sourceType) ?? null;
   const hasConfiguredSource =
@@ -3529,75 +3497,6 @@ export default function DataSourceStep({
     const timer = window.setTimeout(() => setMlDatabaseConnecting(false), 1400);
     return () => window.clearTimeout(timer);
   }, [mlInputSource, mlSelectedDatabaseId, sourceType]);
-
-  useEffect(() => {
-    sessionStorage.setItem(
-      DEV_DATA_SOURCE_STATE_KEY,
-      JSON.stringify({
-        sourceType,
-        mlInputSource,
-        databasePickerOpen,
-        databasePickerContext,
-        selectedDatabaseId,
-        draftDatabaseId,
-        apiPickerOpen,
-        apiPickerContext,
-        selectedApiId,
-        draftApiId,
-        selectedRequest,
-        filePickerOpen,
-        filePickerContext,
-        selectedFileId,
-        draftFileId,
-        fileQuery,
-        mlSelectedDatabaseId,
-        mlDatabaseQuery,
-        mlSelectedApiId,
-        mlSelectedRequest,
-        mlSelectedFileId,
-        mlFileQuery,
-        dataFlowPickerOpen,
-        selectedDataFlowId,
-        draftDataFlowId,
-        outputProjection,
-        marketplacePickerOpen,
-        selectedMarketplaceProviderId,
-        draftMarketplaceProviderId,
-        query,
-      } satisfies DevDataSourceState),
-    );
-  }, [
-    sourceType,
-    mlInputSource,
-    databasePickerOpen,
-    databasePickerContext,
-    selectedDatabaseId,
-    draftDatabaseId,
-    apiPickerOpen,
-    apiPickerContext,
-    selectedApiId,
-    draftApiId,
-    selectedRequest,
-    filePickerOpen,
-    filePickerContext,
-    selectedFileId,
-    draftFileId,
-    fileQuery,
-    mlSelectedDatabaseId,
-    mlDatabaseQuery,
-    mlSelectedApiId,
-    mlSelectedRequest,
-    mlSelectedFileId,
-    mlFileQuery,
-    dataFlowPickerOpen,
-    selectedDataFlowId,
-    draftDataFlowId,
-    outputProjection,
-    marketplacePickerOpen,
-    selectedMarketplaceProviderId,
-    draftMarketplaceProviderId,
-    query,
-  ]);
 
   const openDatabasePickerFor = (context: PickerContext) => {
     setDatabasePickerContext(context);
@@ -3759,7 +3658,7 @@ export default function DataSourceStep({
             className="ds-selected-source-type"
             aria-labelledby="ds-selected-source-type-label"
           >
-            <h3 id="ds-selected-source-type-label">Selected Data Source Type</h3>
+            <h3 id="ds-selected-source-type-label">Selected Source Type</h3>
             <div className="ds-selected-source-type__card">
               <span className="ds-selected-source-type__icon">{selectedSourceOption.icon}</span>
               <strong>{selectedSourceOption.title}</strong>

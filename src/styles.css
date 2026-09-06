@@ -160,6 +160,9 @@ button {
   align-items: center;
   gap: 12px;
 }
+.topbar__actions > .btn--primary {
+  border-radius: var(--radius-ui-pill);
+}
 
 .avatar {
   width: 28px;
@@ -421,8 +424,9 @@ button {
 }
 
 .create-popup__footer .btn {
-  min-width: 148px;
+  min-width: 116px;
   justify-content: center;
+  border-radius: var(--radius-ui-pill);
 }
 
 /* ---------- Modal ---------- */
@@ -7873,7 +7877,7 @@ html[data-theme="light"] .dd-component-menu {
 
 .ds-source-types__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-sm);
   min-width: 0;
 }
@@ -8807,16 +8811,6 @@ html[data-theme="light"] .dd-component-menu {
   white-space: nowrap;
 }
 
-.ds-schema-browser__source-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-lg);
-}
-
-.ds-schema-browser__source-actions .ds-schema-browser__search {
-  width: 280px;
-}
-
 .ds-schema-browser__badges {
   display: flex;
   gap: var(--spacing-sm);
@@ -8827,7 +8821,7 @@ html[data-theme="light"] .dd-component-menu {
   border: 1px solid var(--lc-border-control);
   border-radius: var(--radius-ui-pill);
   background: var(--lc-bg-neutral-subtle);
-  font: var(--lc-font-micro);
+  font: var(--lc-font-small);
   color: var(--lc-text-secondary);
 }
 
@@ -8846,7 +8840,7 @@ html[data-theme="light"] .dd-component-menu {
 
 .ds-schema-browser__sidebar {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   align-content: start;
   gap: var(--spacing-sm);
   min-height: 0;
@@ -8854,6 +8848,10 @@ html[data-theme="light"] .dd-component-menu {
   overflow: hidden;
   border-right: 1px solid var(--lc-border-subtle);
   background: var(--lc-surface-base);
+}
+
+.ds-schema-browser__sidebar > .ds-schema-browser__search {
+  width: 100%;
 }
 
 .ds-schema-browser__sidebar > button {
@@ -8876,6 +8874,7 @@ html[data-theme="light"] .dd-component-menu {
   border-color: var(--lc-border-control);
   background: var(--lc-bg-neutral-subtle);
   color: var(--lc-text-primary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .ds-schema-browser__objects-heading,
@@ -9021,7 +9020,7 @@ html[data-theme="light"] .dd-component-menu {
   padding: var(--spacing-lg);
   border: 1px solid var(--lc-border-default);
   border-radius: var(--radius-ui-default);
-  background: var(--lc-surface-2);
+  background: var(--lc-surface-1);
 }
 
 .ds-schema-browser__metrics span {
@@ -9052,7 +9051,7 @@ html[data-theme="light"] .dd-component-menu {
   overflow: hidden;
   border: 1px solid var(--lc-border-default);
   border-radius: var(--radius-ui-default);
-  background: var(--lc-surface-2);
+  background: var(--lc-surface-1);
 }
 
 .ds-schema-browser__overview-grid h3 {
@@ -9094,7 +9093,7 @@ html[data-theme="light"] .dd-component-menu {
   padding: var(--spacing-2xs) var(--spacing-sm);
   border-radius: var(--radius-ui-pill);
   background: var(--lc-bg-neutral-subtle);
-  font: var(--lc-font-micro);
+  font: var(--lc-font-small);
   color: var(--lc-text-secondary);
 }
 
@@ -9141,7 +9140,7 @@ html[data-theme="light"] .dd-component-menu {
   border: 1px solid var(--lc-border-control);
   border-radius: var(--radius-ui-pill);
   background: var(--lc-bg-neutral-subtle);
-  font: var(--lc-font-micro);
+  font: var(--lc-font-small);
   color: var(--lc-text-secondary);
 }
 
@@ -9258,7 +9257,7 @@ html[data-theme="light"] .dd-component-menu {
   padding: var(--spacing-2xs) var(--spacing-sm);
   border: 1px solid var(--lc-border-control);
   border-radius: var(--radius-ui-pill);
-  font: var(--lc-font-micro);
+  font: var(--lc-font-small);
   color: var(--lc-text-secondary);
 }
 
@@ -9309,7 +9308,7 @@ html[data-theme="light"] .dd-component-menu {
   overflow: hidden;
   border: 1px solid var(--lc-border-subtle);
   border-radius: var(--radius-ui-default);
-  background: var(--lc-surface-2);
+  background: var(--lc-surface-1);
 }
 
 .ds-schema-browser__relationships-table header,
@@ -9374,7 +9373,7 @@ html[data-theme="light"] .dd-component-menu {
   padding: var(--spacing-xl);
   border: 1px solid var(--lc-border-default);
   border-radius: var(--radius-ui-default);
-  background: var(--lc-surface-2);
+  background: var(--lc-surface-1);
 }
 
 .ds-schema-browser__technical h3 {
@@ -9584,6 +9583,17 @@ html[data-theme="light"] .dd-component-menu {
 .ds-api-collection__row:hover,
 .ds-api-request-row:hover {
   background: var(--lc-bg-default-hover);
+}
+
+.ds-api-collection__row.is-disabled,
+.ds-api-request-row:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ds-api-collection__row.is-disabled:hover,
+.ds-api-request-row:disabled:hover {
+  background: transparent;
 }
 
 .ds-api-collection__row:focus-visible,
@@ -10179,6 +10189,15 @@ html[data-theme="light"] .dd-component-menu {
   background: var(--lc-bg-brand-subtle);
 }
 
+.ds-db-manager-row.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ds-db-manager-row.is-disabled:hover {
+  background: transparent;
+}
+
 .ds-db-manager-row:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--lc-border-control-focus);
@@ -10244,29 +10263,11 @@ html[data-theme="light"] .dd-component-menu {
   gap: var(--spacing-sm);
 }
 
-.ds-db-manager-row__status {
-  display: inline-flex;
-  align-items: center;
-  justify-self: end;
-  gap: var(--spacing-2xs);
-  width: max-content;
-  padding: var(--spacing-2xs) var(--spacing-lg);
-  border-radius: var(--radius-ui-pill);
-  background: var(--lc-bg-negative-subtle);
+.ds-db-manager-row__updated {
   font: var(--lc-font-small);
-  color: var(--lc-text-negative);
-}
-
-.ds-db-manager-row__status i {
-  width: var(--spacing-sm);
-  height: var(--spacing-sm);
-  border-radius: var(--radius-ui-pill);
-  background: currentColor;
-}
-
-.ds-db-manager-row__status.is-active {
-  background: var(--lc-bg-positive-subtle);
-  color: var(--lc-text-positive);
+  font-weight: var(--font-weight-medium);
+  color: var(--lc-text-secondary);
+  white-space: nowrap;
 }
 
 .ds-db-manager-row__actions > button {
@@ -10596,7 +10597,7 @@ html[data-theme="light"] .dd-component-menu {
 
 .ds-db-selected__schema-browser,
 .ds-db-selected__change {
-  padding: var(--spacing-2xs) var(--spacing-sm);
+  padding: var(--spacing-sm);
   border: 0;
   border-radius: var(--radius-ui-pill);
   background: transparent;
@@ -10609,7 +10610,7 @@ html[data-theme="light"] .dd-component-menu {
 .ds-db-selected__schema-browser:hover,
 .ds-db-selected__change:hover {
   background: var(--lc-bg-brand-subtle);
-  color: var(--lc-text-brand-hover);
+  color: var(--lc-text-brand);
 }
 
 .ds-db-selected__schema-browser:focus-visible,
