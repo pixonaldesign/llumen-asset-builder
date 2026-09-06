@@ -15,9 +15,9 @@ import {
   AlignLeftSimple,
   AlignRightSimple,
   AlignTopSimple,
-  Info,
   Lock,
   LockOpen,
+  Question,
 } from "@phosphor-icons/react";
 import {
   CloseIcon,
@@ -579,6 +579,17 @@ function OverflowChipSelect({
                       if (filtered[0]) add(filtered[0]);
                     }}
                   />
+                  {search && (
+                    <button
+                      type="button"
+                      className="cp-picker-search-clear"
+                      aria-label="Clear search"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setSearch("")}
+                    >
+                      <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+                    </button>
+                  )}
                   <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
                 </div>
                 <div className="cp-picker-list">
@@ -642,7 +653,7 @@ function FieldInfoTip({ desc }: { desc: string }) {
           onFocus={show}
           onBlur={hide}
         >
-          <Info className="ia-field-info__icon" size={20} weight="fill" aria-hidden="true" />
+          <Question className="ia-field-info__icon" size={20} weight="regular" aria-hidden="true" />
         </button>
       </span>
       {open &&
@@ -2032,7 +2043,7 @@ export default function EditComponentModal({
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => setQuery("")}
                           >
-                            <CloseIcon width={14} height={14} strokeWidth={1.25} aria-hidden="true" />
+                            <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
                           </button>
                         )}
                       </label>

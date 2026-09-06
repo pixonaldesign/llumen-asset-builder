@@ -37,7 +37,7 @@ type SourceType =
   | "etl-flow";
 type MlInputSource = "database" | "api" | "file-source" | "local-file";
 type PickerContext = "source" | "ml";
-type DatabaseType = "MySQL" | "PostgreSQL" | "SQL Server" | "Oracle" | "SQLite";
+type DatabaseType = "Fusion" | "PostgreSQL";
 type DatabaseSort = "default" | "updated" | "name-asc" | "name-desc";
 type SchemaTable = {
   name: string;
@@ -139,7 +139,7 @@ const SOURCE_TYPES: SourceTypeOption[] = [
   },
   {
     id: "api",
-    title: "API",
+    title: "API Request",
     description: "Connect to REST APIs, GraphQL, or web services",
     icon: <CirclesFour size={20} aria-hidden="true" />,
   },
@@ -312,22 +312,22 @@ const DATABASE_CONNECTIONS: DatabaseConnection[] = [
   },
 ];
 
-const DATABASE_TYPES: DatabaseType[] = ["MySQL", "PostgreSQL", "SQL Server", "Oracle", "SQLite"];
+const DATABASE_TYPES: DatabaseType[] = ["Fusion", "PostgreSQL"];
 const DATABASE_CONNECTION_META: Record<
   string,
   { type: DatabaseType; lastUpdated: string; updatedMinutes: number }
 > = {
-  itc: { type: "MySQL", lastUpdated: "8/17/2026", updatedMinutes: 60 },
+  itc: { type: "Fusion", lastUpdated: "8/17/2026", updatedMinutes: 60 },
   dubai: { type: "PostgreSQL", lastUpdated: "8/11/2026", updatedMinutes: 180 },
-  aimsun: { type: "SQL Server", lastUpdated: "8/11/2026", updatedMinutes: 360 },
-  energy: { type: "Oracle", lastUpdated: "8/16/2026", updatedMinutes: 120 },
+  aimsun: { type: "PostgreSQL", lastUpdated: "8/11/2026", updatedMinutes: 360 },
+  energy: { type: "PostgreSQL", lastUpdated: "8/16/2026", updatedMinutes: 120 },
   "itc-pg": { type: "PostgreSQL", lastUpdated: "8/17/2026", updatedMinutes: 30 },
-  "itc-fusion": { type: "SQL Server", lastUpdated: "8/12/2026", updatedMinutes: 300 },
-  waste: { type: "SQLite", lastUpdated: "8/17/2026", updatedMinutes: 45 },
+  "itc-fusion": { type: "Fusion", lastUpdated: "8/12/2026", updatedMinutes: 300 },
+  waste: { type: "PostgreSQL", lastUpdated: "8/17/2026", updatedMinutes: 45 },
   "itc-postgres": { type: "PostgreSQL", lastUpdated: "8/13/2026", updatedMinutes: 240 },
-  security: { type: "MySQL", lastUpdated: "8/16/2026", updatedMinutes: 120 },
+  security: { type: "PostgreSQL", lastUpdated: "8/16/2026", updatedMinutes: 120 },
   employees: { type: "PostgreSQL", lastUpdated: "8/11/2026", updatedMinutes: 1440 },
-  commerce: { type: "MySQL", lastUpdated: "8/11/2026", updatedMinutes: 1440 },
+  commerce: { type: "PostgreSQL", lastUpdated: "8/11/2026", updatedMinutes: 1440 },
 };
 
 const SCHEMA_TABLES: SchemaTable[] = [
@@ -917,7 +917,7 @@ function DatabaseConnectionPicker({
   );
   const sortLabel: Record<DatabaseSort, string> = {
     default: "Default",
-    updated: "Last Updated",
+    updated: "Last Tested",
     "name-asc": "Name (A-Z)",
     "name-desc": "Name (Z-A)",
   };
@@ -953,6 +953,7 @@ function DatabaseConnectionPicker({
           <button
             type="button"
             className="ds-db-manager__new"
+            disabled
             onClick={() => setCreateModalOpen(true)}
           >
             <Plus size={17} aria-hidden="true" />
@@ -1031,7 +1032,7 @@ function DatabaseConnectionPicker({
 
       <div className="ds-db-manager__columns" aria-hidden="true">
         <span>Database Connections</span>
-        <span>Last Updated</span>
+        <span>Last Tested</span>
       </div>
 
       <div className="ds-db-manager__list" role="listbox" aria-label="Database connections">
@@ -2034,11 +2035,9 @@ function DataFlowSettings({
 function ApiRequestPanel({
   request,
   requests,
-  onRequestChange,
 }: {
   request: string;
   requests: ApiRequest[];
-  onRequestChange: (request: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState<"parameters" | "headers" | "body">("parameters");
   const [bodyType, setBodyType] = useState<"none" | "raw" | "form-data">("raw");
@@ -2059,19 +2058,6 @@ function ApiRequestPanel({
         </button>
       </header>
       <div className="ds-api-request__body">
-        <label>Request</label>
-        <Dropdown
-          value={request}
-          onChange={onRequestChange}
-          options={requests.map((option) => ({ value: option.id, label: option.name }))}
-          placeholder="Select a Request"
-          searchable
-          searchPlaceholder="Search requests"
-          noResultsLabel="No requests found"
-          ariaLabel="API request"
-          className="ds-api-request__dropdown"
-          compact
-        />
         {selectedRequest && (
           <>
             <div className="ds-api-request__endpoint">
@@ -2315,7 +2301,7 @@ function DatabaseSchemaBrowser({
   const [payloadExpanded, setPayloadExpanded] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const meta = DATABASE_CONNECTION_META[database.id] ?? {
-    type: "SQLite" as DatabaseType,
+    type: "PostgreSQL" as DatabaseType,
     lastUpdated: "Just now",
     updatedMinutes: 0,
   };
@@ -2723,6 +2709,7 @@ function SourcePickerModal({
     | "marketplace"
     | "file"
     | "data-flow"
+    | "query-assistant"
     | "schema-browser"
     | "upload-file";
 }) {
@@ -2758,6 +2745,8 @@ function SourcePickerModal({
                     ? " ds-source-picker-modal--file"
                     : variant === "data-flow"
                       ? " ds-source-picker-modal--data-flow"
+                      : variant === "query-assistant"
+                        ? " ds-source-picker-modal--query-assistant"
                       : variant === "schema-browser"
                         ? " ds-source-picker-modal--schema-browser"
                         : variant === "upload-file"
@@ -2774,47 +2763,154 @@ function SourcePickerModal({
   );
 }
 
-function QueryEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function QueryAssistantModal({
+  onClose,
+  onGenerate,
+  isGenerating,
+}: {
+  onClose: () => void;
+  onGenerate: (prompt: string) => void;
+  isGenerating: boolean;
+}) {
+  const [prompt, setPrompt] = useState("");
+  const canGenerate = prompt.trim().length > 0;
+
   return (
-    <section className="ds-query">
-      <header className="ds-query__header">
-        <h3>Query</h3>
-      </header>
-      <div className="ds-query__editor">
-        <span className="ds-query__line-number" aria-hidden="true">
-          1
-        </span>
-        <div className="ds-query__code-layer">
-          <HighlightedSql value={value} />
+    <SourcePickerModal variant="query-assistant" onClose={onClose}>
+      <form
+        className="ds-query-assistant"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canGenerate && !isGenerating) onGenerate(prompt.trim());
+        }}
+      >
+        <header className="ds-query-assistant__header">
+          <span className="ds-query-assistant__title">
+            <Sparkle size={18} weight="regular" aria-hidden="true" />
+            <h2>AI Query Assistant</h2>
+          </span>
+          <button type="button" aria-label="Close AI Query Assistant" onClick={onClose}>
+            <X size={16} aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="ds-query-assistant__intro">
+          <p>Describe the query you want to create</p>
+          <small>Example: &quot;Show all customers from last week&quot;</small>
+        </div>
+
+        <footer className="ds-query-assistant__composer">
           <textarea
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            onScroll={(event) => {
-              const highlight = event.currentTarget.previousElementSibling;
-              if (highlight instanceof HTMLElement) {
-                highlight.scrollTop = event.currentTarget.scrollTop;
-                highlight.scrollLeft = event.currentTarget.scrollLeft;
-              }
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            onFocus={() => {
+              if (!prompt) setPrompt("Show all customers from last week");
             }}
-            aria-label="SQL query"
-            spellCheck={false}
+            placeholder="Describe your query..."
+            aria-label="Describe your query"
+            rows={5}
+            disabled={isGenerating}
           />
-        </div>
-      </div>
-      <footer className="ds-query__footer">
-        <span>Dialect: SQL (Standard SQL)</span>
-        <div className="ds-query__actions">
-          <button type="button" className="ds-query__generate">
-            <Sparkle size={14} weight="fill" aria-hidden="true" />
-            Generate
+          <button
+            type="submit"
+            aria-label={isGenerating ? "Generating query" : "Generate query"}
+            disabled={!canGenerate || isGenerating}
+          >
+            {isGenerating ? (
+              <span className="ds-query-generate-spinner" aria-hidden="true" />
+            ) : (
+              <Sparkle size={14} weight="fill" aria-hidden="true" />
+            )}
+            {isGenerating ? "Generating..." : "Generate"}
           </button>
-          <button type="button" className="ds-query__execute">
-            <Play size={14} weight="fill" aria-hidden="true" />
-            Execute
-          </button>
+        </footer>
+      </form>
+    </SourcePickerModal>
+  );
+}
+
+function QueryEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const generationTimer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (generationTimer.current !== null) window.clearTimeout(generationTimer.current);
+    },
+    [],
+  );
+
+  return (
+    <>
+      <section className="ds-query">
+        <header className="ds-query__header">
+          <h3>Query</h3>
+          <div className="ds-query__actions">
+            <button
+              type="button"
+              className="ds-query__generate"
+              disabled={isGenerating}
+              onClick={() => setAssistantOpen(true)}
+            >
+              {isGenerating ? (
+                <span className="ds-query-generate-spinner" aria-hidden="true" />
+              ) : (
+                <Sparkle size={14} weight="fill" aria-hidden="true" />
+              )}
+              {isGenerating ? "Generating..." : hasGenerated ? "Regenerate" : "Generate"}
+            </button>
+            <button type="button" className="ds-query__execute">
+              <Play size={14} weight="fill" aria-hidden="true" />
+              Execute
+            </button>
+          </div>
+        </header>
+        <div className="ds-query__editor">
+          <span className="ds-query__line-number" aria-hidden="true">
+            1
+          </span>
+          <div className="ds-query__code-layer">
+            <HighlightedSql value={value} />
+            <textarea
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              onScroll={(event) => {
+                const highlight = event.currentTarget.previousElementSibling;
+                if (highlight instanceof HTMLElement) {
+                  highlight.scrollTop = event.currentTarget.scrollTop;
+                  highlight.scrollLeft = event.currentTarget.scrollLeft;
+                }
+              }}
+              aria-label="SQL query"
+              spellCheck={false}
+            />
+          </div>
         </div>
-      </footer>
-    </section>
+        <footer className="ds-query__footer">
+          <span>Dialect: SQL (Standard SQL)</span>
+        </footer>
+      </section>
+
+      {assistantOpen && (
+        <QueryAssistantModal
+          onClose={() => setAssistantOpen(false)}
+          isGenerating={isGenerating}
+          onGenerate={(prompt) => {
+            setIsGenerating(true);
+            generationTimer.current = window.setTimeout(() => {
+              const currentQuery = value.trim() || "SELECT *\nFROM source_data\nLIMIT 100;";
+              onChange(`-- Generated from: ${prompt}\n${currentQuery}`);
+              setHasGenerated(true);
+              setIsGenerating(false);
+              setAssistantOpen(false);
+              generationTimer.current = null;
+            }, 900);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -2829,7 +2925,6 @@ function SourceConfiguration({
   selectedApi,
   onOpenApiPicker,
   selectedRequest,
-  onSelectedRequestChange,
   selectedFile,
   onOpenFilePicker,
   onOpenFileSchemaBrowser,
@@ -2844,7 +2939,6 @@ function SourceConfiguration({
   mlSelectedApi,
   onOpenMlApiPicker,
   mlSelectedRequest,
-  onMlSelectedRequestChange,
   mlSelectedFile,
   onOpenMlFilePicker,
   mlFileQuery,
@@ -2868,7 +2962,6 @@ function SourceConfiguration({
   selectedApi: ApiSource | null;
   onOpenApiPicker: () => void;
   selectedRequest: string;
-  onSelectedRequestChange: (request: string) => void;
   selectedFile: FileSource | null;
   onOpenFilePicker: () => void;
   onOpenFileSchemaBrowser: () => void;
@@ -2883,7 +2976,6 @@ function SourceConfiguration({
   mlSelectedApi: ApiSource | null;
   onOpenMlApiPicker: () => void;
   mlSelectedRequest: string;
-  onMlSelectedRequestChange: (request: string) => void;
   mlSelectedFile: FileSource | null;
   onOpenMlFilePicker: () => void;
   mlFileQuery: string;
@@ -2898,6 +2990,10 @@ function SourceConfiguration({
   onQueryChange: (query: string) => void;
 }) {
   const [uploadFileModalOpen, setUploadFileModalOpen] = useState(false);
+  const selectedApiRequest =
+    selectedApi?.requests.find((request) => request.id === selectedRequest) ?? null;
+  const mlSelectedApiRequest =
+    mlSelectedApi?.requests.find((request) => request.id === mlSelectedRequest) ?? null;
 
   if (sourceType === "database") {
     return (
@@ -2909,14 +3005,14 @@ function SourceConfiguration({
               <Database size={18} aria-hidden="true" />
               <span className="ds-db-selected__content ds-db-selected__content--database">
                 <strong>{selectedDatabase.name}</strong>
+              </span>
+              <span className="ds-db-selected__actions">
                 {!isDatabaseConnecting && (
                   <span className="ds-db-selected__success" role="status">
                     <CheckCircle size={16} weight="bold" aria-hidden="true" />
                     Connection established
                   </span>
                 )}
-              </span>
-              <span className="ds-db-selected__actions">
                 {isDatabaseConnecting ? (
                   <span className="ds-db-selected__loading" role="status">
                     <i aria-hidden="true" />
@@ -2959,13 +3055,13 @@ function SourceConfiguration({
     return (
       <div className="ds-config-stack">
         <section className="ds-config">
-          <FieldHeader title="API Source" />
-          {selectedApi ? (
+          <FieldHeader title="API Request" />
+          {selectedApi && selectedApiRequest ? (
             <div className="ds-db-selected ds-db-selected--no-trailing">
               <CirclesFour size={18} aria-hidden="true" />
               <span className="ds-db-selected__content">
-                <strong>{selectedApi.name}</strong>
-                <small>API connection</small>
+                <strong>{selectedApiRequest.name}</strong>
+                <small>Collection: {selectedApi.name}</small>
               </span>
               <button type="button" className="ds-db-selected__change" onClick={onOpenApiPicker}>
                 Change
@@ -2973,7 +3069,7 @@ function SourceConfiguration({
             </div>
           ) : (
             <SourceActionField
-              label="Select API Source"
+              label="Select API Request"
               icon={<CirclesFour size={20} aria-hidden="true" />}
               onClick={onOpenApiPicker}
             />
@@ -2983,7 +3079,6 @@ function SourceConfiguration({
           <ApiRequestPanel
             request={selectedRequest}
             requests={selectedApi.requests}
-            onRequestChange={onSelectedRequestChange}
           />
         )}
       </div>
@@ -3133,14 +3228,14 @@ function SourceConfiguration({
                   <Database size={18} aria-hidden="true" />
                   <span className="ds-db-selected__content ds-db-selected__content--database">
                     <strong>{mlSelectedDatabase.name}</strong>
+                  </span>
+                  <span className="ds-db-selected__actions">
                     {!isMlDatabaseConnecting && (
                       <span className="ds-db-selected__success" role="status">
                         <CheckCircle size={16} weight="bold" aria-hidden="true" />
                         Connection established
                       </span>
                     )}
-                  </span>
-                  <span className="ds-db-selected__actions">
                     {isMlDatabaseConnecting ? (
                       <span className="ds-db-selected__loading" role="status">
                         <i aria-hidden="true" />
@@ -3181,13 +3276,13 @@ function SourceConfiguration({
         {mlInputSource === "api" && (
           <>
             <section className="ds-config">
-              <FieldHeader title="API Source" />
-              {mlSelectedApi ? (
+              <FieldHeader title="API Request" />
+              {mlSelectedApi && mlSelectedApiRequest ? (
                 <div className="ds-db-selected">
                   <Globe size={18} aria-hidden="true" />
                   <span className="ds-db-selected__content">
-                    <strong>{mlSelectedApi.name}</strong>
-                    <small>API source</small>
+                    <strong>{mlSelectedApiRequest.name}</strong>
+                    <small>Collection: {mlSelectedApi.name}</small>
                   </span>
                   <span className="ds-db-selected__trailing">
                     <Globe size={16} aria-hidden="true" />
@@ -3198,7 +3293,7 @@ function SourceConfiguration({
                 </div>
               ) : (
                 <SourceActionField
-                  label="Select API Source"
+                  label="Select API Request"
                   icon={<Globe size={20} aria-hidden="true" />}
                   onClick={onOpenMlApiPicker}
                 />
@@ -3208,7 +3303,6 @@ function SourceConfiguration({
               <ApiRequestPanel
                 request={mlSelectedRequest}
                 requests={mlSelectedApi.requests}
-                onRequestChange={onMlSelectedRequestChange}
               />
             )}
           </>
@@ -3408,6 +3502,10 @@ export default function DataSourceStep({
     ) ?? null;
   const mlSelectedApi =
     API_SOURCES.find((source) => source.id === mlSelectedApiId && source.active) ?? null;
+  const hasSelectedApiRequest =
+    selectedApi?.requests.some((request) => request.id === selectedRequest) ?? false;
+  const hasMlSelectedApiRequest =
+    mlSelectedApi?.requests.some((request) => request.id === mlSelectedRequest) ?? false;
   const mlSelectedFile =
     FILE_SOURCES.find((source) => source.id === mlSelectedFileId && source.active) ?? null;
   const selectedDataFlow = DATA_FLOWS.find((flow) => flow.id === selectedDataFlowId) ?? null;
@@ -3419,10 +3517,10 @@ export default function DataSourceStep({
     SOURCE_TYPES.find((source) => source.id === sourceType) ?? null;
   const hasConfiguredSource =
     (sourceType === "database" && Boolean(selectedDatabase)) ||
-    (sourceType === "api" && Boolean(selectedApi)) ||
+    (sourceType === "api" && hasSelectedApiRequest) ||
     (sourceType === "file-upload" && Boolean(selectedFile)) ||
     (sourceType === "ml-model" &&
-      Boolean(mlSelectedDatabase || mlSelectedApi || mlSelectedFile)) ||
+      Boolean(mlSelectedDatabase || hasMlSelectedApiRequest || mlSelectedFile)) ||
     ((sourceType === "data-flow" || sourceType === "etl-flow") && Boolean(selectedDataFlow)) ||
     (sourceType === "marketplace" && Boolean(selectedMarketplaceProvider));
   const shouldFillQuery =
@@ -3590,10 +3688,10 @@ export default function DataSourceStep({
             if (!draftApiId || !draftApiRequest) return;
             if (apiPickerContext === "ml") {
               setMlSelectedApiId(draftApiId);
-              setMlSelectedRequest("");
+              setMlSelectedRequest(draftApiRequest);
             } else {
               setSelectedApiId(draftApiId);
-              setSelectedRequest("");
+              setSelectedRequest(draftApiRequest);
             }
             setApiPickerOpen(false);
           }}
@@ -3723,7 +3821,6 @@ export default function DataSourceStep({
             selectedApi={selectedApi}
             onOpenApiPicker={openApiPicker}
             selectedRequest={selectedRequest}
-            onSelectedRequestChange={setSelectedRequest}
             selectedFile={selectedFile}
             onOpenFilePicker={openFilePicker}
             onOpenFileSchemaBrowser={() => {
@@ -3747,7 +3844,6 @@ export default function DataSourceStep({
             mlSelectedApi={mlSelectedApi}
             onOpenMlApiPicker={openMlApiPicker}
             mlSelectedRequest={mlSelectedRequest}
-            onMlSelectedRequestChange={setMlSelectedRequest}
             mlSelectedFile={mlSelectedFile}
             onOpenMlFilePicker={openMlFilePicker}
             mlFileQuery={mlFileQuery}

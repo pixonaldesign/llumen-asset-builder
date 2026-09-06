@@ -14,6 +14,7 @@ import {
   ContrastIcon,
   GradientPillIcon,
   PlusIcon,
+  CloseIcon,
   SearchIcon,
   SinglePillIcon,
   StepsDotsIcon,
@@ -300,6 +301,17 @@ function PalettePickerMenu({
           value={search}
           onChange={(e) => onSearch(e.target.value)}
         />
+        {search && (
+          <button
+            type="button"
+            className="cp-picker-search-clear"
+            aria-label="Clear search"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onSearch("")}
+          >
+            <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+          </button>
+        )}
         <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
       </div>
 

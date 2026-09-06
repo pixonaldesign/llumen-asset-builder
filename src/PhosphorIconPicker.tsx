@@ -6,7 +6,7 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDownIcon, SearchIcon } from "./icons";
+import { ChevronDownIcon, CloseIcon, SearchIcon } from "./icons";
 import {
   PHOSPHOR_ICON_OPTIONS,
   getPhosphorIcon,
@@ -149,6 +149,17 @@ export default function PhosphorIconPicker({
                   pick(filtered[0].name);
                 }}
               />
+              {search && (
+                <button
+                  type="button"
+                  className="cp-picker-search-clear"
+                  aria-label="Clear search"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => setSearch("")}
+                >
+                  <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+                </button>
+              )}
               <SearchIcon className="cp-picker-search-ico" width={14} height={14} aria-hidden="true" />
             </div>
 

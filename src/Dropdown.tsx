@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDownIcon, SearchIcon } from "./icons";
+import { ChevronDownIcon, CloseIcon, SearchIcon } from "./icons";
 
 export type DropdownOption = {
   value: string;
@@ -189,6 +189,17 @@ export default function Dropdown({
                     else if (showEmpty) pick("");
                   }}
                 />
+                {search && (
+                  <button
+                    type="button"
+                    className="cp-picker-search-clear"
+                    aria-label="Clear search"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setSearch("")}
+                  >
+                    <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+                  </button>
+                )}
                 <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
               </div>
             )}
