@@ -170,7 +170,6 @@ export const SUBCATEGORY_ORDER = [
   "Status badge",
   "Bar",
   "Line",
-  "Area styling",
   "Scatter",
   "Pie / Donut",
   "Meter & Labels",
@@ -477,11 +476,13 @@ const FIELDS: FieldDef[] = [
     values: ["Smooth", "Linear", "Step", "Step before", "Step after", "Natural"],
     defaultValue: "Smooth",
   }),
-  f("Line + Area colors", "colorPair", "Area styling", ["Area"], {
+  f("Line + Area colors", "colorPair", "Colors", ["Area"], {
     desc: "Stroke and fill.",
+    advanced: true,
   }),
-  f("Fill opacity", "slider", "Area styling", ["Area"], {
-    desc: "0–1.",
+  f("Fill opacity", "slider", "Colors", ["Area"], {
+    desc: "0–100%.",
+    advanced: true,
   }),
   f("Min bubble radius", "slider", "Scatter", ["Scatter"], {
     desc: "1–20 px. Default 4.",
@@ -1203,7 +1204,6 @@ export const SETTINGS_NAV_CORE = [
   "KPI Display",
   "Bar",
   "Line",
-  "Area styling",
   "Scatter",
   "Pie / Donut",
   "Meter & Labels",

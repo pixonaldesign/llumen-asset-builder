@@ -15,16 +15,16 @@ import {
   AlignLeftSimple,
   AlignRightSimple,
   AlignTopSimple,
+  CheckCircle,
   Lock,
   LockOpen,
   Question,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import {
   CloseIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
-  CheckIcon,
-  ExclamationIcon,
   SearchIcon,
   RequiredIcon,
 } from "./icons";
@@ -126,6 +126,12 @@ const SAMPLE_COLUMNS = allColumnNames();
 /* config keys & defaults ------------------------------------------------ */
 type Config = Record<string, unknown>;
 const keyOf = (o: Opt) => `${o.group}::${o.name}`;
+
+/** Former Area styling fields now live under Colors; keep old keys readable. */
+const LEGACY_SETTING_KEYS: Record<string, string> = {
+  "Colors::Line + Area colors": "Area styling::Line + Area colors",
+  "Colors::Fill opacity": "Area styling::Fill opacity",
+};
 
 type MarginsValue = {
   top: number;
@@ -295,7 +301,8 @@ function sliderScale(o: Opt): { lo: number; hi: number; ticks: number; unit: str
   else if (/\(m\)/i.test(o.name) || /\bm\b/i.test(desc)) unit = "m";
 
   let step = stepMatch ? parseFloat(stepMatch[1]) : 0;
-  if (!step && Number.isInteger(lo) && Number.isInteger(hi) && span >= 1 && span <= 12) step = 1;
+  /* 0–1 ranges are continuous (opacity/ratio), not a 2-stop toggle. */
+  if (!step && Number.isInteger(lo) && Number.isInteger(hi) && span > 1 && span <= 12) step = 1;
   const ticks = step > 0 && span > 0 ? Math.round(span / step) + 1 : 0;
   return { lo, hi, ticks: ticks >= 2 && ticks <= 12 ? ticks : 0, unit };
 }
@@ -616,13 +623,16 @@ function OverflowChipSelect({
   );
 }
 
-function FieldInfoTip({ desc }: { desc: string }) {
-  const btnRef = useRef<HTMLButtonElement>(null);
+const TAB_STATUS_INCOMPLETE = "There are required fields that are empty";
+const TAB_STATUS_COMPLETE = "All required fields are filled";
+
+function useHoverTip<T extends HTMLElement>() {
+  const anchorRef = useRef<T>(null);
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
 
   const syncPosition = useCallback(() => {
-    const el = btnRef.current;
+    const el = anchorRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     setCoords({
@@ -638,13 +648,59 @@ function FieldInfoTip({ desc }: { desc: string }) {
 
   const hide = () => setOpen(false);
 
+  return { anchorRef, open, coords, show, hide };
+}
+
+function HoverTip({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const { anchorRef, open, coords, show, hide } = useHoverTip<HTMLSpanElement>();
+
+  return (
+    <>
+      <span
+        ref={anchorRef}
+        className={className}
+        role="img"
+        aria-label={label}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+      >
+        {children}
+      </span>
+      {open &&
+        createPortal(
+          <span
+            className="ia-field-info__tip ia-field-info__tip--flyout"
+            role="tooltip"
+            style={{ top: coords.top, left: coords.left }}
+          >
+            {label}
+          </span>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+function FieldInfoTip({ desc }: { desc: string }) {
+  const { anchorRef, open, coords, show, hide } = useHoverTip<HTMLButtonElement>();
+
   if (!desc.trim()) return null;
 
   return (
     <>
       <span className="ia-field-info">
         <button
-          ref={btnRef}
+          ref={anchorRef}
           type="button"
           className="ia-field-info__btn"
           aria-label={desc}
@@ -1646,6 +1702,14 @@ export default function EditComponentModal({
   }, [visualFields]);
 
   useEffect(() => {
+    const mapped =
+      activeSubCategory === "Area styling" || activeSubCategory === "Area Styling"
+        ? "Colors"
+        : activeSubCategory;
+    if (mapped !== activeSubCategory && subCategories.includes(mapped)) {
+      setActiveSubCategory(mapped);
+      return;
+    }
     if (!subCategories.includes(activeSubCategory)) {
       setActiveSubCategory(subCategories[0] ?? "Mapping");
     }
@@ -1688,7 +1752,9 @@ export default function EditComponentModal({
   }, []);
 
   const getVal = (o: Opt) => {
-    const v = config[keyOf(o)];
+    const currentKey = keyOf(o);
+    const legacyKey = LEGACY_SETTING_KEYS[currentKey];
+    const v = config[currentKey] ?? (legacyKey !== undefined ? config[legacyKey] : undefined);
     if (o.type === "field" && o.level === "required" && !isValueFilled(o, v)) {
       return defaultFor(o);
     }
@@ -2120,21 +2186,13 @@ export default function EditComponentModal({
                                   )}
                                   {hasRequiredFields && (
                                     hasErrors ? (
-                                      <span
-                                        className="vs-tab__alert"
-                                        role="img"
-                                        aria-label="Required fields incomplete"
-                                      >
-                                        <ExclamationIcon aria-hidden="true" />
-                                      </span>
+                                      <HoverTip label={TAB_STATUS_INCOMPLETE} className="vs-tab__alert">
+                                        <WarningCircle size={20} weight="fill" aria-hidden="true" />
+                                      </HoverTip>
                                     ) : (
-                                      <span
-                                        className="vs-tab__complete"
-                                        role="img"
-                                        aria-label="Required fields complete"
-                                      >
-                                        <CheckIcon aria-hidden="true" />
-                                      </span>
+                                      <HoverTip label={TAB_STATUS_COMPLETE} className="vs-tab__complete">
+                                        <CheckCircle size={20} weight="fill" aria-hidden="true" />
+                                      </HoverTip>
                                     )
                                   )}
                                 </span>

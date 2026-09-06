@@ -720,8 +720,8 @@ function LineArea({ cfg, chartId, minimal, compact, series, decorate, setHover, 
   const isArea = chartId === "area" || style === "Area";
   const showPoints = !minimal && !compact && bool(cfg(grp, "Show data points", false), false);
   const curve = str(cfg(grp, "Curve interpolation", "Smooth"), "Smooth");
-  const fillOp = sliderMapped(cfg("Area styling", "Fill opacity", 40), 0, 1, 0.35);
-  const pair = asColorPair(cfg("Area styling", "Line + Area colors", undefined));
+  const fillOp = sliderMapped(cfg("Colors", "Fill opacity", cfg("Area styling", "Fill opacity", 40)), 0, 1, 0.35);
+  const pair = asColorPair(cfg("Colors", "Line + Area colors", cfg("Area styling", "Line + Area colors", undefined)));
   const values = series?.values ?? [52, 48, 55, 42, 58, 61, 54];
   const labels = series?.labels ?? values.map((_, i) => String(i + 1));
   const groups = series?.groups;

@@ -1323,6 +1323,7 @@ button {
   color: var(--lc-text-secondary);
   text-align: left;
   cursor: pointer;
+  overflow: visible;
   transition: 0.14s;
 }
 .vs-tab__main {
@@ -1352,6 +1353,7 @@ button {
   align-items: center;
   gap: var(--space-sm);
   flex: 0 0 auto;
+  overflow: visible;
 }
 .vs-tab__state {
   padding: var(--spacing-3xs) var(--spacing-sm);
@@ -1378,27 +1380,31 @@ button {
 .vs-tab__alert,
 .vs-tab__complete {
   flex: 0 0 auto;
-  display: inline-grid;
+  display: grid;
   place-items: center;
-  width: var(--spacing-2xl);
-  height: var(--spacing-2xl);
-  padding: 0;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-full);
-  background: var(--color-neutral-700);
+  position: relative;
+  width: auto;
+  height: auto;
+  padding: var(--spacing-2xs);
+  border: 0;
+  background: transparent;
   box-sizing: border-box;
+  overflow: visible;
 }
 .vs-tab__alert > svg,
 .vs-tab__complete > svg {
   display: block;
-  width: var(--spacing-lg);
-  height: var(--spacing-lg);
+  position: relative;
+  z-index: 1;
+  width: var(--spacing-2xl);
+  height: var(--spacing-2xl);
+  overflow: visible;
 }
 .vs-tab__alert {
-  color: color-mix(in srgb, var(--lc-text-negative) 72%, white);
+  color: var(--lc-bg-negative);
 }
 .vs-tab__complete {
-  color: var(--lc-text-positive);
+  color: var(--lc-bg-positive);
 }
 .vs-tab:hover:not(.is-selected) {
   background: var(--lc-bg-neutral-subtle-hover);
@@ -1415,14 +1421,19 @@ button {
   font-weight: var(--font-weight-medium);
 }
 .vs-tab.is-selected .vs-tab__alert {
-  color: color-mix(in srgb, var(--lc-text-negative) 72%, white);
+  color: var(--lc-bg-negative);
 }
 .vs-tab.is-selected .vs-tab__complete {
-  color: var(--lc-text-positive);
+  color: var(--lc-bg-positive);
 }
-.vs-tab.is-selected .vs-tab__alert,
-.vs-tab.is-selected .vs-tab__complete {
-  border-color: transparent;
+.vs-tab.is-selected .vs-tab__alert::before,
+.vs-tab.is-selected .vs-tab__complete::before {
+  content: "";
+  position: absolute;
+  inset: var(--spacing-3xs);
+  border-radius: var(--radius-full);
+  background: var(--lc-text-on-brand);
+  pointer-events: none;
 }
 .vs-panel__content {
   min-width: 0;
@@ -3947,20 +3958,23 @@ html[data-theme="light"] .settings-search-menu {
 }
 .cp-track-area--steps {
   position: relative;
-  height: 40px;
+  /* Extra inset so hover-scaled knobs stay inside overflow:hidden ancestors
+     such as .ia-reveal__inner. */
+  height: calc(var(--space-5xl) + var(--space-sm));
   margin-bottom: var(--spacing-3xs);
+  margin-inline: var(--space-sm);
   overflow: visible;
 }
 .cp-track-area--steps .cp-track {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--space-sm);
   z-index: auto;
 }
 .cp-track-mark {
   position: absolute;
-  bottom: 12px;
+  bottom: calc(var(--space-lg) + var(--space-sm));
   z-index: 1;
   width: 0;
   height: 20px;
@@ -4343,9 +4357,15 @@ html[data-theme="light"] .settings-search-menu {
   background: var(--lc-bg-neutral-subtle-hover);
 }
 .ia-chip.selected {
-  background: var(--lc-bg-brand-subtle);
-  color: var(--lc-text-brand);
-  border-color: var(--lc-border-brand-subtle);
+  background: var(--lc-bg-brand);
+  color: var(--lc-text-on-brand);
+  border-color: transparent;
+}
+.ia-chip.selected:hover {
+  background: var(--lc-bg-brand-hover);
+}
+.ia-chip.selected:active {
+  background: var(--lc-bg-brand-pressed);
 }
 .ia-chip--more {
   margin: 0;

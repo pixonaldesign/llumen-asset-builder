@@ -94,7 +94,6 @@ export const SETTINGS_TAB_ICONS: Record<string, Icon> = {
   "Status badge": CheckCircle,
   Bar: ChartBar,
   Line: ChartLine,
-  "Area styling": ChartLineUp,
   Scatter: ChartScatter,
   "Pie / Donut": ChartDonut,
   "Meter & Labels": Gauge,
