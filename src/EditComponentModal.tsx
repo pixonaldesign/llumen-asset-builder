@@ -23,9 +23,10 @@ import {
   CloseIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
+  CheckIcon,
+  ExclamationIcon,
   SearchIcon,
   RequiredIcon,
-  FieldAlertIcon,
 } from "./icons";
 import { charts } from "./chartModel";
 import type { Opt } from "./chartModel";
@@ -46,7 +47,7 @@ import { getSettingsTabIcon } from "./visualIcons";
 import Dropdown from "./Dropdown";
 import PhosphorIconPicker from "./PhosphorIconPicker";
 import { derivePreviewSeries, mappedMeasureColumn } from "./derivePreviewSeries";
-import { allColumnNames, defaultColumnForField, fieldOptionsFor, numericExtent, uniqueValues } from "./mockDataset";
+import { allColumnNames, fieldOptionsFor, numericExtent, uniqueValues } from "./mockDataset";
 import {
   DEFAULT_COLOR_MODE,
   DEFAULT_GRADIENT,
@@ -190,7 +191,7 @@ function multiChoices(o: Opt): string[] {
 function defaultMulti(o: Opt): string[] {
   const values = multiChoices(o);
   if (isMultiToggle(o, values)) return [...values];
-  if (o.name === "Visible columns") return values.slice(0, 4);
+  if (o.name === "Visible columns") return [];
   return values.slice(0, Math.min(3, values.length));
 }
 
@@ -272,17 +273,6 @@ function defaultFor(o: Opt): unknown {
     case "dropdown":
       return o.values[0] ?? "";
     case "field":
-      if (o.level === "required") return defaultColumnForField(o.name);
-      if (o.group === "KPI Display") {
-        if (o.name === "KPI value field") return defaultColumnForField("Y axis") || "value";
-        if (/unit/i.test(o.name)) return "unit";
-      }
-      if (o.group === "Status badge" && /color source/i.test(o.name)) {
-        return defaultColumnForField("Y axis") || "value";
-      }
-      if (o.group === "Status badge" && o.name === "Column") {
-        return defaultColumnForField("Status") || "status";
-      }
       return "";
     case "text":
     default:
@@ -652,7 +642,7 @@ function FieldInfoTip({ desc }: { desc: string }) {
           onFocus={show}
           onBlur={hide}
         >
-          <Info className="ia-field-info__icon" size={16} weight="fill" aria-hidden="true" />
+          <Info className="ia-field-info__icon" size={20} weight="fill" aria-hidden="true" />
         </button>
       </span>
       {open &&
@@ -1136,6 +1126,7 @@ function Control({
           onChange={(v) => setVal(o, v)}
           allowEmpty={o.type === "field" && o.level !== "required"}
           searchable={o.type === "field"}
+          placeholder={o.type === "field" ? `Select ${o.name.toLowerCase()}` : undefined}
           options={list}
         />
       );
@@ -1649,6 +1640,16 @@ export default function EditComponentModal({
   const navSections = useMemo(() => settingsNavSections(displayVisualId), [displayVisualId]);
 
   useEffect(() => {
+    const fieldKeys = visualFields.filter((field) => field.type === "field").map(keyOf);
+    setConfig((current) => {
+      if (!fieldKeys.some((key) => key in current)) return current;
+      const next = { ...current };
+      fieldKeys.forEach((key) => delete next[key]);
+      return next;
+    });
+  }, [visualFields]);
+
+  useEffect(() => {
     sessionStorage.setItem(
       WIZARD_PROGRESS_KEY,
       JSON.stringify({ currentStep, maxUnlockedStep }),
@@ -1785,6 +1786,7 @@ export default function EditComponentModal({
 
   const handlePrev = () => {
     if (isVizStep && vizPhase === "settings") {
+      setSelectedVisualId(null);
       setVizPhase("picker");
       return;
     }
@@ -1792,12 +1794,11 @@ export default function EditComponentModal({
   };
 
   const handleNext = () => {
+    if (isDataSourceStep && (!dataSourceConfigured || dataSourceLoading)) {
+      return;
+    }
     if (WIZARD_STEPS[currentStep]?.id === "general-info") {
-      if (
-        !generalInfo.name.trim() ||
-        !generalInfo.description.trim() ||
-        !generalInfo.tags.length
-      ) {
+      if (generalInfoIncomplete) {
         return;
       }
       onClose?.();
@@ -1815,20 +1816,12 @@ export default function EditComponentModal({
     setActiveSubCategory("Mapping");
     setQuery("");
     setVizPhase("settings");
-    const requiredMaps = fieldsForVisual(visual.id).filter(
-      (o) => o.group === "Mapping" && o.level === "required" && o.type === "field",
-    );
-    setConfig((c) => {
-      const next = { ...c };
-      for (const o of requiredMaps) {
-        const k = keyOf(o);
-        if (!isValueFilled(o, next[k])) next[k] = defaultColumnForField(o.name);
-      }
-      return next;
-    });
   };
 
-  const returnToVisualPicker = () => setVizPhase("picker");
+  const returnToVisualPicker = () => {
+    setSelectedVisualId(null);
+    setVizPhase("picker");
+  };
 
   const selectStep = (index: number) => {
     if (index > maxUnlockedStep) return;
@@ -1847,6 +1840,16 @@ export default function EditComponentModal({
   const isVizPicker = isVizStep && vizPhase === "picker";
   const isVizSettings = isVizStep && vizPhase === "settings";
   const mappingIncomplete = sectionHasErrors(mappingFields, getVal);
+  const generalInfoIncomplete =
+    !generalInfo.name.trim() ||
+    !generalInfo.description.trim() ||
+    generalInfo.tags.length === 0;
+  const nextDisabled =
+    (isDataSourceStep && (!dataSourceConfigured || dataSourceLoading)) ||
+    isVizPicker ||
+    (isVizSettings && mappingIncomplete) ||
+    (isGeneralInfoStep && generalInfoIncomplete) ||
+    currentStep >= WIZARD_STEPS.length;
   const displayVisualLabel = displayVisual?.label ?? chart.name;
   const displayVisualCategory = displayVisual?.category ?? "chart";
   const showChartPreview = !isDataSourceStep && !isDeepDiveStep && !isVizPicker;
@@ -2043,6 +2046,17 @@ export default function EditComponentModal({
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
                         />
+                        {query && (
+                          <button
+                            type="button"
+                            className="settings__search-clear"
+                            aria-label="Clear search"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setQuery("")}
+                          >
+                            <CloseIcon width={14} height={14} strokeWidth={1.25} aria-hidden="true" />
+                          </button>
+                        )}
                       </label>
                       {searchingVisualSettings && (
                         <div
@@ -2089,6 +2103,7 @@ export default function EditComponentModal({
                           {section.tabs.map((label) => {
                             const selected = activeSubCategory === label;
                             const catFields = visualFields.filter((o) => o.group === label);
+                            const hasRequiredFields = catFields.some((o) => o.level === "required");
                             const hasErrors = sectionHasErrors(catFields, getVal);
                             const TabIcon = getSettingsTabIcon(label);
                             const featureOn = isFeatureTabOn(label, getValByKey, catFields);
@@ -2107,15 +2122,31 @@ export default function EditComponentModal({
                                   <TabIcon className="vs-tab__icon" size={16} weight="regular" aria-hidden="true" />
                                   <span className="vs-tab__label">{label}</span>
                                 </span>
-                                {(featureOn !== null || hasErrors) && (
+                                {(featureOn !== null || hasRequiredFields) && (
                                 <span className="vs-tab__meta">
                                   {featureOn !== null && (
                                     <span className={"vs-tab__state" + (featureOn ? " is-on" : "")}>
                                       {featureOn ? "On" : "Off"}
                                     </span>
                                   )}
-                                  {hasErrors && (
-                                    <FieldAlertIcon className="vs-tab__alert" aria-label="Required fields incomplete" />
+                                  {hasRequiredFields && (
+                                    hasErrors ? (
+                                      <span
+                                        className="vs-tab__alert"
+                                        role="img"
+                                        aria-label="Required fields incomplete"
+                                      >
+                                        <ExclamationIcon aria-hidden="true" />
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className="vs-tab__complete"
+                                        role="img"
+                                        aria-label="Required fields complete"
+                                      >
+                                        <CheckIcon aria-hidden="true" />
+                                      </span>
+                                    )
                                   )}
                                 </span>
                                 )}
@@ -2289,15 +2320,7 @@ export default function EditComponentModal({
                 "pg-btn pg-btn--primary" +
                 (isGeneralInfoStep ? " pg-btn--create" : " pg-btn--icon-right")
               }
-              disabled={
-                isVizPicker
-                  ? true
-                  : isVizSettings
-                    ? mappingIncomplete
-                    : isGeneralInfoStep
-                      ? false
-                      : currentStep >= WIZARD_STEPS.length - 1
-              }
+              disabled={nextDisabled}
               onClick={handleNext}
             >
               <span>{isGeneralInfoStep ? "Create asset" : "Next"}</span>

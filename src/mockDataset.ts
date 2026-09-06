@@ -1,5 +1,13 @@
 export type ColumnType = "number" | "string" | "boolean" | "datetime" | "geometry";
 
+const COLUMN_TYPE_LABELS: Record<ColumnType, string> = {
+  string: "String",
+  number: "Number",
+  boolean: "Boolean",
+  datetime: "Date",
+  geometry: "Location",
+};
+
 export type MockColumn = {
   name: string;
   label: string;
@@ -219,53 +227,13 @@ export function columnsForField(fieldName: string, dataset: MockDataset = MOCK_D
   return dataset.columns.filter((column) => isColumnCompatible(fieldName, column.type));
 }
 
-export function defaultColumnForField(fieldName: string, dataset: MockDataset = MOCK_DATASET): string {
-  const preferred: Record<string, string> = {
-    "X axis": "district",
-    "Y axis": "value",
-    "Y category": "district",
-    "X value": "value",
-    "Y value": "incidents",
-    Category: "district",
-    Value: "value",
-    Unit: "unit",
-    Status: "status",
-    "Metric label": "district",
-    "Secondary label/context": "region",
-    "Low value": "incidents",
-    "High value": "value",
-    Direction: "direction",
-    "Wind speed": "wind_speed",
-    Origin: "origin",
-    Destination: "destination",
-    "Geometry Column": "geometry",
-    "Location field": "district",
-    "Coordinates (Geometry)": "coordinates",
-    Location: "district",
-    Geometry: "geometry",
-    Name: "name",
-    Type: "type",
-    Coordinates: "coordinates",
-    "Intensity Value Field": "value",
-    "Point size": "value",
-    "Color/Category": "category",
-    "Max/Total": "total",
-    "Max value": "amount",
-    "Comparison value": "predicted",
-  };
-  const options = columnsForField(fieldName, dataset);
-  const want = preferred[fieldName];
-  if (want && options.some((c) => c.name === want)) return want;
-  return options[0]?.name ?? "";
-}
-
 export function fieldOptionsFor(fieldName: string, dataset: MockDataset = MOCK_DATASET) {
   return dataset.columns.map((column) => {
     const compatible = isColumnCompatible(fieldName, column.type);
     return {
       value: column.name,
       label: column.label,
-      dataType: column.type,
+      dataType: COLUMN_TYPE_LABELS[column.type],
       disabled: !compatible,
       disabledReason: compatible ? undefined : "Incompatible",
     };

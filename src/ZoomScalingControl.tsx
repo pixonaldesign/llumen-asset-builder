@@ -507,6 +507,7 @@ export default function ZoomScalingControl({
                 value={current.dataField}
                 onChange={(dataField) => commit({ dataField })}
                 options={DATA_FIELD_OPTIONS}
+                placeholder="Select data field"
                 searchable
                 ariaLabel="Data field"
                 minMenuWidth={360}

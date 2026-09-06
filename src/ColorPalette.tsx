@@ -442,7 +442,6 @@ function StopRow({
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const swatchRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const customRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setHexDraft(committedHex);
@@ -496,11 +495,6 @@ function StopRow({
 
   const pickColor = (next: string) => {
     onChange({ ...stop, color: next });
-    setMenuOpen(false);
-  };
-
-  const openCustomPicker = () => {
-    customRef.current?.click();
     setMenuOpen(false);
   };
 
@@ -581,16 +575,15 @@ function StopRow({
                         aria-selected={selected}
                         aria-label={toHex(c).toUpperCase()}
                         className={"cp-swatch-menu__dot" + (selected ? " is-selected" : "")}
-                        style={{ background: c }}
+                        style={{
+                          background: c,
+                          ["--cp-selected-swatch-color" as string]: c,
+                        }}
                         onClick={() => pickColor(c)}
                       />
                     );
                   })}
                 </div>
-                <button type="button" className="cp-add cp-swatch-menu__custom" onClick={openCustomPicker}>
-                  <PlusIcon width={16} height={16} />
-                  <span>Add a custom color</span>
-                </button>
               </div>,
               document.body,
             )}
@@ -652,15 +645,6 @@ function StopRow({
           <TrashIcon width={16} height={16} />
         </button>
       )}
-      <input
-        ref={customRef}
-        type="color"
-        className="cp-swatch-native"
-        value={toHex(stop.color)}
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={(e) => onChange({ ...stop, color: e.target.value })}
-      />
     </div>
   );
 }

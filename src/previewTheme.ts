@@ -126,7 +126,7 @@ export type ZoomScalingValue = {
 };
 
 export const DEFAULT_ZOOM_SCALING: ZoomScalingValue = {
-  dataField: "value",
+  dataField: "",
   rate: "Linear",
   styleAcrossZoom: false,
   stops: [
@@ -189,7 +189,7 @@ export function asZoomScaling(v: unknown): ZoomScalingValue {
     const o = v as Partial<ZoomScalingValue> & { stops?: unknown };
     if (Array.isArray(o.stops) && o.stops.length) {
       return {
-        dataField: typeof o.dataField === "string" && o.dataField ? o.dataField : "value",
+        dataField: typeof o.dataField === "string" ? o.dataField : "",
         rate: isZoomRate(o.rate) ? o.rate : "Linear",
         styleAcrossZoom: o.styleAcrossZoom === true,
         stops: o.stops.map((s, i) => {
@@ -212,9 +212,9 @@ export function asZoomScaling(v: unknown): ZoomScalingValue {
                   curveConfig.stops.length
                     ? {
                         dataField:
-                          typeof curveConfig.dataField === "string" && curveConfig.dataField
+                          typeof curveConfig.dataField === "string"
                             ? curveConfig.dataField
-                            : "value",
+                            : "",
                         rate: curveConfig.rate,
                         stops: curveConfig.stops.map((stop, stopIndex) =>
                           parseStopPair(stop?.zoom ?? stopIndex, stop?.scale ?? ""),
@@ -231,7 +231,7 @@ export function asZoomScaling(v: unknown): ZoomScalingValue {
     const first = v[0] as Partial<ZoomScalingStop> & Partial<RepeatableRow>;
     if (first && typeof first === "object" && ("zoom" in first || "scale" in first)) {
       return {
-        dataField: "value",
+        dataField: "",
         rate: "Linear",
         styleAcrossZoom: false,
         stops: v.map((s, i) => {

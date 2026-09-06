@@ -207,6 +207,14 @@ export const FieldAlertIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Exclamation mark — incomplete required fields */
+export const ExclamationIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 6v9" />
+    <path d="M12 19h.01" />
+  </svg>
+);
+
 /** Asterisk — required fields */
 export const RequiredIcon = (p: IconProps) => (
   <svg width={10} height={10} viewBox="0 0 10 10" fill="currentColor" aria-hidden="true" {...p}>
