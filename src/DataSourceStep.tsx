@@ -1095,9 +1095,11 @@ function DatabaseConnectionPicker({
             >
               <div className="ds-db-manager-row__connection">
                 <strong>{connection.name}</strong>
-                <div>
-                  <span>{connection.description}</span>
-                </div>
+                {connection.description.trim().toLowerCase() !== "no description" && (
+                  <div>
+                    <span>{connection.description}</span>
+                  </div>
+                )}
               </div>
               <span className="ds-db-manager-row__actions">
                 <time className="ds-db-manager-row__updated">{meta.lastUpdated}</time>
@@ -2049,9 +2051,11 @@ function DataFlowPicker({
               <div className="ds-file-manager-row__file">
                 <div className="ds-db-manager-row__connection">
                   <strong>{flow.name}</strong>
-                  <div>
-                    <span>{flow.description}</span>
-                  </div>
+                  {flow.description.trim().toLowerCase() !== "no description" && (
+                    <div>
+                      <span>{flow.description}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <span className="ds-db-manager-row__actions">
@@ -2211,6 +2215,31 @@ function HighlightedJson({ value }: { value: string }) {
   );
 }
 
+function EditorLineNumbers({
+  value,
+  className = "",
+}: {
+  value: string;
+  className?: string;
+}) {
+  const lineCount = Math.max(1, value.split("\n").length);
+
+  return (
+    <pre
+      className={`ds-query__line-numbers ${className}`.trim()}
+      aria-hidden="true"
+      onWheel={(event) => {
+        const textarea = event.currentTarget.parentElement?.querySelector("textarea");
+        if (!textarea) return;
+        event.preventDefault();
+        textarea.scrollBy({ top: event.deltaY, left: event.deltaX });
+      }}
+    >
+      {Array.from({ length: lineCount }, (_, index) => index + 1).join("\n")}
+    </pre>
+  );
+}
+
 function JsonBodyEditor({
   value,
   onChange,
@@ -2218,12 +2247,9 @@ function JsonBodyEditor({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const lineCount = Math.max(1, value.split("\n").length);
   return (
     <div className="ds-query__editor ds-api-json-editor">
-      <pre className="ds-api-json-editor__line-numbers" aria-hidden="true">
-        {Array.from({ length: lineCount }, (_, index) => index + 1).join("\n")}
-      </pre>
+      <EditorLineNumbers value={value} className="ds-api-json-editor__line-numbers" />
       <div className="ds-query__code-layer">
         <HighlightedJson value={value} />
         <textarea
@@ -2592,14 +2618,30 @@ function DatabaseSchemaBrowser({
             <strong>Objects</strong>
             <span>{SCHEMA_TABLES.length} total</span>
           </div>
-          <label className="ds-schema-browser__search">
-            <MagnifyingGlass size={16} aria-hidden="true" />
+          <label className="ds-schema-browser__search settings__search">
+            <MagnifyingGlass
+              className="settings__search-ico"
+              size={20}
+              aria-hidden="true"
+            />
             <input
+              className="settings__search-input"
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search objects..."
             />
+            {search && (
+              <button
+                type="button"
+                className="settings__search-clear"
+                aria-label="Clear object search"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => setSearch("")}
+              >
+                <X size={14} weight="regular" aria-hidden="true" />
+              </button>
+            )}
           </label>
           <div className="ds-schema-browser__table-list">
             {visibleTables.map((table) => (
@@ -2982,7 +3024,7 @@ function QueryAssistantModal({
         <header className="ds-query-assistant__header">
           <span className="ds-query-assistant__title">
             <Sparkle size={18} weight="regular" aria-hidden="true" />
-            <h2>AI Query Assistant</h2>
+            <h2>Generate SQL Query using AI</h2>
           </span>
           <button type="button" aria-label="Close AI Query Assistant" onClick={onClose}>
             <X size={16} aria-hidden="true" />
@@ -2990,18 +3032,16 @@ function QueryAssistantModal({
         </header>
 
         <div className="ds-query-assistant__intro">
-          <p>Describe the query you want to create</p>
-          <small>Example: &quot;Show all customers from last week&quot;</small>
+          <p>Describe the query you want to create.</p>
+          <small>Example: &quot;Show all customers from last week&quot;.</small>
         </div>
 
         <div className="ds-query-assistant__composer">
           <textarea
+            autoFocus
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            onFocus={() => {
-              if (!prompt) setPrompt("Show all customers from last week");
-            }}
-            placeholder="Describe your query..."
+            placeholder="Add instructions"
             aria-label="Describe your query"
             rows={5}
             disabled={isGenerating}
@@ -3092,9 +3132,7 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
           </div>
         </header>
         <div className="ds-query__editor">
-          <span className="ds-query__line-number" aria-hidden="true">
-            1
-          </span>
+          <EditorLineNumbers value={value} />
           <div className="ds-query__code-layer">
             <HighlightedSql
               value={value}
@@ -3150,6 +3188,10 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
                   highlight.scrollTop = event.currentTarget.scrollTop;
                   highlight.scrollLeft = event.currentTarget.scrollLeft;
                 }
+                const lineNumbers = event.currentTarget
+                  .closest(".ds-query__editor")
+                  ?.querySelector<HTMLElement>(".ds-query__line-numbers");
+                if (lineNumbers) lineNumbers.scrollTop = event.currentTarget.scrollTop;
               }}
               aria-label="SQL query"
               spellCheck={false}
@@ -3197,6 +3239,17 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
                 aria-label="Search filters"
                 onChange={(event) => setFilterSearch(event.target.value)}
               />
+              {filterSearch && (
+                <button
+                  type="button"
+                  className="cp-picker-search-clear"
+                  aria-label="Clear filter search"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => setFilterSearch("")}
+                >
+                  <X size={14} weight="regular" aria-hidden="true" />
+                </button>
+              )}
               <MagnifyingGlass
                 className="cp-picker-search-ico"
                 size={16}

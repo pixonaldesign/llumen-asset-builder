@@ -577,12 +577,12 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
     [],
   );
 
-  const generate = () => {
+  const generate = (generationInstructions = instructions) => {
     if (isGenerating) return;
     setAiMenuOpen(false);
     setIsGenerating(true);
     generationTimer.current = window.setTimeout(() => {
-      onFillWithAI?.(instructions.trim() || undefined);
+      onFillWithAI?.(generationInstructions.trim() || undefined);
       setIsGenerating(false);
       setHasGenerated(true);
       generationTimer.current = null;
@@ -599,14 +599,14 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
             className="general-info-step__fill-ai"
             disabled={isGenerating}
             aria-live="polite"
-            onClick={generate}
+            onClick={() => generate()}
           >
             {isGenerating ? (
               <span className="ds-query-generate-spinner" aria-hidden="true" />
             ) : (
               <Sparkle size={14} weight="bold" aria-hidden="true" />
             )}
-            {isGenerating ? "Generating..." : hasGenerated ? "Regenerate" : "Generate"}
+            {isGenerating ? "Generating..." : hasGenerated ? "Regenerate" : "Fill fields with AI"}
           </button>
           <button
             type="button"
@@ -808,14 +808,16 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
               aria-labelledby="general-info-ai-instructions-title"
               onSubmit={(event) => {
                 event.preventDefault();
-                setInstructions(instructionDraft.trim());
+                const nextInstructions = instructionDraft.trim();
+                setInstructions(nextInstructions);
                 setInstructionsOpen(false);
+                generate(nextInstructions);
               }}
             >
               <header>
                 <span>
                   <Sparkle size={18} weight="regular" aria-hidden="true" />
-                  <h2 id="general-info-ai-instructions-title">Add instructions</h2>
+                  <h2 id="general-info-ai-instructions-title">Fill Asset Fields Using AI</h2>
                 </span>
                 <button
                   type="button"
@@ -827,20 +829,14 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
               </header>
               <div className="general-info-ai-instructions__body">
                 <label htmlFor="general-info-ai-instructions-input">
-                  Tell AI how to generate the asset information
+                  Tell AI how to generate the asset information.
                 </label>
                 <textarea
+                  autoFocus
                   id="general-info-ai-instructions-input"
                   value={instructionDraft}
                   onChange={(event) => setInstructionDraft(event.target.value)}
-                  onFocus={() => {
-                    if (!instructionDraft) {
-                      setInstructionDraft(
-                        "Keep the description concise and focus on weekly performance trends.",
-                      );
-                    }
-                  }}
-                  placeholder="For example: Keep the description concise and focus on weekly performance trends."
+                  placeholder="Add instructions"
                   rows={5}
                 />
               </div>
@@ -848,7 +844,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
                 <button type="button" onClick={() => setInstructionsOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit">Save instructions</button>
+                <button type="submit">Generate</button>
               </footer>
             </form>
           </div>,

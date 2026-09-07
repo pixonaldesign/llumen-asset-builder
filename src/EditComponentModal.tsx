@@ -1677,7 +1677,7 @@ export default function EditComponentModal({
   const [dataSourceTypeSelected, setDataSourceTypeSelected] = useState(false);
   const [dataSourceQuery, setDataSourceQuery] = useState("");
   const [dataSourceLoading, setDataSourceLoading] = useState(false);
-  const [deepDiveHasAssets, setDeepDiveHasAssets] = useState(false);
+  const [deepDiveHasTabs, setDeepDiveHasTabs] = useState(false);
   const [deepDivePreviewOpen, setDeepDivePreviewOpen] = useState(false);
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     name: componentName ?? "",
@@ -1908,6 +1908,18 @@ export default function EditComponentModal({
     !generalInfo.name.trim() ||
     !generalInfo.description.trim() ||
     generalInfo.tags.length === 0;
+
+  useEffect(() => {
+    if (!dataSourceConfigured || dataSourceLoading) return;
+    const visualizationStep = WIZARD_STEPS.findIndex((step) => step.id === "viz-mapping");
+    setMaxUnlockedStep((current) => Math.max(current, visualizationStep));
+  }, [dataSourceConfigured, dataSourceLoading]);
+
+  useEffect(() => {
+    if (!isVizSettings || !selectedVisualId || mappingIncomplete) return;
+    setMaxUnlockedStep(WIZARD_STEPS.length - 1);
+  }, [isVizSettings, mappingIncomplete, selectedVisualId]);
+
   const nextDisabled =
     (isDataSourceStep && (!dataSourceConfigured || dataSourceLoading)) ||
     isVizPicker ||
@@ -2021,6 +2033,14 @@ export default function EditComponentModal({
           }
         >
           <section className={"settings" + (isVizPicker ? " settings--viz-picker" : "")}>
+            <div className="data-source-step-host" hidden={!isDataSourceStep}>
+              <DataSourceStep
+                onConfigurationChange={setDataSourceConfigured}
+                onSourceTypeChange={setDataSourceTypeSelected}
+                onQueryPreviewChange={setDataSourceQuery}
+                onLoadingChange={setDataSourceLoading}
+              />
+            </div>
             {isVizPicker ? (
               <div className="settings__content settings__content--viz-picker">
                 <VisualTypePicker
@@ -2040,6 +2060,7 @@ export default function EditComponentModal({
             )}
 
             <div
+              hidden={isDataSourceStep}
               className={
                 "settings__content" +
                 (isDataSourceStep ? " settings__content--data-source" : "") +
@@ -2052,20 +2073,11 @@ export default function EditComponentModal({
                 (isGeneralInfoStep ? " settings__content--general-info" : "")
               }
             >
-              {isDataSourceStep && (
-                <DataSourceStep
-                  onConfigurationChange={setDataSourceConfigured}
-                  onSourceTypeChange={setDataSourceTypeSelected}
-                  onQueryPreviewChange={setDataSourceQuery}
-                  onLoadingChange={setDataSourceLoading}
-                />
-              )}
-
               {isFiltersStep && <FiltersStep />}
 
               {isDeepDiveStep && (
                 <DeepDiveStep
-                  onHasAssetsChange={setDeepDiveHasAssets}
+                  onHasTabsChange={setDeepDiveHasTabs}
                   previewOpen={deepDivePreviewOpen}
                   onPreviewClose={() => setDeepDivePreviewOpen(false)}
                 />
@@ -2283,9 +2295,9 @@ export default function EditComponentModal({
                   )
                 ) : (
                   <div className="preview__empty">
-                    <p className="preview__empty-title">No data query yet</p>
+                    <p className="preview__empty-title">No data</p>
                     <p className="preview__empty-copy">
-                      Select and configure a data source to preview its query results.
+                      Select and configure a source to get data.
                     </p>
                   </div>
                 )}
@@ -2345,12 +2357,12 @@ export default function EditComponentModal({
                         className={
                           "chart-card chart-card--" +
                           size +
-                          (isDeepDiveStep && deepDiveHasAssets
+                          (isDeepDiveStep && deepDiveHasTabs
                             ? " chart-card--deep-dive-preview"
                             : "")
                         }
                       >
-                        {isDeepDiveStep && deepDiveHasAssets && (
+                        {isDeepDiveStep && deepDiveHasTabs && (
                           <button
                             type="button"
                             className="chart-card__deep-dive-info"

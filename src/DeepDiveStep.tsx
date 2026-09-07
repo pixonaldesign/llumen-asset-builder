@@ -26,7 +26,7 @@ export type DeepDiveTab = {
   components: DeepDiveComponentRef[];
 };
 
-let tabUid = 0;
+let tabUid = Date.now();
 const nextTabId = () => ++tabUid;
 let componentUid = 0;
 const nextComponentUid = () => ++componentUid;
@@ -174,7 +174,13 @@ function DeepDiveTabChip({
         </>
       ) : (
         <>
-          <button type="button" className="dd-tab__label" onClick={onSelect}>
+          <button
+            type="button"
+            className="dd-tab__label"
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+            onClick={onSelect}
+          >
             {tab.name}
           </button>
           <button
@@ -442,16 +448,15 @@ function DeepDiveComponentGrid({
 
 function DeepDivePreviewModal({
   tabs,
-  activeTabId,
-  onSelectTab,
+  initialActiveTabId,
   onClose,
 }: {
   tabs: DeepDiveTab[];
-  activeTabId: number;
-  onSelectTab: (id: number) => void;
+  initialActiveTabId: number;
   onClose: () => void;
 }) {
-  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
+  const [previewActiveTabId, setPreviewActiveTabId] = useState(initialActiveTabId);
+  const activeTab = tabs.find((tab) => tab.id === previewActiveTabId) ?? tabs[0];
 
   return createPortal(
     <div
@@ -474,20 +479,24 @@ function DeepDivePreviewModal({
           </button>
         </header>
 
-        <div className="dd-preview-tabs" role="tablist" aria-label="Deep dive preview tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              className={"dd-preview-tab" + (tab.id === activeTabId ? " is-active" : "")}
-              aria-selected={tab.id === activeTabId}
-              onClick={() => onSelectTab(tab.id)}
-            >
-              {tab.name}
-            </button>
-          ))}
-        </div>
+        {tabs.length > 1 && (
+          <div className="dd-preview-tabs" role="tablist" aria-label="Deep dive preview tabs">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                className={
+                  "dd-preview-tab" + (tab.id === previewActiveTabId ? " is-active" : "")
+                }
+                aria-selected={tab.id === previewActiveTabId}
+                onClick={() => setPreviewActiveTabId(tab.id)}
+              >
+                {tab.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="dd-preview-modal__body">
           {activeTab && activeTab.components.length > 0 ? (
@@ -511,17 +520,16 @@ function DeepDivePreviewModal({
 }
 
 export default function DeepDiveStep({
-  onHasAssetsChange,
+  onHasTabsChange,
   previewOpen = false,
   onPreviewClose,
 }: {
-  onHasAssetsChange?: (hasAssets: boolean) => void;
+  onHasTabsChange?: (hasTabs: boolean) => void;
   previewOpen?: boolean;
   onPreviewClose?: () => void;
 }) {
-  const initialTab = createTab();
-  const [tabs, setTabs] = useState<DeepDiveTab[]>([initialTab]);
-  const [activeTabId, setActiveTabId] = useState(initialTab.id);
+  const [tabs, setTabs] = useState<DeepDiveTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState(0);
   const [editingTabId, setEditingTabId] = useState<number | null>(null);
   const [editingOriginalName, setEditingOriginalName] = useState("");
   const [dragTabId, setDragTabId] = useState<number | null>(null);
@@ -531,11 +539,28 @@ export default function DeepDiveStep({
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const appliedIds = activeTab?.components.map((component) => component.componentId) ?? [];
-  const hasAssets = tabs.some((tab) => tab.components.length > 0);
+  const hasTabs = tabs.length > 0;
 
   useEffect(() => {
-    onHasAssetsChange?.(hasAssets);
-  }, [hasAssets, onHasAssetsChange]);
+    onHasTabsChange?.(hasTabs);
+  }, [hasTabs, onHasTabsChange]);
+
+  useEffect(() => {
+    const seen = new Set<number>();
+    let hasDuplicate = false;
+    const normalized = tabs.map((tab) => {
+      if (!seen.has(tab.id)) {
+        seen.add(tab.id);
+        return tab;
+      }
+      hasDuplicate = true;
+      let id = nextTabId();
+      while (seen.has(id)) id = nextTabId();
+      seen.add(id);
+      return { ...tab, id };
+    });
+    if (hasDuplicate) setTabs(normalized);
+  }, [tabs]);
 
   const updateActiveTabComponents = useCallback(
     (updater: (components: DeepDiveComponentRef[]) => DeepDiveComponentRef[]) => {
@@ -558,7 +583,6 @@ export default function DeepDiveStep({
 
   const removeTab = (id: number) => {
     setTabs((current) => {
-      if (current.length <= 1) return current;
       const next = current.filter((tab) => tab.id !== id);
       if (activeTabId === id) setActiveTabId(next[0]?.id ?? 0);
       if (editingTabId === id) {
@@ -700,28 +724,30 @@ export default function DeepDiveStep({
         </button>
       </div>
 
-      <section className="dd-panel" aria-label={activeTab ? `${activeTab.name} assets` : "Tab assets"}>
-        <button type="button" className="dd-panel__add" onClick={() => setAddModalOpen(true)}>
-          <PlusIcon width={14} height={14} aria-hidden="true" />
-          <span>Add Asset</span>
-        </button>
+      {activeTab && (
+        <section className="dd-panel" aria-label={`${activeTab.name} assets`}>
+          <button type="button" className="dd-panel__add" onClick={() => setAddModalOpen(true)}>
+            <PlusIcon width={14} height={14} aria-hidden="true" />
+            <span>Add Asset</span>
+          </button>
 
-        {activeTab && activeTab.components.length > 0 ? (
-          <DeepDiveComponentGrid
-            components={activeTab.components}
-            onRemove={removeComponent}
-            onReorder={reorderComponents}
-          />
-        ) : (
-          <div className="dd-panel__empty" aria-label="No assets added to this tab">
-            <div className="dd-modular-grid dd-modular-grid--empty" aria-hidden="true">
-              {Array.from({ length: MODULAR_SLOT_COUNT }, (_, index) => (
-                <div className="dd-modular-grid__slot" key={index} />
-              ))}
+          {activeTab.components.length > 0 ? (
+            <DeepDiveComponentGrid
+              components={activeTab.components}
+              onRemove={removeComponent}
+              onReorder={reorderComponents}
+            />
+          ) : (
+            <div className="dd-panel__empty" aria-label="No assets added to this tab">
+              <div className="dd-modular-grid dd-modular-grid--empty" aria-hidden="true">
+                {Array.from({ length: MODULAR_SLOT_COUNT }, (_, index) => (
+                  <div className="dd-modular-grid__slot" key={index} />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
 
       <AddComponentModal
         open={addModalOpen}
@@ -736,8 +762,7 @@ export default function DeepDiveStep({
       {previewOpen && onPreviewClose && (
         <DeepDivePreviewModal
           tabs={tabs}
-          activeTabId={activeTabId}
-          onSelectTab={setActiveTabId}
+          initialActiveTabId={activeTabId}
           onClose={onPreviewClose}
         />
       )}
