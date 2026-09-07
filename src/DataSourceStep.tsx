@@ -1007,18 +1007,20 @@ function DatabaseConnectionPicker({
           </button>
           {typeMenuOpen && (
             <div className="ds-db-manager__menu ds-db-manager__type-menu" role="menu">
-              {DATABASE_TYPES.map((type) => (
-                <label key={type}>
-      <input
-                    type="checkbox"
-                    checked={selectedTypes.includes(type)}
-                    onChange={() => toggleType(type)}
-                  />
-                  <span aria-hidden="true" />
-                  {type}
-                </label>
-              ))}
-      </div>
+              <div className="dropdown-menu__inner">
+                {DATABASE_TYPES.map((type) => (
+                  <label key={type}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTypes.includes(type)}
+                      onChange={() => toggleType(type)}
+                    />
+                    <span aria-hidden="true" />
+                    {type}
+                  </label>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
@@ -1039,20 +1041,22 @@ function DatabaseConnectionPicker({
       </button>
           {sortMenuOpen && (
             <div className="ds-db-manager__menu ds-db-manager__sort-menu" role="menu">
-              {(Object.entries(sortLabel) as [DatabaseSort, string][]).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={sort === value ? "is-selected" : ""}
-                  role="menuitem"
-                  onClick={() => {
-                    setSort(value);
-                    setSortMenuOpen(false);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              <div className="dropdown-menu__inner">
+                {(Object.entries(sortLabel) as [DatabaseSort, string][]).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={sort === value ? "is-selected" : ""}
+                    role="menuitem"
+                    onClick={() => {
+                      setSort(value);
+                      setSortMenuOpen(false);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1407,18 +1411,20 @@ function ApiSourcePicker({
                 className="ds-db-manager__menu ds-db-manager__type-menu ds-api-manager__auth-menu"
                 role="menu"
               >
-                {API_AUTH_OPTIONS.map((auth) => (
-                  <label key={auth}>
-                    <input
-                      type="checkbox"
-                      checked={selectedAuths.includes(auth)}
-                      onChange={() => toggleAuth(auth)}
-                    />
-                    <span aria-hidden="true" />
-                    {auth}
-                  </label>
-                ))}
-      </div>
+                <div className="dropdown-menu__inner">
+                  {API_AUTH_OPTIONS.map((auth) => (
+                    <label key={auth}>
+                      <input
+                        type="checkbox"
+                        checked={selectedAuths.includes(auth)}
+                        onChange={() => toggleAuth(auth)}
+                      />
+                      <span aria-hidden="true" />
+                      {auth}
+                    </label>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 
@@ -1442,17 +1448,19 @@ function ApiSourcePicker({
                 className="ds-db-manager__menu ds-db-manager__type-menu ds-api-manager__method-menu"
                 role="menu"
               >
-                {API_METHOD_OPTIONS.map((method) => (
-                  <label key={method}>
-                    <input
-                      type="checkbox"
-                      checked={selectedMethods.includes(method)}
-                      onChange={() => toggleMethod(method)}
-                    />
-                    <span aria-hidden="true" />
-                    {method}
-                  </label>
-                ))}
+                <div className="dropdown-menu__inner">
+                  {API_METHOD_OPTIONS.map((method) => (
+                    <label key={method}>
+                      <input
+                        type="checkbox"
+                        checked={selectedMethods.includes(method)}
+                        onChange={() => toggleMethod(method)}
+                      />
+                      <span aria-hidden="true" />
+                      {method}
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1476,20 +1484,22 @@ function ApiSourcePicker({
           </button>
           {sortMenuOpen && (
             <div className="ds-db-manager__menu ds-db-manager__sort-menu" role="menu">
-              {(Object.entries(API_SORT_LABELS) as [ApiSort, string][]).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={sort === value ? "is-selected" : ""}
-                  role="menuitem"
-                  onClick={() => {
-                    setSort(value);
-                    setSortMenuOpen(false);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              <div className="dropdown-menu__inner">
+                {(Object.entries(API_SORT_LABELS) as [ApiSort, string][]).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={sort === value ? "is-selected" : ""}
+                    role="menuitem"
+                    onClick={() => {
+                      setSort(value);
+                      setSortMenuOpen(false);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1833,22 +1843,24 @@ function FileSourcePicker({
           </button>
           {sortMenuOpen && (
             <div className="ds-db-manager__menu ds-db-manager__sort-menu" role="menu">
-              {(Object.entries(FILE_SORT_LABELS) as [FileSort, string][]).map(
-                ([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={sort === value ? "is-selected" : ""}
-                    role="menuitem"
-                    onClick={() => {
-                      setSort(value);
-                      setSortMenuOpen(false);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ),
-              )}
+              <div className="dropdown-menu__inner">
+                {(Object.entries(FILE_SORT_LABELS) as [FileSort, string][]).map(
+                  ([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={sort === value ? "is-selected" : ""}
+                      role="menuitem"
+                      onClick={() => {
+                        setSort(value);
+                        setSortMenuOpen(false);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -2002,22 +2014,24 @@ function DataFlowPicker({
           </button>
           {sortMenuOpen && (
             <div className="ds-db-manager__menu ds-db-manager__sort-menu" role="menu">
-              {(Object.entries(DATA_FLOW_SORT_LABELS) as [DataFlowSort, string][]).map(
-                ([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={sort === value ? "is-selected" : ""}
-                    role="menuitem"
-                    onClick={() => {
-                      setSort(value);
-                      setSortMenuOpen(false);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ),
-              )}
+              <div className="dropdown-menu__inner">
+                {(Object.entries(DATA_FLOW_SORT_LABELS) as [DataFlowSort, string][]).map(
+                  ([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={sort === value ? "is-selected" : ""}
+                      role="menuitem"
+                      onClick={() => {
+                        setSort(value);
+                        setSortMenuOpen(false);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -3230,72 +3244,74 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
             aria-label={`Bind ${filterPopover.variable} to a filter`}
             style={{ top: filterPopover.top, left: filterPopover.left }}
           >
-            <div className="cp-picker-search">
-              <input
-                autoFocus
-                type="search"
-                value={filterSearch}
-                placeholder="Search filters"
-                aria-label="Search filters"
-                onChange={(event) => setFilterSearch(event.target.value)}
-              />
-              {filterSearch && (
-                <button
-                  type="button"
-                  className="cp-picker-search-clear"
-                  aria-label="Clear filter search"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => setFilterSearch("")}
-                >
-                  <X size={14} weight="regular" aria-hidden="true" />
-                </button>
-              )}
-              <MagnifyingGlass
-                className="cp-picker-search-ico"
-                size={16}
-                aria-hidden="true"
-              />
-            </div>
-            <div className="cp-picker-list">
-              {[
-                { value: "", label: "— unbound —" },
-                ...QUERY_FILTER_OPTIONS.map((filter) => ({
-                  value: filter,
-                  label: filter,
-                })),
-              ]
-                .filter((filter) =>
-                  filter.label.toLowerCase().includes(filterSearch.trim().toLowerCase()),
-                )
-                .map((filter) => {
-                  const selected =
-                    (filterBindings[filterPopover.variable] ?? "") === filter.value;
-                  return (
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      className={"cp-picker-row" + (selected ? " is-selected" : "")}
-                      key={filter.value || "unbound"}
-                      onClick={() => {
-                        setFilterBindings((current) => {
-                          if (!filter.value) {
-                            const next = { ...current };
-                            delete next[filterPopover.variable];
-                            return next;
-                          }
-                          return {
-                            ...current,
-                            [filterPopover.variable]: filter.value,
-                          };
-                        });
-                        setFilterPopover(null);
-                      }}
-                    >
-                      <span className="cp-picker-row-name">{filter.label}</span>
-                    </button>
-                  );
-                })}
+            <div className="dropdown-menu__inner">
+              <div className="cp-picker-search">
+                <input
+                  autoFocus
+                  type="search"
+                  value={filterSearch}
+                  placeholder="Search filters"
+                  aria-label="Search filters"
+                  onChange={(event) => setFilterSearch(event.target.value)}
+                />
+                {filterSearch && (
+                  <button
+                    type="button"
+                    className="cp-picker-search-clear"
+                    aria-label="Clear filter search"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setFilterSearch("")}
+                  >
+                    <X size={14} weight="regular" aria-hidden="true" />
+                  </button>
+                )}
+                <MagnifyingGlass
+                  className="cp-picker-search-ico"
+                  size={16}
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="cp-picker-list">
+                {[
+                  { value: "", label: "— unbound —" },
+                  ...QUERY_FILTER_OPTIONS.map((filter) => ({
+                    value: filter,
+                    label: filter,
+                  })),
+                ]
+                  .filter((filter) =>
+                    filter.label.toLowerCase().includes(filterSearch.trim().toLowerCase()),
+                  )
+                  .map((filter) => {
+                    const selected =
+                      (filterBindings[filterPopover.variable] ?? "") === filter.value;
+                    return (
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        className={"cp-picker-row" + (selected ? " is-selected" : "")}
+                        key={filter.value || "unbound"}
+                        onClick={() => {
+                          setFilterBindings((current) => {
+                            if (!filter.value) {
+                              const next = { ...current };
+                              delete next[filterPopover.variable];
+                              return next;
+                            }
+                            return {
+                              ...current,
+                              [filterPopover.variable]: filter.value,
+                            };
+                          });
+                          setFilterPopover(null);
+                        }}
+                      >
+                        <span className="cp-picker-row-name">{filter.label}</span>
+                      </button>
+                    );
+                  })}
+              </div>
             </div>
           </div>,
           document.body,

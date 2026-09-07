@@ -574,52 +574,54 @@ function OverflowChipSelect({
                 aria-label="Remaining columns"
                 style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
               >
-                <div className="cp-picker-search">
-                  <input
-                    ref={searchRef}
-                    type="search"
-                    placeholder="Search columns"
-                    value={search}
-                    aria-label="Search columns"
-                    onChange={(e) => setSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (e.key === "Escape") {
-                        close();
-                        return;
-                      }
-                      if (e.key !== "Enter") return;
-                      e.preventDefault();
-                      if (filtered[0]) add(filtered[0]);
-                    }}
-                  />
-                  {search && (
-                    <button
-                      type="button"
-                      className="cp-picker-search-clear"
-                      aria-label="Clear search"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => setSearch("")}
-                    >
-                      <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
-                    </button>
-                  )}
-                  <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
-                </div>
-                <div className="cp-picker-list">
-                  {filtered.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      role="option"
-                      aria-selected={false}
-                      className="cp-picker-row"
-                      onClick={() => add(v)}
-                    >
-                      <span className="cp-picker-row-name">{v}</span>
-                    </button>
-                  ))}
-                  {!filtered.length && <div className="cp-picker-empty">No columns found</div>}
+                <div className="dropdown-menu__inner">
+                  <div className="cp-picker-search">
+                    <input
+                      ref={searchRef}
+                      type="search"
+                      placeholder="Search columns"
+                      value={search}
+                      aria-label="Search columns"
+                      onChange={(e) => setSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Escape") {
+                          close();
+                          return;
+                        }
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        if (filtered[0]) add(filtered[0]);
+                      }}
+                    />
+                    {search && (
+                      <button
+                        type="button"
+                        className="cp-picker-search-clear"
+                        aria-label="Clear search"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setSearch("")}
+                      >
+                        <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+                      </button>
+                    )}
+                    <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
+                  </div>
+                  <div className="cp-picker-list">
+                    {filtered.map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        role="option"
+                        aria-selected={false}
+                        className="cp-picker-row"
+                        onClick={() => add(v)}
+                      >
+                        <span className="cp-picker-row-name">{v}</span>
+                      </button>
+                    ))}
+                    {!filtered.length && <div className="cp-picker-empty">No columns found</div>}
+                  </div>
                 </div>
               </div>,
               document.body,
@@ -2148,28 +2150,30 @@ export default function EditComponentModal({
                           role="listbox"
                           aria-label="Visual settings search results"
                         >
-                          {settingsSearchResults.map((item) => (
-                            <button
-                              type="button"
-                              className="settings-search-menu__item"
-                              role="option"
-                              aria-selected="false"
-                              key={`${item.group}:${item.name}`}
-                              onClick={() => {
-                                setActiveSubCategory(item.group);
-                                setQuery("");
-                              }}
-                            >
-                              <span>{item.group}</span>
-                              <ArrowRightIcon width={12} height={12} aria-hidden="true" />
-                              <strong>{item.name}</strong>
-                            </button>
-                          ))}
-                          {settingsSearchResults.length === 0 && (
-                            <div className="settings-search-menu__empty">
-                              No visual settings match “{query.trim()}”.
-                            </div>
-                          )}
+                          <div className="dropdown-menu__inner">
+                            {settingsSearchResults.map((item) => (
+                              <button
+                                type="button"
+                                className="settings-search-menu__item"
+                                role="option"
+                                aria-selected="false"
+                                key={`${item.group}:${item.name}`}
+                                onClick={() => {
+                                  setActiveSubCategory(item.group);
+                                  setQuery("");
+                                }}
+                              >
+                                <span>{item.group}</span>
+                                <ArrowRightIcon width={12} height={12} aria-hidden="true" />
+                                <strong>{item.name}</strong>
+                              </button>
+                            ))}
+                            {settingsSearchResults.length === 0 && (
+                              <div className="settings-search-menu__empty">
+                                No visual settings match “{query.trim()}”.
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

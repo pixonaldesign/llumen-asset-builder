@@ -130,57 +130,59 @@ export default function PhosphorIconPicker({
               } as CSSProperties
             }
           >
-            <div className="cp-picker-search">
-              <input
-                ref={searchRef}
-                type="search"
-                placeholder="Search icons"
-                aria-label="Search icons"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  event.stopPropagation();
-                  if (event.key === "Escape") {
-                    close();
-                    return;
-                  }
-                  if (event.key !== "Enter" || !filtered[0]) return;
-                  event.preventDefault();
-                  pick(filtered[0].name);
-                }}
-              />
-              {search && (
-                <button
-                  type="button"
-                  className="cp-picker-search-clear"
-                  aria-label="Clear search"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => setSearch("")}
-                >
-                  <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
-                </button>
-              )}
-              <SearchIcon className="cp-picker-search-ico" width={14} height={14} aria-hidden="true" />
-            </div>
+            <div className="dropdown-menu__inner">
+              <div className="cp-picker-search">
+                <input
+                  ref={searchRef}
+                  type="search"
+                  placeholder="Search icons"
+                  aria-label="Search icons"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    event.stopPropagation();
+                    if (event.key === "Escape") {
+                      close();
+                      return;
+                    }
+                    if (event.key !== "Enter" || !filtered[0]) return;
+                    event.preventDefault();
+                    pick(filtered[0].name);
+                  }}
+                />
+                {search && (
+                  <button
+                    type="button"
+                    className="cp-picker-search-clear"
+                    aria-label="Clear search"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setSearch("")}
+                  >
+                    <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+                  </button>
+                )}
+                <SearchIcon className="cp-picker-search-ico" width={14} height={14} aria-hidden="true" />
+              </div>
 
-            <div className="icon-picker__grid" role="listbox" aria-label="Phosphor icons">
-              {filtered.map(({ name, label, Icon }) => (
-                <button
-                  key={name}
-                  type="button"
-                  role="option"
-                  aria-label={label}
-                  aria-selected={name === value}
-                  className={"icon-picker__option" + (name === value ? " is-selected" : "")}
-                  title={label}
-                  onClick={() => pick(name)}
-                >
-                  <Icon size={20} weight="regular" aria-hidden="true" />
-                  <span>{label}</span>
-                </button>
-              ))}
+              <div className="icon-picker__grid" role="listbox" aria-label="Phosphor icons">
+                {filtered.map(({ name, label, Icon }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    role="option"
+                    aria-label={label}
+                    aria-selected={name === value}
+                    className={"icon-picker__option" + (name === value ? " is-selected" : "")}
+                    title={label}
+                    onClick={() => pick(name)}
+                  >
+                    <Icon size={20} weight="regular" aria-hidden="true" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+              {!filtered.length && <div className="cp-picker-empty">No icons found</div>}
             </div>
-            {!filtered.length && <div className="cp-picker-empty">No icons found</div>}
           </div>,
           document.body,
         )}

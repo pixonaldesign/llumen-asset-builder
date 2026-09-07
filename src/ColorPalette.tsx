@@ -279,59 +279,61 @@ function PalettePickerMenu({
 
   return (
     <div className="cp-picker-menu cp-picker-menu--flyout" ref={menuRef} style={style} role="listbox">
-      <div className="cp-picker-tabs">
-        {(["Sequential", "Categorical", "Diverging"] as PaletteType[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={"cp-picker-tab" + (tab === t ? " is-active" : "")}
-            onClick={() => onTab(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <div className="dropdown-menu__inner">
+        <div className="cp-picker-tabs">
+          {(["Sequential", "Categorical", "Diverging"] as PaletteType[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={"cp-picker-tab" + (tab === t ? " is-active" : "")}
+              onClick={() => onTab(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
 
-      <div className="cp-picker-section-rule" />
+        <div className="cp-picker-section-rule" />
 
-      <div className="cp-picker-search">
-        <input
-          type="search"
-          placeholder="Search Palette Name"
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-        />
-        {search && (
-          <button
-            type="button"
-            className="cp-picker-search-clear"
-            aria-label="Clear search"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onSearch("")}
-          >
-            <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
-          </button>
-        )}
-        <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
-      </div>
+        <div className="cp-picker-search">
+          <input
+            type="search"
+            placeholder="Search Palette Name"
+            value={search}
+            onChange={(e) => onSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              type="button"
+              className="cp-picker-search-clear"
+              aria-label="Clear search"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onSearch("")}
+            >
+              <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+            </button>
+          )}
+          <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
+        </div>
 
-      <div className="cp-picker-list">
-        {list.map((preset) => (
-          <button
-            key={preset.name}
-            type="button"
-            role="option"
-            aria-selected={preset.name === selectedName && preset.type === selectedType}
-            className={
-              "cp-picker-row" + (preset.name === selectedName && preset.type === selectedType ? " is-selected" : "")
-            }
-            onClick={() => onSelect(preset)}
-          >
-            <span className="cp-picker-row-name">{preset.name}</span>
-            <PaletteSwatches colors={preset.colors} />
-          </button>
-        ))}
-        {!list.length && <div className="cp-picker-empty">No palettes found</div>}
+        <div className="cp-picker-list">
+          {list.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              role="option"
+              aria-selected={preset.name === selectedName && preset.type === selectedType}
+              className={
+                "cp-picker-row" + (preset.name === selectedName && preset.type === selectedType ? " is-selected" : "")
+              }
+              onClick={() => onSelect(preset)}
+            >
+              <span className="cp-picker-row-name">{preset.name}</span>
+              <PaletteSwatches colors={preset.colors} />
+            </button>
+          ))}
+          {!list.length && <div className="cp-picker-empty">No palettes found</div>}
+        </div>
       </div>
     </div>
   );
@@ -575,26 +577,28 @@ function StopRow({
                 aria-label="Palette colors"
                 style={{ top: menuPos.top, left: menuPos.left }}
               >
-                <span className="cp-label">Selected color</span>
-                <div className="cp-swatch-menu__grid">
-                  {colors.map((c, i) => {
-                    const selected = sameHex(c, stop.color);
-                    return (
-                      <button
-                        key={`${c}-${i}`}
-                        type="button"
-                        role="option"
-                        aria-selected={selected}
-                        aria-label={toHex(c).toUpperCase()}
-                        className={"cp-swatch-menu__dot" + (selected ? " is-selected" : "")}
-                        style={{
-                          background: c,
-                          ["--cp-selected-swatch-color" as string]: c,
-                        }}
-                        onClick={() => pickColor(c)}
-                      />
-                    );
-                  })}
+                <div className="dropdown-menu__inner">
+                  <span className="cp-label">Selected color</span>
+                  <div className="cp-swatch-menu__grid">
+                    {colors.map((c, i) => {
+                      const selected = sameHex(c, stop.color);
+                      return (
+                        <button
+                          key={`${c}-${i}`}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          aria-label={toHex(c).toUpperCase()}
+                          className={"cp-swatch-menu__dot" + (selected ? " is-selected" : "")}
+                          style={{
+                            background: c,
+                            ["--cp-selected-swatch-color" as string]: c,
+                          }}
+                          onClick={() => pickColor(c)}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>,
               document.body,

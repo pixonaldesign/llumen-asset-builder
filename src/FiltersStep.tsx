@@ -156,15 +156,17 @@ function AddFilterMenu({
   return createPortal(
     <div ref={menuRef} className="filters-flyout" style={style} role="listbox" aria-label="Add filter">
       <div className="cp-picker-menu filters-picker-menu">
-        <div className="cp-picker-list">
-          {FILTER_OPTIONS.map((filter) => (
-            <FilterPickerRow
-              key={filter.id}
-              filter={filter}
-              disabled={appliedIds.has(filter.id)}
-              onClick={() => onSelect(filter)}
-            />
-          ))}
+        <div className="dropdown-menu__inner">
+          <div className="cp-picker-list">
+            {FILTER_OPTIONS.map((filter) => (
+              <FilterPickerRow
+                key={filter.id}
+                filter={filter}
+                disabled={appliedIds.has(filter.id)}
+                onClick={() => onSelect(filter)}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>,

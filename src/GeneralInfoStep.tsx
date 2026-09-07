@@ -281,6 +281,7 @@ function LocationMetadataPicker({
               } as CSSProperties
             }
           >
+            <div className="dropdown-menu__inner">
             <div className="general-info-location-menu__heading">
               {activeParent ? (
                 <>
@@ -372,6 +373,7 @@ function LocationMetadataPicker({
             {!menuOptions.length && (
               <div className="general-info-location-menu__empty">No locations found</div>
             )}
+            </div>
           </div>,
           document.body,
         )}
@@ -491,6 +493,7 @@ function TagsPicker({
               } as CSSProperties
             }
           >
+            <div className="dropdown-menu__inner">
             {TAG_OPTIONS.map((tag) => {
               const selected = value.includes(tag.value);
               return (
@@ -510,6 +513,7 @@ function TagsPicker({
                 </button>
               );
             })}
+            </div>
           </div>,
           document.body,
         )}
@@ -639,19 +643,21 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
               } as CSSProperties
             }
           >
-            <div className="cp-picker-list">
-              <button
-                type="button"
-                className="cp-picker-row"
-                role="menuitem"
-                onClick={() => {
-                  setInstructionDraft(instructions);
-                  setAiMenuOpen(false);
-                  setInstructionsOpen(true);
-                }}
-              >
-                <span className="cp-picker-row-name">Add instructions</span>
-              </button>
+            <div className="dropdown-menu__inner">
+              <div className="cp-picker-list">
+                <button
+                  type="button"
+                  className="cp-picker-row"
+                  role="menuitem"
+                  onClick={() => {
+                    setInstructionDraft(instructions);
+                    setAiMenuOpen(false);
+                    setInstructionsOpen(true);
+                  }}
+                >
+                  <span className="cp-picker-row-name">Add instructions</span>
+                </button>
+              </div>
             </div>
           </div>,
           document.body,

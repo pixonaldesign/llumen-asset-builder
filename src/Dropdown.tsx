@@ -167,92 +167,94 @@ export default function Dropdown({
               } as CSSProperties
             }
           >
-            {searchable && (
-              <div className="cp-picker-search">
-                <input
-                  ref={searchRef}
-                  type="search"
-                  placeholder={searchPlaceholder}
-                  value={search}
-                  aria-label={searchPlaceholder}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    e.stopPropagation();
-                    if (e.key === "Escape") {
-                      close();
-                      return;
-                    }
-                    if (e.key !== "Enter") return;
-                    e.preventDefault();
-                    const firstEnabled = filtered.find((option) => !option.disabled);
-                    if (firstEnabled) pick(firstEnabled.value);
-                    else if (showEmpty) pick("");
-                  }}
-                />
-                {search && (
+            <div className="dropdown-menu__inner">
+              {searchable && (
+                <div className="cp-picker-search">
+                  <input
+                    ref={searchRef}
+                    type="search"
+                    placeholder={searchPlaceholder}
+                    value={search}
+                    aria-label={searchPlaceholder}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Escape") {
+                        close();
+                        return;
+                      }
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      const firstEnabled = filtered.find((option) => !option.disabled);
+                      if (firstEnabled) pick(firstEnabled.value);
+                      else if (showEmpty) pick("");
+                    }}
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      className="cp-picker-search-clear"
+                      aria-label="Clear search"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setSearch("")}
+                    >
+                      <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+                    </button>
+                  )}
+                  <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
+                </div>
+              )}
+              <div className="cp-picker-list">
+                {showEmpty && (
                   <button
                     type="button"
-                    className="cp-picker-search-clear"
-                    aria-label="Clear search"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setSearch("")}
+                    role="option"
+                    aria-selected={value === ""}
+                    className={"cp-picker-row" + (value === "" ? " is-selected" : "")}
+                    onClick={() => pick("")}
                   >
-                    <CloseIcon width={14} height={14} strokeWidth={1} aria-hidden="true" />
+                    <span className="cp-picker-row-name">{emptyLabel}</span>
                   </button>
                 )}
-                <SearchIcon className="cp-picker-search-ico" width={14} height={14} />
+                {filtered.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="option"
+                    aria-selected={opt.value === value}
+                    aria-disabled={opt.disabled || undefined}
+                    disabled={opt.disabled}
+                    className={
+                      "cp-picker-row" +
+                      (opt.dataType ? " cp-picker-row--typed" : "") +
+                      (opt.value === value ? " is-selected" : "") +
+                      (opt.disabled ? " is-disabled" : "")
+                    }
+                    onClick={() => pick(opt.value)}
+                  >
+                    <span className="cp-picker-row-name">{opt.label}</span>
+                    {(opt.dataType || opt.disabledReason) && (
+                      <span className="cp-picker-row-meta">
+                        {opt.disabledReason && (
+                          <span className="cp-picker-badge cp-picker-badge--incompatible">
+                            {opt.disabledReason}
+                          </span>
+                        )}
+                        {opt.dataType && (
+                          <span
+                            className={`cp-picker-badge cp-picker-badge--${opt.dataType.toLowerCase()}`}
+                          >
+                            {opt.dataType}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                  </button>
+                ))}
+                {searchable && !filtered.length && !showEmpty && (
+                  <div className="cp-picker-empty">{noResultsLabel}</div>
+                )}
               </div>
-            )}
-            <div className="cp-picker-list">
-              {showEmpty && (
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={value === ""}
-                  className={"cp-picker-row" + (value === "" ? " is-selected" : "")}
-                  onClick={() => pick("")}
-                >
-                  <span className="cp-picker-row-name">{emptyLabel}</span>
-                </button>
-              )}
-              {filtered.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="option"
-                  aria-selected={opt.value === value}
-                  aria-disabled={opt.disabled || undefined}
-                  disabled={opt.disabled}
-                  className={
-                    "cp-picker-row" +
-                    (opt.dataType ? " cp-picker-row--typed" : "") +
-                    (opt.value === value ? " is-selected" : "") +
-                    (opt.disabled ? " is-disabled" : "")
-                  }
-                  onClick={() => pick(opt.value)}
-                >
-                  <span className="cp-picker-row-name">{opt.label}</span>
-                  {(opt.dataType || opt.disabledReason) && (
-                    <span className="cp-picker-row-meta">
-                      {opt.disabledReason && (
-                        <span className="cp-picker-badge cp-picker-badge--incompatible">
-                          {opt.disabledReason}
-                        </span>
-                      )}
-                      {opt.dataType && (
-                        <span
-                          className={`cp-picker-badge cp-picker-badge--${opt.dataType.toLowerCase()}`}
-                        >
-                          {opt.dataType}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </button>
-              ))}
-              {searchable && !filtered.length && !showEmpty && (
-                <div className="cp-picker-empty">{noResultsLabel}</div>
-              )}
             </div>
           </div>,
           document.body,

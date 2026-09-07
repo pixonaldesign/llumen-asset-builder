@@ -202,7 +202,7 @@ function AccessLevelSelect({
             aria-label="Access level"
             style={{ top: pos.top, left: pos.left, width: pos.width }}
           >
-            <ul className="access-level-menu__list">
+            <ul className="access-level-menu__list dropdown-menu__inner">
               {options.map((level) => (
                 <li key={level.value}>
                   <button
@@ -426,24 +426,26 @@ export default function AccessStep() {
           )}
           {suggestOpen && suggestions.length > 0 && (
             <div className="access-step__invite-suggest" role="listbox" aria-label="People and workspaces">
-              {suggestions.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  role="option"
-                  className="access-step__invite-suggest-row"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => addPending(person)}
-                >
-                  <span className="access-row__avatar" aria-hidden="true">
-                    {person.initials}
-                  </span>
-                  <span>
-                    <strong>{person.name}</strong>
-                    <small>{person.email.startsWith("workspace:") ? "Workspace" : person.email}</small>
-                  </span>
-                </button>
-              ))}
+              <div className="dropdown-menu__inner">
+                {suggestions.map((person) => (
+                  <button
+                    key={person.id}
+                    type="button"
+                    role="option"
+                    className="access-step__invite-suggest-row"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => addPending(person)}
+                  >
+                    <span className="access-row__avatar" aria-hidden="true">
+                      {person.initials}
+                    </span>
+                    <span>
+                      <strong>{person.name}</strong>
+                      <small>{person.email.startsWith("workspace:") ? "Workspace" : person.email}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
