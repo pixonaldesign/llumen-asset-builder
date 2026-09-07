@@ -2077,10 +2077,12 @@ export default function EditComponentModal({
                 <GeneralInfoStep
                   value={generalInfo}
                   onChange={setGeneralInfo}
-                  onFillWithAI={() =>
+                  onFillWithAI={(instructions) =>
                     setGeneralInfo({
                       name: chart.name,
-                      description: `Shows ${chart.name.toLowerCase()} using the configured data source and visualization settings.`,
+                      description:
+                        instructions ||
+                        `Shows ${chart.name.toLowerCase()} using the configured data source and visualization settings.`,
                       insight:
                         generalInfo.insight ||
                         `Monitor ${chart.name.toLowerCase()} to identify meaningful changes and trends.`,

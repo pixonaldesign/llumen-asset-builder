@@ -142,7 +142,7 @@ const UPDATE_FREQUENCIES = [
 type Props = {
   value: GeneralInfo;
   onChange: (value: GeneralInfo) => void;
-  onFillWithAI?: () => void;
+  onFillWithAI?: (instructions?: string) => void;
 };
 
 function LocationMetadataPicker({
@@ -518,21 +518,144 @@ function TagsPicker({
 }
 
 export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props) {
+  const [aiMenuOpen, setAiMenuOpen] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [instructions, setInstructions] = useState("");
+  const [instructionDraft, setInstructionDraft] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const aiGroupRef = useRef<HTMLDivElement>(null);
+  const aiMenuRef = useRef<HTMLDivElement>(null);
+  const [aiMenuPos, setAiMenuPos] = useState({ top: 0, left: 0, width: 176 });
+  const generationTimer = useRef<number | null>(null);
   const set = (patch: Partial<GeneralInfo>) => onChange({ ...value, ...patch });
+
+  const syncAiMenuPosition = useCallback(() => {
+    const trigger = aiGroupRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const width = Math.max(rect.width, 176);
+    setAiMenuPos({
+      top: rect.bottom + 8,
+      left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+      width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!aiMenuOpen) return;
+    syncAiMenuPosition();
+    const closeMenu = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        !aiGroupRef.current?.contains(target) &&
+        !aiMenuRef.current?.contains(target)
+      ) {
+        setAiMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAiMenuOpen(false);
+    };
+    const syncOnLayout = () => syncAiMenuPosition();
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", syncOnLayout);
+    window.addEventListener("scroll", syncOnLayout, true);
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", syncOnLayout);
+      window.removeEventListener("scroll", syncOnLayout, true);
+    };
+  }, [aiMenuOpen, syncAiMenuPosition]);
+
+  useEffect(
+    () => () => {
+      if (generationTimer.current !== null) window.clearTimeout(generationTimer.current);
+    },
+    [],
+  );
+
+  const generate = () => {
+    if (isGenerating) return;
+    setAiMenuOpen(false);
+    setIsGenerating(true);
+    generationTimer.current = window.setTimeout(() => {
+      onFillWithAI?.(instructions.trim() || undefined);
+      setIsGenerating(false);
+      setHasGenerated(true);
+      generationTimer.current = null;
+    }, 2200);
+  };
 
   return (
     <div className="general-info-step">
       <header className="general-info-step__head">
         <h3 className="general-info-step__title">General Info</h3>
-        <button
-          type="button"
-          className="general-info-step__fill-ai"
-          onClick={onFillWithAI}
-        >
-          <Sparkle size={14} weight="bold" aria-hidden="true" />
-          Generate
-        </button>
+        <div className="general-info-step__ai-group" ref={aiGroupRef}>
+          <button
+            type="button"
+            className="general-info-step__fill-ai"
+            disabled={isGenerating}
+            aria-live="polite"
+            onClick={generate}
+          >
+            {isGenerating ? (
+              <span className="ds-query-generate-spinner" aria-hidden="true" />
+            ) : (
+              <Sparkle size={14} weight="bold" aria-hidden="true" />
+            )}
+            {isGenerating ? "Generating..." : hasGenerated ? "Regenerate" : "Generate"}
+          </button>
+          <button
+            type="button"
+            className="general-info-step__ai-menu-trigger"
+            aria-label="Open generation options"
+            aria-haspopup="menu"
+            aria-expanded={aiMenuOpen}
+            disabled={isGenerating}
+            onClick={() => {
+              syncAiMenuPosition();
+              setAiMenuOpen((open) => !open);
+            }}
+          >
+            <CaretDown size={14} weight="bold" aria-hidden="true" />
+          </button>
+        </div>
       </header>
+
+      {aiMenuOpen &&
+        createPortal(
+          <div
+            ref={aiMenuRef}
+            className="cp-picker-menu cp-picker-menu--flyout general-info-step__ai-menu"
+            role="menu"
+            style={
+              {
+                top: aiMenuPos.top,
+                left: aiMenuPos.left,
+                width: aiMenuPos.width,
+              } as CSSProperties
+            }
+          >
+            <div className="cp-picker-list">
+              <button
+                type="button"
+                className="cp-picker-row"
+                role="menuitem"
+                onClick={() => {
+                  setInstructionDraft(instructions);
+                  setAiMenuOpen(false);
+                  setInstructionsOpen(true);
+                }}
+              >
+                <span className="cp-picker-row-name">Add instructions</span>
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       <div className="general-info-step__fields">
         <div className="general-info-field">
@@ -669,6 +792,68 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
           )}
         </div>
       </div>
+
+      {instructionsOpen &&
+        createPortal(
+          <div
+            className="general-info-ai-instructions-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setInstructionsOpen(false);
+            }}
+          >
+            <form
+              className="general-info-ai-instructions"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="general-info-ai-instructions-title"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setInstructions(instructionDraft.trim());
+                setInstructionsOpen(false);
+              }}
+            >
+              <header>
+                <span>
+                  <Sparkle size={18} weight="regular" aria-hidden="true" />
+                  <h2 id="general-info-ai-instructions-title">Add instructions</h2>
+                </span>
+                <button
+                  type="button"
+                  aria-label="Close instructions"
+                  onClick={() => setInstructionsOpen(false)}
+                >
+                  <X size={16} weight="regular" aria-hidden="true" />
+                </button>
+              </header>
+              <div className="general-info-ai-instructions__body">
+                <label htmlFor="general-info-ai-instructions-input">
+                  Tell AI how to generate the asset information
+                </label>
+                <textarea
+                  id="general-info-ai-instructions-input"
+                  value={instructionDraft}
+                  onChange={(event) => setInstructionDraft(event.target.value)}
+                  onFocus={() => {
+                    if (!instructionDraft) {
+                      setInstructionDraft(
+                        "Keep the description concise and focus on weekly performance trends.",
+                      );
+                    }
+                  }}
+                  placeholder="For example: Keep the description concise and focus on weekly performance trends."
+                  rows={5}
+                />
+              </div>
+              <footer>
+                <button type="button" onClick={() => setInstructionsOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit">Save instructions</button>
+              </footer>
+            </form>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
