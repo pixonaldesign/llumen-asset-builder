@@ -281,7 +281,7 @@ function LocationMetadataPicker({
               } as CSSProperties
             }
           >
-            <div className="dropdown-menu__inner">
+            <div className="general-info-location-menu__fixed dropdown-menu__inner">
             <div className="general-info-location-menu__heading">
               {activeParent ? (
                 <>
@@ -328,51 +328,55 @@ function LocationMetadataPicker({
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
-            {menuOptions.map((location) => {
-              const selected = value.includes(location.value);
-              return (
-                <button
-                  key={location.value}
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  className={
-                    "general-info-location-menu__row" +
-                    (selected ? " is-selected" : "") +
-                    (activeParent ? " is-nested" : "")
-                  }
-                  onClick={() => toggleValue(location.value)}
-                >
-                  <span className="general-info-location-menu__name">{location.value}</span>
-                  <span className="general-info-location-menu__type">{location.type}</span>
-                  {location.hasChildren && (
-                    <span
-                      className="general-info-location-menu__nested-action"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Open ${location.value}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setActiveParent(location.value);
-                        setSearch("");
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== "Enter" && event.key !== " ") return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setActiveParent(location.value);
-                        setSearch("");
-                      }}
+            </div>
+            <div className="general-info-location-menu__list">
+              <div className="dropdown-menu__inner">
+                {menuOptions.map((location) => {
+                  const selected = value.includes(location.value);
+                  return (
+                    <button
+                      key={location.value}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      className={
+                        "general-info-location-menu__row" +
+                        (selected ? " is-selected" : "") +
+                        (activeParent ? " is-nested" : "")
+                      }
+                      onClick={() => toggleValue(location.value)}
                     >
-                      <CaretRight size={15} aria-hidden="true" />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            {!menuOptions.length && (
-              <div className="general-info-location-menu__empty">No locations found</div>
-            )}
+                      <span className="general-info-location-menu__name">{location.value}</span>
+                      <span className="general-info-location-menu__type">{location.type}</span>
+                      {location.hasChildren && (
+                        <span
+                          className="general-info-location-menu__nested-action"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open ${location.value}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setActiveParent(location.value);
+                            setSearch("");
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter" && event.key !== " ") return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setActiveParent(location.value);
+                            setSearch("");
+                          }}
+                        >
+                          <CaretRight size={15} aria-hidden="true" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                {!menuOptions.length && (
+                  <div className="general-info-location-menu__empty">No locations found</div>
+                )}
+              </div>
             </div>
           </div>,
           document.body,
@@ -493,26 +497,28 @@ function TagsPicker({
               } as CSSProperties
             }
           >
-            <div className="dropdown-menu__inner">
-            {TAG_OPTIONS.map((tag) => {
-              const selected = value.includes(tag.value);
-              return (
-                <button
-                  key={tag.value}
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  className={
-                    "general-info-location-menu__row" + (selected ? " is-selected" : "")
-                  }
-                  onClick={() => toggleTag(tag.value)}
-                >
-                  <span className="general-info-location-menu__name">
-                    {tag.value} ({tag.count})
-                  </span>
-                </button>
-              );
-            })}
+            <div className="general-info-location-menu__list">
+              <div className="dropdown-menu__inner">
+                {TAG_OPTIONS.map((tag) => {
+                  const selected = value.includes(tag.value);
+                  return (
+                    <button
+                      key={tag.value}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      className={
+                        "general-info-location-menu__row" + (selected ? " is-selected" : "")
+                      }
+                      onClick={() => toggleTag(tag.value)}
+                    >
+                      <span className="general-info-location-menu__name">
+                        {tag.value} ({tag.count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>,
           document.body,

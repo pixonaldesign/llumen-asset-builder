@@ -6160,14 +6160,11 @@ textarea.general-info-field__textarea {
   position: fixed;
   z-index: 100;
   display: grid;
-  gap: var(--spacing-2xs);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
   max-height: 320px;
   padding: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-gutter: stable both-edges;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-neutral-500) transparent;
+  overflow: hidden;
   border: 1px solid var(--lc-border-default);
   border-radius: var(--lc-ui-radius);
   background: var(--color-neutral-700);
@@ -6177,29 +6174,46 @@ textarea.general-info-field__textarea {
   isolation: isolate;
 }
 
-.general-info-location-menu::-webkit-scrollbar {
+.general-info-location-menu__fixed {
+  gap: var(--spacing-2xs);
+}
+
+.general-info-location-menu__list {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-500) transparent;
+}
+
+.general-info-location-menu__list::-webkit-scrollbar,
+.general-info-location-menu:not(:has(> .general-info-location-menu__list))::-webkit-scrollbar {
   width: var(--spacing-xs);
 }
 
-.general-info-location-menu::-webkit-scrollbar-thumb {
+.general-info-location-menu__list::-webkit-scrollbar-thumb,
+.general-info-location-menu:not(:has(> .general-info-location-menu__list))::-webkit-scrollbar-thumb {
   border-radius: var(--radius-full);
   background: var(--color-neutral-500);
 }
 
-.general-info-location-menu::-webkit-scrollbar-track {
+.general-info-location-menu__list::-webkit-scrollbar-track,
+.general-info-location-menu:not(:has(> .general-info-location-menu__list))::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.general-info-location-menu > .dropdown-menu__inner {
-  max-height: none;
-  overflow: visible;
-}
-
-.general-info-location-menu:not(:has(> .dropdown-menu__inner)) {
+.general-info-location-menu:not(.general-info-update-frequency-menu):not(
+    :has(> .general-info-location-menu__list)
+  ) {
   padding: var(--spacing-xs);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-500) transparent;
 }
 
 .general-info-tag-menu {
+  grid-template-rows: minmax(0, 1fr);
   max-height: 220px;
 }
 
