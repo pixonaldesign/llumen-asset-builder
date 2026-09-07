@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import Dropdown from "./Dropdown";
 import {
@@ -216,7 +224,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
     description:
       "Curated global geographic layers for demographics, land use, and infrastructure",
     category: "Marketplace",
-    active: false,
+    active: true,
     lastUpdated: "8/13/2026",
   },
   {
@@ -234,7 +242,7 @@ const MARKETPLACE_PROVIDERS: MarketplaceProvider[] = [
     description:
       "Points of interest, business attributes, brand relationships, and location metadata",
     category: "Marketplace",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
 ];
@@ -262,13 +270,13 @@ const ML_INPUT_SOURCES: MlInputOption[] = [
 
 const DATABASE_CONNECTIONS: DatabaseConnection[] = [
   { id: "itc", name: "ITC", description: "No description", schema: "fusion", active: true },
-  { id: "dubai", name: "Dubai", description: "No description", schema: "Database", active: false },
+  { id: "dubai", name: "Dubai", description: "No description", schema: "Database", active: true },
   {
     id: "aimsun",
     name: "Aimsun",
     description: "Traffic management data for road network. Includes road sections with geometry and sensors.",
     schema: "Database",
-    active: false,
+    active: true,
   },
   {
     id: "energy",
@@ -277,13 +285,13 @@ const DATABASE_CONNECTIONS: DatabaseConnection[] = [
     schema: "Database",
     active: true,
   },
-  { id: "itc-pg", name: "ITC PG", description: "No description", schema: "Database", active: false },
+  { id: "itc-pg", name: "ITC PG", description: "No description", schema: "Database", active: true },
   {
     id: "itc-fusion",
     name: "ITC Fusion DB",
     description: "No description",
     schema: "Database",
-    active: false,
+    active: true,
   },
   { id: "waste", name: "Waste", description: "UAE Waste Data", schema: "Database", active: true },
   {
@@ -291,7 +299,7 @@ const DATABASE_CONNECTIONS: DatabaseConnection[] = [
     name: "ITC - Postgres",
     description: "No description",
     schema: "Database",
-    active: false,
+    active: true,
   },
   {
     id: "security",
@@ -511,7 +519,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "Sultan_Bin_Zayed_The_First_Street_ridership_trend_chart_workflow_run_4103ee14.parquet",
     rows: 21,
     tableName: "ds_d0b8d812bd040be9573ada2db652221",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
   {
@@ -520,7 +528,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "Sultan_Bin_Zayed_The_First_Street_ridership_trend_chart_workflow_run_5be66496.parquet",
     rows: 21,
     tableName: "ds_5ae68eef3f184554810c382be0a6d394",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
   {
@@ -529,7 +537,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "2050_Capacity_by_Region.parquet",
     rows: 18,
     tableName: "ds_288a25da839945228c93b8674181d1a8",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
   {
@@ -538,7 +546,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "Abu_Dhabi_Capacity_Trajectory_to_2050.parquet",
     rows: 18,
     tableName: "ds_e39d26283ab647839634e0bb225fe507",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
   {
@@ -547,7 +555,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "Workflow_Asset.parquet",
     rows: 26,
     tableName: "ds_70bf6e1c09eb42179ba6376650178f8e",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
   {
@@ -556,7 +564,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "Hamdan_Bin_Mohammed_Street_Weekly_Trips_In.parquet",
     rows: 26,
     tableName: "ds_3633efaf71da4ec88df18de7454f3c22",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
   {
@@ -565,7 +573,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "wind_hour_06.geojson",
     rows: 1024,
     tableName: "ds_378739805bf04501932b2ff632cdd153",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
   {
@@ -574,7 +582,7 @@ const FILE_SOURCES: FileSource[] = [
     fileName: "CLIMATOLOGY_SERIES_EAD_WRF_20260406_20260408_d01.csv",
     rows: 4,
     tableName: "ds_900907603ae14ce09b4398d222c035e4",
-    active: false,
+    active: true,
     lastUpdated: "8/11/2026",
   },
 ];
@@ -1809,7 +1817,6 @@ function FileSourcePicker({
       </div>
 
       <div className="ds-db-manager__filters">
-        <span aria-hidden="true" />
         <div className="ds-db-manager__menu-wrap">
           <button
             type="button"
@@ -1979,7 +1986,6 @@ function DataFlowPicker({
       </div>
 
       <div className="ds-db-manager__filters">
-        <span aria-hidden="true" />
         <div className="ds-db-manager__menu-wrap">
           <button
             type="button"
@@ -2421,7 +2427,15 @@ function queryVariableAtOffset(value: string, offset: number) {
   return null;
 }
 
-function HighlightedSql({ value }: { value: string }) {
+function HighlightedSql({
+  value,
+  filterBindings,
+  onVariableClick,
+}: {
+  value: string;
+  filterBindings: Record<string, string>;
+  onVariableClick: (variable: string, rect: DOMRect) => void;
+}) {
   return (
     <pre className="ds-query__highlight" aria-hidden="true">
       <code>
@@ -2436,8 +2450,29 @@ function HighlightedSql({ value }: { value: string }) {
                 ? "is-number"
                 : undefined;
           return (
-            <span className={className} key={`${index}-${token}`}>
+            <span
+              className={className}
+              key={`${index}-${token}`}
+              {...(token.startsWith("$")
+                ? {
+                    role: "button",
+                    tabIndex: 0,
+                    onClick: (event: ReactMouseEvent<HTMLSpanElement>) => {
+                      event.stopPropagation();
+                      onVariableClick(token, event.currentTarget.getBoundingClientRect());
+                    },
+                    onKeyDown: (event: ReactKeyboardEvent<HTMLSpanElement>) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      onVariableClick(token, event.currentTarget.getBoundingClientRect());
+                    },
+                  }
+                : {})}
+            >
               {token}
+              {token.startsWith("$") && filterBindings[token] && (
+                <span className="is-variable__binding">: {filterBindings[token]}</span>
+              )}
             </span>
           );
         })}
@@ -2959,7 +2994,7 @@ function QueryAssistantModal({
           <small>Example: &quot;Show all customers from last week&quot;</small>
         </div>
 
-        <footer className="ds-query-assistant__composer">
+        <div className="ds-query-assistant__composer">
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
@@ -2971,6 +3006,8 @@ function QueryAssistantModal({
             rows={5}
             disabled={isGenerating}
           />
+        </div>
+        <footer className="ds-query-assistant__footer">
           <button
             type="submit"
             aria-label={isGenerating ? "Generating query" : "Generate query"}
@@ -2999,6 +3036,7 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
     top: number;
     left: number;
   } | null>(null);
+  const [filterSearch, setFilterSearch] = useState("");
   const generationTimer = useRef<number | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement>(null);
 
@@ -3058,7 +3096,26 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
             1
           </span>
           <div className="ds-query__code-layer">
-            <HighlightedSql value={value} />
+            <HighlightedSql
+              value={value}
+              filterBindings={filterBindings}
+              onVariableClick={(variable, rect) => {
+                const width = 280;
+                const height = 320;
+                setFilterSearch("");
+                setFilterPopover({
+                  variable,
+                  left: Math.max(
+                    12,
+                    Math.min(rect.left, window.innerWidth - width - 12),
+                  ),
+                  top: Math.max(
+                    12,
+                    Math.min(rect.bottom + 8, window.innerHeight - height - 12),
+                  ),
+                });
+              }}
+            />
             <textarea
               value={value}
               onChange={(event) => onChange(event.target.value)}
@@ -3072,7 +3129,8 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
                   return;
                 }
                 const width = 280;
-                const height = 180;
+                const height = 320;
+                setFilterSearch("");
                 setFilterPopover({
                   variable,
                   left: Math.max(
@@ -3125,45 +3183,67 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
         createPortal(
           <div
             ref={filterPopoverRef}
-            className="ds-query-filter-popover"
-            role="dialog"
+            className="cp-picker-menu cp-picker-menu--flyout ds-query-filter-menu"
+            role="listbox"
             aria-label={`Bind ${filterPopover.variable} to a filter`}
             style={{ top: filterPopover.top, left: filterPopover.left }}
           >
-            <h4>{filterPopover.variable}</h4>
-            <div className="ds-query-filter-popover__field">
-              <label>Filter</label>
-              <Dropdown
-                value={filterBindings[filterPopover.variable] ?? ""}
-                onChange={(filter) =>
-                  setFilterBindings((current) => ({
-                    ...current,
-                    [filterPopover.variable]: filter,
-                  }))
-                }
-                options={[
-                  { value: "", label: "— unbound —" },
-                  ...QUERY_FILTER_OPTIONS.map((filter) => ({
-                    value: filter,
-                    label: filter,
-                  })),
-                ]}
-                ariaLabel={`Filter bound to ${filterPopover.variable}`}
-                className="ds-query-filter-popover__dropdown"
-                menuClassName="ds-query-filter-popover__menu"
-                minMenuWidth={280}
-                searchable
-                searchPlaceholder="Search filters"
-                noResultsLabel="No filters found"
+            <div className="cp-picker-search">
+              <input
+                autoFocus
+                type="search"
+                value={filterSearch}
+                placeholder="Search filters"
+                aria-label="Search filters"
+                onChange={(event) => setFilterSearch(event.target.value)}
+              />
+              <MagnifyingGlass
+                className="cp-picker-search-ico"
+                size={16}
+                aria-hidden="true"
               />
             </div>
-            <button
-              type="button"
-              className="ds-query-filter-popover__done"
-              onClick={() => setFilterPopover(null)}
-            >
-              Done
-            </button>
+            <div className="cp-picker-list">
+              {[
+                { value: "", label: "— unbound —" },
+                ...QUERY_FILTER_OPTIONS.map((filter) => ({
+                  value: filter,
+                  label: filter,
+                })),
+              ]
+                .filter((filter) =>
+                  filter.label.toLowerCase().includes(filterSearch.trim().toLowerCase()),
+                )
+                .map((filter) => {
+                  const selected =
+                    (filterBindings[filterPopover.variable] ?? "") === filter.value;
+                  return (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      className={"cp-picker-row" + (selected ? " is-selected" : "")}
+                      key={filter.value || "unbound"}
+                      onClick={() => {
+                        setFilterBindings((current) => {
+                          if (!filter.value) {
+                            const next = { ...current };
+                            delete next[filterPopover.variable];
+                            return next;
+                          }
+                          return {
+                            ...current,
+                            [filterPopover.variable]: filter.value,
+                          };
+                        });
+                        setFilterPopover(null);
+                      }}
+                    >
+                      <span className="cp-picker-row-name">{filter.label}</span>
+                    </button>
+                  );
+                })}
+            </div>
           </div>,
           document.body,
         )}
