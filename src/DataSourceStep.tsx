@@ -129,7 +129,7 @@ const DEFAULT_DATABASE_QUERY = `SELECT
     p.population_count / g.area_size_km2 AS population_density
 FROM grid g
 JOIN population_data p ON g.grid_id = p.grid_id
-WHERE g.district_name = 'Abu Dhabi Island'
+WHERE g.district_name = $district_filter
     AND p.date BETWEEN '2024-04-10 00:00:00'
     AND '2024-04-12 23:59:59'
 ORDER BY population_density DESC;`;
@@ -2376,17 +2376,59 @@ function ApiParameterSection({ title }: { title?: string }) {
 }
 
 const SQL_EDITOR_TOKEN_PATTERN =
-  /('(?:''|[^'])*'|\b(?:SELECT|FROM|JOIN|ON|WHERE|AND|OR|BETWEEN|ORDER|BY|AS|LIMIT|GROUP|HAVING|DESC|ASC)\b|\b\d+(?:\.\d+)?\b)/gi;
+  /(\$[A-Za-z_][A-Za-z0-9_]*|'(?:''|[^'])*'|\b(?:SELECT|FROM|JOIN|ON|WHERE|AND|OR|BETWEEN|ORDER|BY|AS|LIMIT|GROUP|HAVING|DESC|ASC)\b|\b\d+(?:\.\d+)?\b)/gi;
 
 const SQL_EDITOR_KEYWORD_PATTERN =
   /^(?:SELECT|FROM|JOIN|ON|WHERE|AND|OR|BETWEEN|ORDER|BY|AS|LIMIT|GROUP|HAVING|DESC|ASC)$/i;
+
+const QUERY_FILTER_OPTIONS = [
+  "Airports",
+  "AQI Timeseries",
+  "CalendarTimeSeries",
+  "Delay Severity",
+  "Dubai Top Transit Destination Station",
+  "Forecast Date & Time",
+  "FusionWhereboutCatFilter",
+  "Fusion Timeseries",
+  "gender",
+  "Incident Type",
+  "Junction Locations",
+  "Location",
+  "Location Filter",
+  "Riyadh Air Quality Index Timeseries",
+  "Riyadh Traffic — Hourly Timeline",
+  "Riyadh Traffic",
+  "Riyadh Traffic Timeseries",
+  "Sample Date",
+  "Test-TimeSeries-2",
+  "TestCallIcon",
+  "TestCAtIcon",
+  "TestLocation",
+  "Time Horizon",
+  "Time Period",
+  "Time Range",
+  "Violation Type",
+];
+
+function queryVariableAtOffset(value: string, offset: number) {
+  const pattern = /\$[A-Za-z_][A-Za-z0-9_]*/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(value))) {
+    if (offset >= match.index && offset <= match.index + match[0].length) {
+      return match[0];
+    }
+  }
+  return null;
+}
 
 function HighlightedSql({ value }: { value: string }) {
   return (
     <pre className="ds-query__highlight" aria-hidden="true">
       <code>
         {(value || " ").split(SQL_EDITOR_TOKEN_PATTERN).map((token, index) => {
-          const className = token.startsWith("'")
+          const className = token.startsWith("$")
+            ? "is-variable"
+            : token.startsWith("'")
             ? "is-string"
             : SQL_EDITOR_KEYWORD_PATTERN.test(token)
               ? "is-keyword"
@@ -2951,7 +2993,14 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [filterBindings, setFilterBindings] = useState<Record<string, string>>({});
+  const [filterPopover, setFilterPopover] = useState<{
+    variable: string;
+    top: number;
+    left: number;
+  } | null>(null);
   const generationTimer = useRef<number | null>(null);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(
     () => () => {
@@ -2959,6 +3008,25 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
     },
     [],
   );
+
+  useEffect(() => {
+    if (!filterPopover) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (filterPopoverRef.current?.contains(target)) return;
+      if (target.closest(".cp-picker-menu")) return;
+      setFilterPopover(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFilterPopover(null);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [filterPopover]);
 
   return (
     <>
@@ -2994,7 +3062,31 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
             <textarea
               value={value}
               onChange={(event) => onChange(event.target.value)}
+              onClick={(event) => {
+                const variable = queryVariableAtOffset(
+                  value,
+                  event.currentTarget.selectionStart,
+                );
+                if (!variable) {
+                  setFilterPopover(null);
+                  return;
+                }
+                const width = 280;
+                const height = 180;
+                setFilterPopover({
+                  variable,
+                  left: Math.max(
+                    12,
+                    Math.min(event.clientX + 12, window.innerWidth - width - 12),
+                  ),
+                  top: Math.max(
+                    12,
+                    Math.min(event.clientY + 16, window.innerHeight - height - 12),
+                  ),
+                });
+              }}
               onScroll={(event) => {
+                setFilterPopover(null);
                 const highlight = event.currentTarget.previousElementSibling;
                 if (highlight instanceof HTMLElement) {
                   highlight.scrollTop = event.currentTarget.scrollTop;
@@ -3028,6 +3120,53 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
           }}
         />
       )}
+
+      {filterPopover &&
+        createPortal(
+          <div
+            ref={filterPopoverRef}
+            className="ds-query-filter-popover"
+            role="dialog"
+            aria-label={`Bind ${filterPopover.variable} to a filter`}
+            style={{ top: filterPopover.top, left: filterPopover.left }}
+          >
+            <h4>{filterPopover.variable}</h4>
+            <div className="ds-query-filter-popover__field">
+              <label>Filter</label>
+              <Dropdown
+                value={filterBindings[filterPopover.variable] ?? ""}
+                onChange={(filter) =>
+                  setFilterBindings((current) => ({
+                    ...current,
+                    [filterPopover.variable]: filter,
+                  }))
+                }
+                options={[
+                  { value: "", label: "— unbound —" },
+                  ...QUERY_FILTER_OPTIONS.map((filter) => ({
+                    value: filter,
+                    label: filter,
+                  })),
+                ]}
+                ariaLabel={`Filter bound to ${filterPopover.variable}`}
+                className="ds-query-filter-popover__dropdown"
+                menuClassName="ds-query-filter-popover__menu"
+                minMenuWidth={280}
+                searchable
+                searchPlaceholder="Search filters"
+                noResultsLabel="No filters found"
+              />
+            </div>
+            <button
+              type="button"
+              className="ds-query-filter-popover__done"
+              onClick={() => setFilterPopover(null)}
+            >
+              Done
+            </button>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

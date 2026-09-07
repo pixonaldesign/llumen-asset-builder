@@ -453,7 +453,7 @@ export default function AccessStep() {
           disabled={pendingInvites.length === 0 && !inviteQuery.trim()}
           onClick={sendInvite}
         >
-          Invite
+          Add
         </button>
       </div>
 

@@ -16,6 +16,7 @@ import {
   AlignRightSimple,
   AlignTopSimple,
   CheckCircle,
+  Info,
   Lock,
   LockOpen,
   Question,
@@ -86,7 +87,9 @@ type WizardStepId =
   | "access"
   | "general-info";
 
-const WIZARD_STEPS: { id: WizardStepId; label: string }[] = [
+const FILTERS_STEP_ENABLED = false;
+
+const ALL_WIZARD_STEPS: { id: WizardStepId; label: string }[] = [
   { id: "data-source", label: "Source" },
   { id: "viz-mapping", label: "Visualization & Mapping" },
   { id: "filters", label: "Filters" },
@@ -94,6 +97,10 @@ const WIZARD_STEPS: { id: WizardStepId; label: string }[] = [
   { id: "access", label: "Access" },
   { id: "general-info", label: "General Info" },
 ];
+
+const WIZARD_STEPS = ALL_WIZARD_STEPS.filter(
+  (step) => FILTERS_STEP_ENABLED || step.id !== "filters",
+);
 
 function isValueFilled(o: Opt, value: unknown): boolean {
   if (o.type === "toggle") return true;
@@ -1670,6 +1677,8 @@ export default function EditComponentModal({
   const [dataSourceTypeSelected, setDataSourceTypeSelected] = useState(false);
   const [dataSourceQuery, setDataSourceQuery] = useState("");
   const [dataSourceLoading, setDataSourceLoading] = useState(false);
+  const [deepDiveHasAssets, setDeepDiveHasAssets] = useState(false);
+  const [deepDivePreviewOpen, setDeepDivePreviewOpen] = useState(false);
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     name: componentName ?? "",
     description: "",
@@ -1891,7 +1900,7 @@ export default function EditComponentModal({
   const isAccessStep = wizardStepId === "access";
   const isGeneralInfoStep = wizardStepId === "general-info";
   const isDataSourcePicker = isDataSourceStep && !dataSourceTypeSelected;
-  const isPreviewVizOnly = isAccessStep || isGeneralInfoStep;
+  const isPreviewVizOnly = isDeepDiveStep || isAccessStep || isGeneralInfoStep;
   const isVizPicker = isVizStep && vizPhase === "picker";
   const isVizSettings = isVizStep && vizPhase === "settings";
   const mappingIncomplete = sectionHasErrors(mappingFields, getVal);
@@ -1907,7 +1916,7 @@ export default function EditComponentModal({
     currentStep >= WIZARD_STEPS.length;
   const displayVisualLabel = displayVisual?.label ?? chart.name;
   const displayVisualCategory = displayVisual?.category ?? "chart";
-  const showChartPreview = !isDataSourceStep && !isDeepDiveStep && !isVizPicker;
+  const showChartPreview = !isDataSourceStep && !isVizPicker;
 
   const stepperRef = useRef<HTMLElement>(null);
   const stepRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -2007,7 +2016,6 @@ export default function EditComponentModal({
         <div
           className={
             "modal__body" +
-            (isDeepDiveStep ? " modal__body--deep-dive" : "") +
             (isVizPicker ? " modal__body--viz-picker" : "") +
             (isDataSourcePicker ? " modal__body--single-pane" : "")
           }
@@ -2055,7 +2063,13 @@ export default function EditComponentModal({
 
               {isFiltersStep && <FiltersStep />}
 
-              {isDeepDiveStep && <DeepDiveStep />}
+              {isDeepDiveStep && (
+                <DeepDiveStep
+                  onHasAssetsChange={setDeepDiveHasAssets}
+                  previewOpen={deepDivePreviewOpen}
+                  onPreviewClose={() => setDeepDivePreviewOpen(false)}
+                />
+              )}
 
               {isAccessStep && <AccessStep />}
 
@@ -2236,7 +2250,7 @@ export default function EditComponentModal({
             )}
           </section>
 
-          {!isDeepDiveStep && !isVizPicker && !isDataSourcePicker && (
+          {!isVizPicker && !isDataSourcePicker && (
           <section className="preview">
             {isDataSourceStep ? (
               <>
@@ -2325,7 +2339,25 @@ export default function EditComponentModal({
                       </div>
                     </div>
                     <div className="preview__chart-slot">
-                      <div className={"chart-card chart-card--" + size}>
+                      <div
+                        className={
+                          "chart-card chart-card--" +
+                          size +
+                          (isDeepDiveStep && deepDiveHasAssets
+                            ? " chart-card--deep-dive-preview"
+                            : "")
+                        }
+                      >
+                        {isDeepDiveStep && deepDiveHasAssets && (
+                          <button
+                            type="button"
+                            className="chart-card__deep-dive-info"
+                            aria-label="Preview Deep Dive assets"
+                            onClick={() => setDeepDivePreviewOpen(true)}
+                          >
+                            <Info size={14} weight="regular" aria-hidden="true" />
+                          </button>
+                        )}
                         <ChartPreview
                           type={chart.preview}
                           chartId={activeChart}

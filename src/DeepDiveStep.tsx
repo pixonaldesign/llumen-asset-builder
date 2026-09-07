@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { DotsThreeVertical, GridFour, PencilSimple } from "@phosphor-icons/react";
+import { Check, GridFour, PencilSimple, X } from "@phosphor-icons/react";
 import AddComponentModal from "./AddComponentModal";
 import ComponentChartPreview from "./ComponentChartPreview";
 import { componentById, type ComponentLibraryItem } from "./componentCatalog";
@@ -25,8 +25,6 @@ export type DeepDiveTab = {
   name: string;
   components: DeepDiveComponentRef[];
 };
-
-type DeepDiveViewMode = "edit" | "preview";
 
 let tabUid = 0;
 const nextTabId = () => ++tabUid;
@@ -60,110 +58,6 @@ function setCardDragImage(e: React.DragEvent, card: HTMLElement) {
   e.dataTransfer.setDragImage(ghost, e.clientX - rect.left, e.clientY - rect.top);
 }
 
-type FlyoutPos = { top: number; left: number; width: number };
-
-function measureCardMenuPosition(trigger: HTMLElement | null, menuWidth: number, gap = 6): FlyoutPos | null {
-  if (!trigger) return null;
-  const rect = trigger.getBoundingClientRect();
-  const modalRect = trigger.closest(".modal")?.getBoundingClientRect();
-  const preferredLeft = rect.right - menuWidth;
-  const boundaryInset = 12;
-  const left = modalRect
-    ? Math.min(
-        Math.max(preferredLeft, modalRect.left + boundaryInset),
-        modalRect.right - menuWidth - boundaryInset,
-      )
-    : preferredLeft;
-  return {
-    top: rect.bottom + gap,
-    left,
-    width: menuWidth,
-  };
-}
-
-function useCardActionMenu(menuWidth = 132) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<FlyoutPos | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const syncPosition = useCallback(() => {
-    const next = measureCardMenuPosition(triggerRef.current, menuWidth);
-    if (next) setPos(next);
-  }, [menuWidth]);
-
-  const toggle = useCallback(() => {
-    setOpen((current) => {
-      if (current) return false;
-      syncPosition();
-      return true;
-    });
-  }, [syncPosition]);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    syncPosition();
-    const onPointer = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (menuRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onLayout = () => syncPosition();
-    document.addEventListener("mousedown", onPointer);
-    window.addEventListener("resize", onLayout);
-    window.addEventListener("scroll", onLayout, true);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      window.removeEventListener("resize", onLayout);
-      window.removeEventListener("scroll", onLayout, true);
-    };
-  }, [open, syncPosition]);
-
-  useEffect(() => {
-    if (!open) setPos(null);
-  }, [open]);
-
-  return { open, setOpen, toggle, pos, triggerRef, menuRef };
-}
-
-function DeepDiveTabActionMenu({
-  open,
-  menuRef,
-  style,
-  onEdit,
-  onRemove,
-}: {
-  open: boolean;
-  menuRef: React.RefObject<HTMLDivElement>;
-  style?: React.CSSProperties;
-  onEdit: () => void;
-  onRemove: () => void;
-}) {
-  if (!open || !style) return null;
-
-  return createPortal(
-    <div ref={menuRef} className="dd-component-menu-flyout" style={style} role="menu" aria-label="Tab actions">
-      <div className="dd-component-menu dd-tab-menu">
-        <button type="button" className="dd-tab-menu__item" role="menuitem" onClick={onEdit}>
-          <PencilSimple size={16} weight="regular" aria-hidden="true" />
-          <span>Edit</span>
-        </button>
-        <button
-          type="button"
-          className="dd-tab-menu__item dd-tab-menu__item--danger"
-          role="menuitem"
-          onClick={onRemove}
-        >
-          <TrashIcon width={16} height={16} aria-hidden="true" />
-          <span>Remove</span>
-        </button>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 const MODULAR_SLOT_COUNT = 24;
 
 function widgetTypeLabel(item: ComponentLibraryItem): string {
@@ -181,6 +75,7 @@ function DeepDiveTabChip({
   onEdit,
   onRename,
   onFinishRename,
+  onCancelRename,
   onRemove,
   onDragStart,
   onDragEnd,
@@ -196,6 +91,7 @@ function DeepDiveTabChip({
   onEdit: () => void;
   onRename: (name: string) => void;
   onFinishRename: () => void;
+  onCancelRename: () => void;
   onRemove: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -204,7 +100,6 @@ function DeepDiveTabChip({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const chipRef = useRef<HTMLDivElement>(null);
-  const { open, setOpen, toggle, pos, triggerRef, menuRef } = useCardActionMenu(148);
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -221,7 +116,11 @@ function DeepDiveTabChip({
         (dropTarget ? " is-drop-target" : "")
       }
       onDragStart={(e) => {
-        if ((e.target as HTMLElement).closest(".dd-tab__menu-btn, .dd-tab__input")) {
+        if (
+          (e.target as HTMLElement).closest(
+            ".dd-tab__edit-btn, .dd-tab__remove-btn, .dd-tab__confirm-btn, .dd-tab__cancel-btn, .dd-tab__input",
+          )
+        ) {
           e.preventDefault();
           return;
         }
@@ -241,50 +140,65 @@ function DeepDiveTabChip({
       }}
     >
       {editing ? (
-        <input
-          ref={inputRef}
-          className="dd-tab__input"
-          value={tab.name}
-          onChange={(e) => onRename(e.target.value)}
-          onBlur={onFinishRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onFinishRename();
-            if (e.key === "Escape") onFinishRename();
-          }}
-        />
+        <>
+          <input
+            ref={inputRef}
+            className="dd-tab__input"
+            value={tab.name}
+            onChange={(e) => onRename(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onFinishRename();
+              if (e.key === "Escape") onCancelRename();
+            }}
+          />
+          <button
+            type="button"
+            className="dd-tab__confirm-btn"
+            aria-label={`Save ${tab.name}`}
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+            onClick={onFinishRename}
+          >
+            <Check size={15} weight="bold" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="dd-tab__cancel-btn"
+            aria-label="Cancel tab rename"
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+            onClick={onCancelRename}
+          >
+            <X size={15} weight="bold" aria-hidden="true" />
+          </button>
+        </>
       ) : (
-        <button type="button" className="dd-tab__label" onClick={onSelect}>
-          {tab.name}
-        </button>
+        <>
+          <button type="button" className="dd-tab__label" onClick={onSelect}>
+            {tab.name}
+          </button>
+          <button
+            type="button"
+            className="dd-tab__edit-btn"
+            aria-label={`Edit ${tab.name}`}
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+            onClick={onEdit}
+          >
+            <PencilSimple size={16} weight="regular" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="dd-tab__remove-btn"
+            aria-label={`Remove ${tab.name}`}
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+            onClick={onRemove}
+          >
+            <TrashIcon width={16} height={16} aria-hidden="true" />
+          </button>
+        </>
       )}
-
-      <button
-        ref={triggerRef}
-        type="button"
-        className={"dd-tab__menu-btn" + (open ? " is-open" : "")}
-        aria-label={`Actions for ${tab.name}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        onClick={toggle}
-      >
-        <DotsThreeVertical size={16} weight="bold" aria-hidden="true" />
-      </button>
-
-      <DeepDiveTabActionMenu
-        open={open}
-        menuRef={menuRef}
-        style={pos ? { top: pos.top, left: pos.left, width: pos.width } : undefined}
-        onEdit={() => {
-          setOpen(false);
-          onEdit();
-        }}
-        onRemove={() => {
-          setOpen(false);
-          onRemove();
-        }}
-      />
     </div>
   );
 }
@@ -526,39 +440,90 @@ function DeepDiveComponentGrid({
   );
 }
 
-function DeepDivePreviewTabs({
+function DeepDivePreviewModal({
   tabs,
   activeTabId,
-  onSelect,
+  onSelectTab,
+  onClose,
 }: {
   tabs: DeepDiveTab[];
   activeTabId: number;
-  onSelect: (id: number) => void;
+  onSelectTab: (id: number) => void;
+  onClose: () => void;
 }) {
-  return (
-    <div className="dd-preview-tabs" role="tablist" aria-label="Deep dive tabs">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          className={"dd-preview-tab" + (tab.id === activeTabId ? " is-active" : "")}
-          aria-selected={tab.id === activeTabId}
-          onClick={() => onSelect(tab.id)}
-        >
-          {tab.name}
-        </button>
-      ))}
-    </div>
+  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
+
+  return createPortal(
+    <div
+      className="dd-preview-modal-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="dd-preview-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dd-preview-modal-title"
+      >
+        <header className="dd-preview-modal__header">
+          <h2 id="dd-preview-modal-title">Deep Dive Preview</h2>
+          <button type="button" aria-label="Close Deep Dive preview" onClick={onClose}>
+            <X size={18} weight="regular" aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="dd-preview-tabs" role="tablist" aria-label="Deep dive preview tabs">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              className={"dd-preview-tab" + (tab.id === activeTabId ? " is-active" : "")}
+              aria-selected={tab.id === activeTabId}
+              onClick={() => onSelectTab(tab.id)}
+            >
+              {tab.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="dd-preview-modal__body">
+          {activeTab && activeTab.components.length > 0 ? (
+            <DeepDiveComponentGrid
+              components={activeTab.components}
+              readOnly
+              onRemove={() => undefined}
+              onReorder={() => undefined}
+            />
+          ) : (
+            <div className="dd-preview-stage__empty">
+              <GridFour size={28} weight="regular" aria-hidden="true" />
+              <p>No assets added to this tab</p>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>,
+    document.body,
   );
 }
 
-export default function DeepDiveStep() {
+export default function DeepDiveStep({
+  onHasAssetsChange,
+  previewOpen = false,
+  onPreviewClose,
+}: {
+  onHasAssetsChange?: (hasAssets: boolean) => void;
+  previewOpen?: boolean;
+  onPreviewClose?: () => void;
+}) {
   const initialTab = createTab();
   const [tabs, setTabs] = useState<DeepDiveTab[]>([initialTab]);
   const [activeTabId, setActiveTabId] = useState(initialTab.id);
-  const [viewMode, setViewMode] = useState<DeepDiveViewMode>("edit");
   const [editingTabId, setEditingTabId] = useState<number | null>(null);
+  const [editingOriginalName, setEditingOriginalName] = useState("");
   const [dragTabId, setDragTabId] = useState<number | null>(null);
   const [dropTabId, setDropTabId] = useState<number | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -566,6 +531,11 @@ export default function DeepDiveStep() {
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
   const appliedIds = activeTab?.components.map((component) => component.componentId) ?? [];
+  const hasAssets = tabs.some((tab) => tab.components.length > 0);
+
+  useEffect(() => {
+    onHasAssetsChange?.(hasAssets);
+  }, [hasAssets, onHasAssetsChange]);
 
   const updateActiveTabComponents = useCallback(
     (updater: (components: DeepDiveComponentRef[]) => DeepDiveComponentRef[]) => {
@@ -583,6 +553,7 @@ export default function DeepDiveStep() {
     setTabs((current) => [...current, tab]);
     setActiveTabId(tab.id);
     setEditingTabId(null);
+    setEditingOriginalName("");
   };
 
   const removeTab = (id: number) => {
@@ -590,7 +561,10 @@ export default function DeepDiveStep() {
       if (current.length <= 1) return current;
       const next = current.filter((tab) => tab.id !== id);
       if (activeTabId === id) setActiveTabId(next[0]?.id ?? 0);
-      if (editingTabId === id) setEditingTabId(null);
+      if (editingTabId === id) {
+        setEditingTabId(null);
+        setEditingOriginalName("");
+      }
       return next;
     });
   };
@@ -601,6 +575,7 @@ export default function DeepDiveStep() {
 
   const startEditing = (id: number) => {
     setActiveTabId(id);
+    setEditingOriginalName(tabs.find((tab) => tab.id === id)?.name ?? "");
     setEditingTabId(id);
   };
 
@@ -611,6 +586,17 @@ export default function DeepDiveStep() {
       ),
     );
     setEditingTabId(null);
+    setEditingOriginalName("");
+  };
+
+  const cancelEditing = () => {
+    setTabs((current) =>
+      current.map((tab) =>
+        tab.id === editingTabId ? { ...tab, name: editingOriginalName } : tab,
+      ),
+    );
+    setEditingTabId(null);
+    setEditingOriginalName("");
   };
 
   const reorderTabs = useCallback((fromId: number, toId: number) => {
@@ -660,125 +646,83 @@ export default function DeepDiveStep() {
   };
 
   return (
-    <div className={"dd-step" + (viewMode === "preview" ? " dd-step--preview" : "")}>
+    <div className="dd-step">
       <header className="dd-step__head">
         <h2 className="dd-step__title">Deep Dive</h2>
-        <div className="seg-toggle dd-step__mode-toggle" role="group" aria-label="Deep dive view mode">
-          <button
-            type="button"
-            className={"seg-toggle__btn" + (viewMode === "edit" ? " is-active" : "")}
-            aria-pressed={viewMode === "edit"}
-            onClick={() => setViewMode("edit")}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className={"seg-toggle__btn" + (viewMode === "preview" ? " is-active" : "")}
-            aria-pressed={viewMode === "preview"}
-            onClick={() => setViewMode("preview")}
-          >
-            Preview
-          </button>
-        </div>
       </header>
 
-      {viewMode === "edit" ? (
-        <>
-          <div className={"dd-tabs" + (dragTabId !== null ? " is-reordering" : "")}>
-            {tabs.map((tab) => (
-              <DeepDiveTabChip
-                key={tab.id}
-                tab={tab}
-                active={tab.id === activeTabId}
-                editing={editingTabId === tab.id}
-                dragging={dragTabId === tab.id}
-                dropTarget={dropTabId === tab.id && dragTabId !== tab.id}
-                onSelect={() => {
-                  setActiveTabId(tab.id);
-                  setEditingTabId(null);
-                }}
-                onEdit={() => startEditing(tab.id)}
-                onRename={(name) => renameTab(tab.id, name)}
-                onFinishRename={finishEditing}
-                onRemove={() => removeTab(tab.id)}
-                onDragStart={() => setDragTabId(tab.id)}
-                onDragEnd={() => {
-                  lastOverTabId.current = null;
-                  setDragTabId(null);
-                  setDropTabId(null);
-                }}
-                onDragOver={() => {
-                  if (dragTabId !== null && dragTabId !== tab.id && lastOverTabId.current !== tab.id) {
-                    lastOverTabId.current = tab.id;
-                    reorderTabs(dragTabId, tab.id);
-                  }
-                  setDropTabId(tab.id);
-                }}
-                onDrop={() => {
-                  lastOverTabId.current = null;
-                  setDragTabId(null);
-                  setDropTabId(null);
-                }}
-              />
-            ))}
-
-            <button type="button" className="dd-tab-add" onClick={addTab}>
-              <PlusIcon width={14} height={14} aria-hidden="true" />
-              <span>Add Tab</span>
-            </button>
-          </div>
-
-          <section className="dd-panel" aria-label={activeTab ? `${activeTab.name} assets` : "Tab assets"}>
-            <button type="button" className="dd-panel__add" onClick={() => setAddModalOpen(true)}>
-              <PlusIcon width={14} height={14} aria-hidden="true" />
-              <span>Add Asset</span>
-            </button>
-
-            {activeTab && activeTab.components.length > 0 ? (
-              <DeepDiveComponentGrid
-                components={activeTab.components}
-                onRemove={removeComponent}
-                onReorder={reorderComponents}
-              />
-            ) : (
-              <div className="dd-panel__empty" aria-label="No assets added to this tab">
-                <div className="dd-modular-grid dd-modular-grid--empty" aria-hidden="true">
-                  {Array.from({ length: MODULAR_SLOT_COUNT }, (_, index) => (
-                    <div className="dd-modular-grid__slot" key={index} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        </>
-      ) : (
-        <section className="dd-preview-stage" aria-label="Deep dive preview">
-          <DeepDivePreviewTabs
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onSelect={setActiveTabId}
+      <div className={"dd-tabs" + (dragTabId !== null ? " is-reordering" : "")}>
+        {tabs.map((tab) => (
+          <DeepDiveTabChip
+            key={tab.id}
+            tab={tab}
+            active={tab.id === activeTabId}
+            editing={editingTabId === tab.id}
+            dragging={dragTabId === tab.id}
+            dropTarget={dropTabId === tab.id && dragTabId !== tab.id}
+            onSelect={() => {
+              setActiveTabId(tab.id);
+              setEditingTabId(null);
+            }}
+            onEdit={() => startEditing(tab.id)}
+            onRename={(name) => renameTab(tab.id, name)}
+            onFinishRename={finishEditing}
+            onCancelRename={cancelEditing}
+            onRemove={() => removeTab(tab.id)}
+            onDragStart={() => setDragTabId(tab.id)}
+            onDragEnd={() => {
+              lastOverTabId.current = null;
+              setDragTabId(null);
+              setDropTabId(null);
+            }}
+            onDragOver={() => {
+              if (
+                dragTabId !== null &&
+                dragTabId !== tab.id &&
+                lastOverTabId.current !== tab.id
+              ) {
+                lastOverTabId.current = tab.id;
+                reorderTabs(dragTabId, tab.id);
+              }
+              setDropTabId(tab.id);
+            }}
+            onDrop={() => {
+              lastOverTabId.current = null;
+              setDragTabId(null);
+              setDropTabId(null);
+            }}
           />
+        ))}
 
-          {activeTab && activeTab.components.length > 0 ? (
-            <DeepDiveComponentGrid
-              components={activeTab.components}
-              readOnly
-              onRemove={removeComponent}
-              onReorder={reorderComponents}
-            />
-          ) : (
-            <div className="dd-preview-stage__empty">
-              <span className="dd-panel__empty-icon" aria-hidden="true">
-                <GridFour size={28} weight="regular" />
-              </span>
-              <p>No assets added to this tab</p>
+        <button type="button" className="dd-tab-add" onClick={addTab}>
+          <PlusIcon width={14} height={14} aria-hidden="true" />
+          <span>Add Tab</span>
+        </button>
+      </div>
+
+      <section className="dd-panel" aria-label={activeTab ? `${activeTab.name} assets` : "Tab assets"}>
+        <button type="button" className="dd-panel__add" onClick={() => setAddModalOpen(true)}>
+          <PlusIcon width={14} height={14} aria-hidden="true" />
+          <span>Add Asset</span>
+        </button>
+
+        {activeTab && activeTab.components.length > 0 ? (
+          <DeepDiveComponentGrid
+            components={activeTab.components}
+            onRemove={removeComponent}
+            onReorder={reorderComponents}
+          />
+        ) : (
+          <div className="dd-panel__empty" aria-label="No assets added to this tab">
+            <div className="dd-modular-grid dd-modular-grid--empty" aria-hidden="true">
+              {Array.from({ length: MODULAR_SLOT_COUNT }, (_, index) => (
+                <div className="dd-modular-grid__slot" key={index} />
+              ))}
             </div>
-          )}
-        </section>
-      )}
+          </div>
+        )}
+      </section>
 
-      {viewMode === "edit" && (
       <AddComponentModal
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
@@ -788,6 +732,14 @@ export default function DeepDiveStep() {
           setAddModalOpen(false);
         }}
       />
+
+      {previewOpen && onPreviewClose && (
+        <DeepDivePreviewModal
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onSelectTab={setActiveTabId}
+          onClose={onPreviewClose}
+        />
       )}
     </div>
   );
