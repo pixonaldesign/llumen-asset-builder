@@ -14,22 +14,17 @@ import {
   ArrowLeft,
   CaretDown,
   CheckCircle,
-  CirclesFour,
   Database,
   DotsSixVertical,
   File,
   FileArrowUp,
   FunnelSimple,
-  FlowArrow,
-  GitBranch,
   Globe,
   Info,
   MagnifyingGlass,
   Play,
   Plus,
   Sparkle,
-  Stack,
-  Storefront,
   Trash,
   UploadSimple,
   X,
@@ -128,6 +123,21 @@ type MlInputOption = {
   icon: ReactNode;
 };
 
+const SOURCE_TYPE_ICON_BASE_URL = `${import.meta.env.BASE_URL}figma/source-types`;
+
+function SourceTypeIcon({ name, size = 44 }: { name: string; size?: number }) {
+  return (
+    <img
+      src={`${SOURCE_TYPE_ICON_BASE_URL}/${name}.png`}
+      width={size}
+      height={size}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
+  );
+}
+
 const DEFAULT_DATABASE_QUERY = `SELECT
     g.grid_id,
     g.longitude,
@@ -147,37 +157,37 @@ const SOURCE_TYPES: SourceTypeOption[] = [
     id: "database",
     title: "Database",
     description: "Connect to SQL, PostgreSQL, MySQL, or other databases",
-    icon: <Database size={20} aria-hidden="true" />,
+    icon: <SourceTypeIcon name="database" />,
   },
   {
     id: "api",
     title: "API Request",
     description: "Connect to REST APIs, GraphQL, or web services",
-    icon: <CirclesFour size={20} aria-hidden="true" />,
+    icon: <SourceTypeIcon name="api-request" />,
   },
   {
     id: "file-upload",
     title: "File",
     description: "Select from source-backed uploaded files",
-    icon: <FileArrowUp size={20} aria-hidden="true" />,
+    icon: <SourceTypeIcon name="file" />,
   },
   {
     id: "marketplace",
     title: "Marketplace",
     description: "Query an onboarded data marketplace provider",
-    icon: <Storefront size={20} aria-hidden="true" />,
+    icon: <SourceTypeIcon name="marketplace" />,
   },
   {
     id: "ml-model",
     title: "ML Model",
     description: "Connect prediction APIs or upload PKL/Joblib model files",
-    icon: <Stack size={20} aria-hidden="true" />,
+    icon: <SourceTypeIcon name="ml-model" />,
   },
   {
     id: "etl-flow",
     title: "ETL Flow",
     description: "Use an ETL flow pipeline with transformations and analytics",
-    icon: <GitBranch size={20} aria-hidden="true" />,
+    icon: <SourceTypeIcon name="etl-flow" />,
   },
 ];
 
@@ -3407,7 +3417,7 @@ function SourceConfiguration({
           <FieldHeader title="Database Connection" />
           {selectedDatabase ? (
             <div className="ds-db-selected">
-              <Database size={18} aria-hidden="true" />
+              <SourceTypeIcon name="database" size={20} />
               <span className="ds-db-selected__content ds-db-selected__content--database">
                 <strong>{selectedDatabase.name}</strong>
               </span>
@@ -3444,7 +3454,7 @@ function SourceConfiguration({
           ) : (
             <SourceActionField
               label="Select Database Connection"
-              icon={<Database size={20} aria-hidden="true" />}
+              icon={<SourceTypeIcon name="database" size={20} />}
               onClick={onOpenDatabasePicker}
             />
         )}
@@ -3463,7 +3473,7 @@ function SourceConfiguration({
           <FieldHeader title="API Request" />
           {selectedApi && selectedApiRequest ? (
             <div className="ds-db-selected ds-db-selected--no-trailing">
-              <CirclesFour size={18} aria-hidden="true" />
+              <SourceTypeIcon name="api-request" size={20} />
               <span className="ds-db-selected__content">
                 <strong>{selectedApiRequest.name}</strong>
                 <small>Collection: {selectedApi.name}</small>
@@ -3475,7 +3485,7 @@ function SourceConfiguration({
           ) : (
             <SourceActionField
               label="Select API Request"
-              icon={<CirclesFour size={20} aria-hidden="true" />}
+              icon={<SourceTypeIcon name="api-request" size={20} />}
               onClick={onOpenApiPicker}
             />
           )}
@@ -3508,7 +3518,7 @@ function SourceConfiguration({
             <FieldHeader title="Select File" required={false} />
             {selectedFile ? (
               <div className="ds-db-selected ds-db-selected--no-trailing">
-                <FileArrowUp size={18} aria-hidden="true" />
+                <SourceTypeIcon name="file" size={20} />
                 <span className="ds-db-selected__content">
                   <strong>{selectedFile.name}</strong>
                   <small>
@@ -3535,7 +3545,7 @@ function SourceConfiguration({
             ) : (
               <SourceActionField
                 label="Select File"
-                icon={<FileArrowUp size={20} aria-hidden="true" />}
+                icon={<SourceTypeIcon name="file" size={20} />}
                 onClick={onOpenFilePicker}
               />
             )}
@@ -3609,7 +3619,7 @@ function SourceConfiguration({
               <FieldHeader title="Database Connection" />
               {mlSelectedDatabase ? (
                 <div className="ds-db-selected">
-                  <Database size={18} aria-hidden="true" />
+                  <SourceTypeIcon name="database" size={20} />
                   <span className="ds-db-selected__content ds-db-selected__content--database">
                     <strong>{mlSelectedDatabase.name}</strong>
                   </span>
@@ -3646,7 +3656,7 @@ function SourceConfiguration({
               ) : (
                 <SourceActionField
                   label="Select Database Connection"
-                  icon={<Database size={20} aria-hidden="true" />}
+                  icon={<SourceTypeIcon name="database" size={20} />}
                   onClick={onOpenMlDatabasePicker}
                 />
               )}
@@ -3663,7 +3673,7 @@ function SourceConfiguration({
               <FieldHeader title="API Request" />
               {mlSelectedApi && mlSelectedApiRequest ? (
                 <div className="ds-db-selected">
-                  <Globe size={18} aria-hidden="true" />
+                  <SourceTypeIcon name="api-request" size={20} />
                   <span className="ds-db-selected__content">
                     <strong>{mlSelectedApiRequest.name}</strong>
                     <small>Collection: {mlSelectedApi.name}</small>
@@ -3678,7 +3688,7 @@ function SourceConfiguration({
               ) : (
                 <SourceActionField
                   label="Select API Request"
-                  icon={<Globe size={20} aria-hidden="true" />}
+                  icon={<SourceTypeIcon name="api-request" size={20} />}
                   onClick={onOpenMlApiPicker}
                 />
               )}
@@ -3698,7 +3708,7 @@ function SourceConfiguration({
               <FieldHeader title="File Source" />
               {mlSelectedFile ? (
                 <div className="ds-db-selected">
-                  <File size={18} aria-hidden="true" />
+                  <SourceTypeIcon name="file" size={20} />
                   <span className="ds-db-selected__content">
                     <strong>{mlSelectedFile.name}</strong>
                     <small>
@@ -3715,7 +3725,7 @@ function SourceConfiguration({
               ) : (
                 <SourceActionField
                   label="Select File"
-                  icon={<File size={20} aria-hidden="true" />}
+                  icon={<SourceTypeIcon name="file" size={20} />}
                   onClick={onOpenMlFilePicker}
                 />
               )}
@@ -3754,7 +3764,7 @@ function SourceConfiguration({
         <FieldHeader title="Marketplace Provider" />
         {selectedMarketplaceProvider ? (
           <div className="ds-db-selected ds-db-selected--no-trailing">
-            <Storefront size={18} aria-hidden="true" />
+            <SourceTypeIcon name="marketplace" size={20} />
             <span className="ds-db-selected__content">
               <strong>{selectedMarketplaceProvider.name}</strong>
               <small>{selectedMarketplaceProvider.category}</small>
@@ -3770,7 +3780,7 @@ function SourceConfiguration({
         ) : (
           <SourceActionField
             label="Select Marketplace Provider"
-            icon={<Storefront size={20} aria-hidden="true" />}
+            icon={<SourceTypeIcon name="marketplace" size={20} />}
             onClick={onOpenMarketplacePicker}
           />
         )}
@@ -3785,11 +3795,7 @@ function SourceConfiguration({
         <FieldHeader title={isEtlFlow ? "Select ETL Flow" : "Select Data Flow"} />
         {selectedDataFlow ? (
           <div className="ds-db-selected ds-db-selected--no-trailing">
-            {isEtlFlow ? (
-              <GitBranch size={18} aria-hidden="true" />
-            ) : (
-              <FlowArrow size={18} aria-hidden="true" />
-            )}
+            <SourceTypeIcon name="etl-flow" size={20} />
             <span className="ds-db-selected__content">
               <strong>{selectedDataFlow.name}</strong>
               <small>{selectedDataFlow.columns.length} columns</small>
@@ -3805,13 +3811,7 @@ function SourceConfiguration({
         ) : (
           <SourceActionField
             label={isEtlFlow ? "Select ETL Flow" : "Select Data Flow"}
-            icon={
-              isEtlFlow ? (
-                <GitBranch size={20} aria-hidden="true" />
-              ) : (
-                <FlowArrow size={20} aria-hidden="true" />
-              )
-            }
+            icon={<SourceTypeIcon name="etl-flow" size={20} />}
             onClick={onOpenDataFlowPicker}
           />
         )}

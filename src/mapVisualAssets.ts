@@ -8,10 +8,26 @@ export const MAP_VISUAL_SRC: Record<string, string> = {
   heatmap: "/visuals-2/heatmap map.svg",
 };
 
+const MAP_PICKER_ICON_IDS = new Set([
+  "arcs",
+  "fences",
+  "pillars",
+  "discs",
+  "map-area",
+  "heatmap",
+  "points",
+  "wind",
+]);
+
 export function getMapVisualSrc(visualId: string): string | undefined {
   const path = MAP_VISUAL_SRC[visualId];
   if (!path) return undefined;
   return encodeURI(`${import.meta.env.BASE_URL}${path.replace(/^\/+/, "")}`);
+}
+
+export function getMapPickerIconSrc(visualId: string): string | undefined {
+  if (!MAP_PICKER_ICON_IDS.has(visualId)) return undefined;
+  return encodeURI(`${import.meta.env.BASE_URL}figma/map-types/${visualId}.svg`);
 }
 
 export function isMapVisualAsset(visualId: string): boolean {

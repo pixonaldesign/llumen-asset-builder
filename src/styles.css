@@ -882,6 +882,23 @@ button {
   object-position: center;
 }
 
+.viz-type-card__artwrap .visual-artwork--chart-picker {
+  width: 64px;
+  height: 64px;
+  max-height: none;
+}
+
+.viz-type-card__artwrap .visual-artwork--chart-picker-large {
+  width: 72px;
+  height: 72px;
+}
+
+.viz-type-card__artwrap .visual-artwork--map-picker {
+  width: 64px;
+  height: 64px;
+  max-height: none;
+}
+
 .viz-type-card__body {
   display: flex;
   flex: 1 1 auto;
@@ -1093,8 +1110,8 @@ button {
 }
 
 .selected-visual__info .visual-artwork--bar {
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
 }
 
 .selected-visual__name {
@@ -8407,10 +8424,17 @@ html[data-theme="light"] .dd-component-menu {
 .ds-source-type-card__icon {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  margin-top: var(--spacing-3xs);
+  width: 44px;
+  height: 44px;
   color: currentColor;
+}
+
+.ds-source-type-card__icon > img,
+.ds-selected-source-type__icon > img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
 }
 
 .ds-source-type-card.is-selected .ds-source-type-card__icon {
@@ -8467,8 +8491,9 @@ html[data-theme="light"] .dd-component-menu {
 .ds-selected-source-type__icon {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
   color: var(--lc-text-brand);
 }
 
@@ -11031,6 +11056,10 @@ html[data-theme="light"] .dd-component-menu {
 }
 
 .ds-db-selected--no-trailing {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.ds-db-selected:has(> .ds-db-selected__actions) {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 

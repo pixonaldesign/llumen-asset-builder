@@ -1,6 +1,14 @@
 import { getVisualIcon } from "./visualIcons";
-import { getChartVisualSrc, isChartVisualAsset } from "./chartVisualAssets";
-import { getMapVisualSrc, isMapVisualAsset } from "./mapVisualAssets";
+import {
+  getChartPickerIconSrc,
+  getChartVisualSrc,
+  isChartVisualAsset,
+} from "./chartVisualAssets";
+import {
+  getMapPickerIconSrc,
+  getMapVisualSrc,
+  isMapVisualAsset,
+} from "./mapVisualAssets";
 
 type Props = {
   visualId: string;
@@ -9,6 +17,63 @@ type Props = {
 };
 
 export default function VisualArtwork({ visualId, category, size = "card" }: Props) {
+  const selectedIconSrc =
+    size === "bar"
+      ? category === "chart"
+        ? getChartPickerIconSrc(visualId)
+        : getMapPickerIconSrc(visualId)
+      : undefined;
+  const pickerIconSrc =
+    category === "chart" && size === "card" ? getChartPickerIconSrc(visualId) : undefined;
+  const mapPickerIconSrc =
+    category === "map-layer" && size === "map" ? getMapPickerIconSrc(visualId) : undefined;
+  const enlargePickerIcon =
+    visualId === "donut-chart" ||
+    visualId === "gauge-linear" ||
+    visualId === "polar-wind-rose";
+
+  if (selectedIconSrc) {
+    return (
+      <img
+        className="visual-artwork visual-artwork--bar"
+        src={selectedIconSrc}
+        width={32}
+        height={32}
+        alt=""
+        draggable={false}
+      />
+    );
+  }
+
+  if (pickerIconSrc) {
+    return (
+      <img
+        className={
+          "visual-artwork visual-artwork--card visual-artwork--chart-picker" +
+          (enlargePickerIcon ? " visual-artwork--chart-picker-large" : "")
+        }
+        src={pickerIconSrc}
+        width={44}
+        height={44}
+        alt=""
+        draggable={false}
+      />
+    );
+  }
+
+  if (mapPickerIconSrc) {
+    return (
+      <img
+        className="visual-artwork visual-artwork--map visual-artwork--map-picker"
+        src={mapPickerIconSrc}
+        width={44}
+        height={44}
+        alt=""
+        draggable={false}
+      />
+    );
+  }
+
   const src =
     category === "chart"
       ? getChartVisualSrc(visualId)

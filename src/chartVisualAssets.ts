@@ -17,10 +17,33 @@ export const CHART_VISUAL_SRC: Record<string, string> = {
   table: "/visuals-2/table chart.svg",
 };
 
+const CHART_PICKER_ICON_IDS = new Set([
+  "vertical-bar",
+  "horizontal-bar",
+  "line-chart",
+  "area-chart",
+  "scatter-plot",
+  "donut-chart",
+  "progress-bar",
+  "gauge-linear",
+  "score-indicator",
+  "polar-wind-rose",
+  "range",
+  "availability",
+  "kpi-card",
+  "kpi-grid",
+  "table",
+]);
+
 export function getChartVisualSrc(visualId: string): string | undefined {
   const path = CHART_VISUAL_SRC[visualId];
   if (!path) return undefined;
   return encodeURI(`${import.meta.env.BASE_URL}${path.replace(/^\/+/, "")}`);
+}
+
+export function getChartPickerIconSrc(visualId: string): string | undefined {
+  if (!CHART_PICKER_ICON_IDS.has(visualId)) return undefined;
+  return encodeURI(`${import.meta.env.BASE_URL}figma/chart-types/${visualId}.svg?v=2`);
 }
 
 export function isChartVisualAsset(visualId: string): boolean {
