@@ -19,6 +19,7 @@ import {
   Info,
   Lock,
   LockOpen,
+  Play,
   Question,
   WarningCircle,
 } from "@phosphor-icons/react";
@@ -40,8 +41,8 @@ import {
   visualHasGradientAxis,
 } from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
-import ChartDataQueryPreview from "./ChartDataQueryPreview";
 import DataSourceQueryPreview from "./DataSourceQueryPreview";
+import DataSourceDataProfile from "./DataSourceDataProfile";
 import ColorPalette, { CategoryColorMap, ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
 import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
@@ -77,7 +78,74 @@ type VizPhase = "picker" | "settings";
 
 type PreviewSize = "small" | "medium" | "large";
 
-type PreviewMode = "visualization" | "data-query";
+type PreviewMode = "asset" | "data" | "source";
+type DataPreviewMode = "results" | "profile";
+
+const SOURCE_SQL_TOKEN_PATTERN =
+  /(\$[A-Za-z_][A-Za-z0-9_]*|'(?:''|[^'])*'|\b(?:SELECT|FROM|JOIN|LEFT|RIGHT|INNER|OUTER|ON|WHERE|AND|OR|BETWEEN|ORDER|BY|AS|LIMIT|GROUP|HAVING|DESC|ASC)\b|\b\d+(?:\.\d+)?\b)/gi;
+
+const SOURCE_SQL_KEYWORD_PATTERN =
+  /^(?:SELECT|FROM|JOIN|LEFT|RIGHT|INNER|OUTER|ON|WHERE|AND|OR|BETWEEN|ORDER|BY|AS|LIMIT|GROUP|HAVING|DESC|ASC)$/i;
+
+function HighlightedSourceSql({ value }: { value: string }) {
+  return (
+    <>
+      {(value || " ").split(SOURCE_SQL_TOKEN_PATTERN).map((token, index) => {
+        const className = token.startsWith("$")
+          ? "is-variable"
+          : token.startsWith("'")
+            ? "is-string"
+            : SOURCE_SQL_KEYWORD_PATTERN.test(token)
+              ? "is-keyword"
+              : /^\d/.test(token)
+                ? "is-number"
+                : undefined;
+        return (
+          <span className={className} key={`${index}-${token}`}>
+            {token}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+function PreviewModeToggle({
+  value,
+  onChange,
+}: {
+  value: PreviewMode;
+  onChange: (mode: PreviewMode) => void;
+}) {
+  const [hoveredMode, setHoveredMode] = useState<PreviewMode | null>(null);
+
+  return (
+    <div className="preview__asset-mode-toggle" role="tablist" aria-label="Preview mode">
+      {(["asset", "data", "source"] as PreviewMode[]).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          role="tab"
+          aria-selected={value === mode}
+          className={
+            (value === mode ? "is-active" : "") +
+            (hoveredMode === mode ? " is-hovered" : "")
+          }
+          onPointerEnter={() => setHoveredMode(mode)}
+          onPointerLeave={() =>
+            setHoveredMode((current) => (current === mode ? null : current))
+          }
+          onClick={() => {
+            onChange(mode);
+            setHoveredMode(null);
+          }}
+        >
+          {mode[0].toUpperCase() + mode.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 type WizardStepId =
   | "data-source"
@@ -1673,7 +1741,8 @@ export default function EditComponentModal({
   const [query, setQuery] = useState("");
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const [size, setSize] = useState<PreviewSize>("medium");
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("visualization");
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("asset");
+  const [dataPreviewMode, setDataPreviewMode] = useState<DataPreviewMode>("results");
   const [config, setConfig] = useState<Config>({});
   const [dataSourceConfigured, setDataSourceConfigured] = useState(false);
   const [dataSourceTypeSelected, setDataSourceTypeSelected] = useState(false);
@@ -1906,6 +1975,8 @@ export default function EditComponentModal({
   const isVizPicker = isVizStep && vizPhase === "picker";
   const isVizSettings = isVizStep && vizPhase === "settings";
   const mappingIncomplete = sectionHasErrors(mappingFields, getVal);
+  const hasCompletedVisual =
+    vizPhase === "settings" && Boolean(selectedVisualId) && !mappingIncomplete;
   const generalInfoIncomplete =
     !generalInfo.name.trim() ||
     !generalInfo.description.trim() ||
@@ -1921,6 +1992,11 @@ export default function EditComponentModal({
     if (!isVizSettings || !selectedVisualId || mappingIncomplete) return;
     setMaxUnlockedStep(WIZARD_STEPS.length - 1);
   }, [isVizSettings, mappingIncomplete, selectedVisualId]);
+
+  useEffect(() => {
+    if (!isDataSourceStep || !hasCompletedVisual) return;
+    setPreviewMode("asset");
+  }, [hasCompletedVisual, isDataSourceStep]);
 
   const nextDisabled =
     (isDataSourceStep && (!dataSourceConfigured || dataSourceLoading)) ||
@@ -2272,75 +2348,157 @@ export default function EditComponentModal({
           <section className="preview">
             {isDataSourceStep ? (
               <>
-                {!dataSourceLoading && dataSourceConfigured && dataSourceQuery.trim() && (
+                {hasCompletedVisual && (
                   <div className="preview__head">
-                    <div className="preview__head-row">
-                      <h3 className="preview__title">Data (1,467 rows)</h3>
-                    </div>
+                    <PreviewModeToggle value={previewMode} onChange={setPreviewMode} />
                   </div>
                 )}
-                {dataSourceLoading ? (
-                  <div className="preview__empty preview__empty--loading" role="status">
-                    <span className="preview__loading-spinner" aria-hidden="true" />
-                    <p className="preview__empty-title">Loading query results...</p>
+
+                {hasCompletedVisual && previewMode === "asset" ? (
+                  <div className="preview__stage preview__stage--viz">
+                    <div className="preview__size-toggle">
+                      <div className="seg-toggle" role="group" aria-label="Preview size">
+                        {(["small", "medium", "large"] as PreviewSize[]).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            className={"seg-toggle__btn" + (size === s ? " is-active" : "")}
+                            onClick={() => setSize(s)}
+                          >
+                            {s[0].toUpperCase() + s.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="preview__chart-slot">
+                      <div className={"chart-card chart-card--" + size}>
+                        <ChartPreview
+                          type={chart.preview}
+                          chartId={activeChart}
+                          visualId={displayVisualId}
+                          cfg={cfg}
+                          series={previewSeries}
+                          chartTitle={generalInfo.name || undefined}
+                          size={size}
+                        />
+                      </div>
+                    </div>
                   </div>
-                ) : dataSourceConfigured ? (
-                  dataSourceQuery.trim() ? (
-                    <div className="preview__stage preview__stage--query">
-                      <DataSourceQueryPreview />
+                ) : hasCompletedVisual && previewMode === "source" ? (
+                  <div className="preview__stage preview__stage--source" role="tabpanel">
+                    <div className="asset-source-preview">
+                      <div className="asset-source-preview__eyebrow">Database connection</div>
+                      <div className="asset-source-preview__connection">
+                        <img
+                          className="asset-source-preview__icon"
+                          src={`${import.meta.env.BASE_URL}figma/source-types/database.png`}
+                          alt=""
+                          width="30"
+                          height="30"
+                          draggable={false}
+                          aria-hidden="true"
+                        />
+                        <span className="asset-source-preview__connection-copy">
+                          <strong>Production MySQL</strong>
+                          <small>mysql.prod.company.com:3306 - production_db</small>
+                        </span>
+                        <span className="asset-source-preview__status">
+                          <span aria-hidden="true">●</span>
+                          Connection established
+                        </span>
+                      </div>
+                      <div className="asset-source-preview__query-head">
+                        <h3>Query</h3>
+                        <button type="button" className="ds-query__generate">
+                          <Play size={13} weight="fill" aria-hidden="true" />
+                          Run Query
+                        </button>
+                      </div>
+                      <pre className="asset-source-preview__query">
+                        <code>
+                          <HighlightedSourceSql value={dataSourceQuery} />
+                        </code>
+                      </pre>
                     </div>
-                  ) : (
-                    <div className="preview__empty">
-                      <p className="preview__empty-title">Query will show here</p>
-                      <p className="preview__empty-copy">
-                        This data source does not have a generated query.
-                      </p>
-                    </div>
-                  )
+                  </div>
                 ) : (
-                  <div className="preview__empty">
-                    <p className="preview__empty-title">No data</p>
-                    <p className="preview__empty-copy">
-                      Select and configure a source to get data.
-                    </p>
-                  </div>
+                  <>
+                    {!dataSourceLoading && dataSourceConfigured && dataSourceQuery.trim() && (
+                      <div className="preview__data-tabs" role="tablist" aria-label="Data preview">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={dataPreviewMode === "results"}
+                          className={
+                            "preview__data-tab" +
+                            (dataPreviewMode === "results" ? " is-active" : "")
+                          }
+                          onClick={() => setDataPreviewMode("results")}
+                        >
+                          Data (1,467 rows)
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={dataPreviewMode === "profile"}
+                          className={
+                            "preview__data-tab" +
+                            (dataPreviewMode === "profile" ? " is-active" : "")
+                          }
+                          onClick={() => setDataPreviewMode("profile")}
+                        >
+                          Data Profile
+                        </button>
+                      </div>
+                    )}
+                    {dataSourceLoading ? (
+                      <div className="preview__empty preview__empty--loading" role="status">
+                        <span className="preview__loading-spinner" aria-hidden="true" />
+                        <p className="preview__empty-title">Loading query results...</p>
+                      </div>
+                    ) : dataSourceConfigured ? (
+                      dataSourceQuery.trim() ? (
+                        dataPreviewMode === "results" ? (
+                          <div className="preview__stage preview__stage--query" role="tabpanel">
+                            <DataSourceQueryPreview />
+                          </div>
+                        ) : (
+                          <div className="preview__stage preview__stage--profile" role="tabpanel">
+                            <DataSourceDataProfile />
+                          </div>
+                        )
+                      ) : (
+                        <div className="preview__empty">
+                          <p className="preview__empty-title">Query will show here</p>
+                          <p className="preview__empty-copy">
+                            This data source does not have a generated query.
+                          </p>
+                        </div>
+                      )
+                    ) : (
+                      <div className="preview__empty">
+                        <p className="preview__empty-title">No data</p>
+                        <p className="preview__empty-copy">
+                          Select and configure a source to get data.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             ) : showChartPreview ? (
               <>
                 <div className="preview__head">
-                  <div className="preview__head-row">
-                    <h3 className="preview__title">Chart Preview</h3>
-                    {!isPreviewVizOnly && (
-                    <div
-                      className="seg-toggle preview__mode-toggle"
-                      role="group"
-                      aria-label="Preview mode"
-                    >
-                      <button
-                        type="button"
-                        className={
-                          "seg-toggle__btn" + (previewMode === "visualization" ? " is-active" : "")
-                        }
-                        onClick={() => setPreviewMode("visualization")}
-                      >
-                        Visualization
-                      </button>
-                      <button
-                        type="button"
-                        className={
-                          "seg-toggle__btn" + (previewMode === "data-query" ? " is-active" : "")
-                        }
-                        onClick={() => setPreviewMode("data-query")}
-                      >
-                        Data query
-                      </button>
+                  {isPreviewVizOnly ? (
+                    <div className="preview__head-row">
+                      <h3 className="preview__title">Chart Preview</h3>
                     </div>
-                    )}
-                  </div>
+                  ) : (
+                    <PreviewModeToggle value={previewMode} onChange={setPreviewMode} />
+                  )}
                 </div>
 
-                {previewMode === "visualization" || isPreviewVizOnly ? (
+                {previewMode === "asset" || isPreviewVizOnly ? (
                   <div className="preview__stage preview__stage--viz">
                     <div className="preview__size-toggle">
                       <div className="seg-toggle" role="group" aria-label="Preview size">
@@ -2388,9 +2546,80 @@ export default function EditComponentModal({
                       </div>
                     </div>
                   </div>
+                ) : previewMode === "data" ? (
+                  <>
+                    <div className="preview__data-tabs" role="tablist" aria-label="Asset data">
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={dataPreviewMode === "results"}
+                        className={
+                          "preview__data-tab" +
+                          (dataPreviewMode === "results" ? " is-active" : "")
+                        }
+                        onClick={() => setDataPreviewMode("results")}
+                      >
+                        Data (1,467 rows)
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={dataPreviewMode === "profile"}
+                        className={
+                          "preview__data-tab" +
+                          (dataPreviewMode === "profile" ? " is-active" : "")
+                        }
+                        onClick={() => setDataPreviewMode("profile")}
+                      >
+                        Data Profile
+                      </button>
+                    </div>
+                    {dataPreviewMode === "results" ? (
+                      <div className="preview__stage preview__stage--query" role="tabpanel">
+                        <DataSourceQueryPreview />
+                      </div>
+                    ) : (
+                      <div className="preview__stage preview__stage--profile" role="tabpanel">
+                        <DataSourceDataProfile />
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <div className="preview__stage preview__stage--table">
-                    <ChartDataQueryPreview />
+                  <div className="preview__stage preview__stage--source" role="tabpanel">
+                    <div className="asset-source-preview">
+                      <div className="asset-source-preview__eyebrow">Database connection</div>
+                      <div className="asset-source-preview__connection">
+                        <img
+                          className="asset-source-preview__icon"
+                          src={`${import.meta.env.BASE_URL}figma/source-types/database.png`}
+                          alt=""
+                          width="30"
+                          height="30"
+                          draggable={false}
+                          aria-hidden="true"
+                        />
+                        <span className="asset-source-preview__connection-copy">
+                          <strong>Production MySQL</strong>
+                          <small>mysql.prod.company.com:3306 - production_db</small>
+                        </span>
+                        <span className="asset-source-preview__status">
+                          <span aria-hidden="true">●</span>
+                          Connection established
+                        </span>
+                      </div>
+                      <div className="asset-source-preview__query-head">
+                        <h3>Query</h3>
+                        <button type="button" className="ds-query__generate">
+                          <Play size={13} weight="fill" aria-hidden="true" />
+                          Run Query
+                        </button>
+                      </div>
+                      <pre className="asset-source-preview__query">
+                        <code>
+                          <HighlightedSourceSql value={dataSourceQuery} />
+                        </code>
+                      </pre>
+                    </div>
                   </div>
                 )}
               </>
