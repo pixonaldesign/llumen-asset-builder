@@ -121,7 +121,7 @@ function PreviewModeToggle({
 
   return (
     <div className="preview__asset-mode-toggle" role="tablist" aria-label="Preview mode">
-      {(["asset", "data", "source"] as PreviewMode[]).map((mode) => (
+      {(["asset", "data"] as PreviewMode[]).map((mode) => (
         <button
           key={mode}
           type="button"
