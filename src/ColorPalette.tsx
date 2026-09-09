@@ -48,16 +48,16 @@ interface PalettePreset {
 }
 
 const PRESETS: PalettePreset[] = [
-  { name: "Blue", type: "Sequential", colors: ["#f7f9ff", "#edf3ff", "#e3edfe", "#d8e6fd", "#c8dcfc", "#b8d3fb", "#a8c9fa", "#96bdf8", "#86b2f7", "#76a7f5", "#6a9ef3", "#6095f0", "#578eed", "#4f86ea", "#457fe8", "#3d76e8", "#356eea", "#3068ef", "#2d64f2", "#2b61f5"] },
-  { name: "Purple", type: "Sequential", colors: ["#f6f2ff", "#b899f5", "#5a2fc7"] },
-  { name: "Teal", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#7de0d0", "#45cdb9", "#23b899", "#159a7d"] },
-  { name: "Red", type: "Sequential", colors: ["#fff7f7", "#fff0f0", "#ffe7e7", "#ffdddd", "#ffd5d5", "#ffc9c9", "#ffbbbb", "#ffadad", "#ff9f9f", "#ff9292", "#f98282", "#f57575", "#f56b6b", "#ef6060", "#eb5555", "#e64a4a", "#e03e3e", "#d93636", "#d13333", "#c62828"] },
-  { name: "Yellow", type: "Sequential", colors: ["#fffbeb", "#fef3c7", "#fde68a", "#fbbf24", "#f59e0b"] },
-  { name: "Blue 2 Steps", type: "Categorical", colors: ["#5b8df0", "#7c5cff"] },
-  { name: "Red 3 Steps", type: "Categorical", colors: ["#e85c5c", "#e8b84d", "#3db89a"] },
-  { name: "Purple 4 Steps", type: "Categorical", colors: ["#8b5cf6", "#ec4899", "#a3e635", "#eab308"] },
-  { name: "Red → Blue", type: "Diverging", colors: ["#9f1d1d", "#c62828", "#df3f3f", "#ef5350", "#f7a0a0", "#f3f4f6", "#cce4fb", "#9dcef7", "#68b1ee", "#42a5f5", "#1565c0"] },
-  { name: "Purple → Teal", type: "Diverging", colors: ["#6b21a8", "#9333c9", "#c084fc", "#f3e8ff", "#99f6e4", "#2dd4bf", "#0f766e"] },
+  { name: "Azure Horizon Sequential Palette", type: "Sequential", colors: ["#f7f9ff", "#edf3ff", "#e3edfe", "#d8e6fd", "#c8dcfc", "#b8d3fb", "#a8c9fa", "#96bdf8", "#86b2f7", "#76a7f5", "#6a9ef3", "#6095f0", "#578eed", "#4f86ea", "#457fe8", "#3d76e8", "#356eea", "#3068ef", "#2d64f2", "#2b61f5"] },
+  { name: "Royal Purple Sequential Palette", type: "Sequential", colors: ["#f6f2ff", "#b899f5", "#5a2fc7"] },
+  { name: "Coastal Teal Sequential Palette", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#7de0d0", "#45cdb9", "#23b899", "#159a7d"] },
+  { name: "Crimson Spectrum Sequential Palette", type: "Sequential", colors: ["#fff7f7", "#fff0f0", "#ffe7e7", "#ffdddd", "#ffd5d5", "#ffc9c9", "#ffbbbb", "#ffadad", "#ff9f9f", "#ff9292", "#f98282", "#f57575", "#f56b6b", "#ef6060", "#eb5555", "#e64a4a", "#e03e3e", "#d93636", "#d13333", "#c62828"] },
+  { name: "Golden Sunrise Sequential Palette", type: "Sequential", colors: ["#fffbeb", "#fef3c7", "#fde68a", "#fbbf24", "#f59e0b"] },
+  { name: "Ocean and Violet Two-Step Categories", type: "Categorical", colors: ["#5b8df0", "#7c5cff"] },
+  { name: "Traffic Light Three-Step Categories", type: "Categorical", colors: ["#e85c5c", "#e8b84d", "#3db89a"] },
+  { name: "Festival Purple Four-Step Categories", type: "Categorical", colors: ["#8b5cf6", "#ec4899", "#a3e635", "#eab308"] },
+  { name: "Crimson to Deep Ocean Diverging Palette", type: "Diverging", colors: ["#9f1d1d", "#c62828", "#df3f3f", "#ef5350", "#f7a0a0", "#f3f4f6", "#cce4fb", "#9dcef7", "#68b1ee", "#42a5f5", "#1565c0"] },
+  { name: "Royal Purple to Coastal Teal Diverging Palette", type: "Diverging", colors: ["#6b21a8", "#9333c9", "#c084fc", "#f3e8ff", "#99f6e4", "#2dd4bf", "#0f766e"] },
 ];
 
 const toHex = (c: string) => (c.startsWith("#") ? c : "#2b61f5");
@@ -251,12 +251,14 @@ function PaletteSwatches({ colors, limit }: { colors: string[]; limit?: number }
   );
 }
 
-function PaletteInfoModal({
+function PaletteDetailsPopover({
   preset,
   onClose,
+  style,
 }: {
   preset: PalettePreset;
   onClose: () => void;
+  style: CSSProperties;
 }) {
   const [copiedColor, setCopiedColor] = useState<string | null>(null);
 
@@ -269,57 +271,46 @@ function PaletteInfoModal({
   }, [onClose]);
 
   return (
-    <div
-      className="cp-palette-info-overlay"
-      role="presentation"
-      onMouseDown={(event) => {
-        event.stopPropagation();
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <section
+      className="cp-palette-details-popover"
+      role="dialog"
+      aria-label={`${preset.name} palette details`}
+      style={style}
+      onMouseDown={(event) => event.stopPropagation()}
     >
-      <section
-        className="cp-palette-info-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cp-palette-info-title"
-      >
-        <header>
-          <div>
-            <h2 id="cp-palette-info-title">{preset.name}</h2>
-            <span>{preset.type}</span>
-          </div>
-          <button type="button" aria-label="Close palette details" onClick={onClose}>
-            <CloseIcon width={16} height={16} strokeWidth={1} aria-hidden="true" />
-          </button>
-        </header>
-        <div className="cp-palette-info-modal__body">
-          <p>Palette colors</p>
-          <div className="cp-palette-info-colors">
-            {preset.colors.map((color, index) => (
-              <div key={`${color}-${index}`}>
-                <span style={{ background: color }} aria-hidden="true" />
-                <code>{color.toUpperCase()}</code>
-                <button
-                  type="button"
-                  className="cp-palette-info-copy"
-                  aria-label={`Copy ${color.toUpperCase()}`}
-                  title={copiedColor === color ? "Copied" : `Copy ${color.toUpperCase()}`}
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(color.toUpperCase());
-                    setCopiedColor(color);
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="8" y="8" width="11" height="11" rx="2" />
-                    <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
+      <header>
+        <div>
+          <strong>{preset.name}</strong>
+          <span>{preset.type}</span>
         </div>
-      </section>
-    </div>
+        <button type="button" aria-label="Close palette details" onClick={onClose}>
+          <CloseIcon width={18} height={18} strokeWidth={1} aria-hidden="true" />
+        </button>
+      </header>
+      <div className="cp-palette-details-popover__colors">
+        {preset.colors.map((color, index) => (
+          <div key={`${color}-${index}`}>
+            <span style={{ background: color }} aria-hidden="true" />
+            <code>{color.toUpperCase()}</code>
+            <button
+              type="button"
+              className="cp-palette-info-copy"
+              aria-label={`Copy ${color.toUpperCase()}`}
+              title={copiedColor === color ? "Copied" : `Copy ${color.toUpperCase()}`}
+              onClick={() => {
+                void navigator.clipboard?.writeText(color.toUpperCase());
+                setCopiedColor(color);
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="8" y="8" width="11" height="11" rx="2" />
+                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -346,17 +337,52 @@ function PalettePickerMenu({
   menuRef?: Ref<HTMLDivElement>;
   style?: CSSProperties;
 }) {
-  const [infoPreset, setInfoPreset] = useState<PalettePreset | null>(null);
-  const [overflowPreview, setOverflowPreview] = useState<{
+  const [detailsPopover, setDetailsPopover] = useState<{
     preset: PalettePreset;
     top: number;
     left: number;
   } | null>(null);
 
+  useEffect(() => {
+    if (!detailsPopover) return;
+    const closeDetails = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(".cp-palette-details-popover") ||
+        target.closest(".cp-palette-overflow-badge") ||
+        target.closest(".cp-palette-info-button")
+      ) {
+        return;
+      }
+      setDetailsPopover(null);
+    };
+    document.addEventListener("mousedown", closeDetails);
+    return () => document.removeEventListener("mousedown", closeDetails);
+  }, [detailsPopover]);
+
   if (!open) return null;
 
   const q = search.trim().toLowerCase();
   const list = PRESETS.filter((p) => p.type === tab && (!q || p.name.toLowerCase().includes(q)));
+  const showDetails = (preset: PalettePreset, anchor: HTMLElement) => {
+    const rect = anchor.getBoundingClientRect();
+    const width = 400;
+    const estimatedHeight = 480;
+    const below = rect.bottom + 6;
+    setDetailsPopover((current) =>
+      current?.preset.name === preset.name && current.preset.type === preset.type
+        ? null
+        : {
+            preset,
+            top:
+              below + estimatedHeight <= window.innerHeight - 8
+                ? below
+                : Math.max(8, rect.top - estimatedHeight - 6),
+            left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
+          },
+    );
+  };
 
   return (
     <div className="cp-picker-menu cp-picker-menu--flyout" ref={menuRef} style={style} role="listbox">
@@ -418,41 +444,19 @@ function PalettePickerMenu({
               >
                 <span className="cp-picker-row-name">{preset.name}</span>
                 <span className="cp-palette-picker-row__end">
-                  <PaletteSwatches colors={preset.colors} limit={10} />
+                  <PaletteSwatches colors={preset.colors} limit={7} />
                   {hasOverflow && (
-                    <span
+                    <button
+                      type="button"
                       className="cp-palette-overflow-badge"
-                      tabIndex={0}
-                      onMouseEnter={(event) => {
-                        const rect = event.currentTarget.getBoundingClientRect();
-                        const popoverWidth = 344;
-                        setOverflowPreview({
-                          preset,
-                          top: rect.bottom + 6,
-                          left: Math.max(
-                            8,
-                            Math.min(rect.right - popoverWidth, window.innerWidth - popoverWidth - 8),
-                          ),
-                        });
+                      aria-label={`View all ${preset.colors.length} ${preset.name} colors`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        showDetails(preset, event.currentTarget);
                       }}
-                      onMouseLeave={() => setOverflowPreview(null)}
-                      onFocus={(event) => {
-                        const rect = event.currentTarget.getBoundingClientRect();
-                        const popoverWidth = 344;
-                        setOverflowPreview({
-                          preset,
-                          top: rect.bottom + 6,
-                          left: Math.max(
-                            8,
-                            Math.min(rect.right - popoverWidth, window.innerWidth - popoverWidth - 8),
-                          ),
-                        });
-                      }}
-                      onBlur={() => setOverflowPreview(null)}
-                      onClick={(event) => event.stopPropagation()}
                     >
-                      +{preset.colors.length - 10} more
-                    </span>
+                      10+
+                    </button>
                   )}
                   <button
                     type="button"
@@ -460,7 +464,7 @@ function PalettePickerMenu({
                     aria-label={`View ${preset.name} palette details`}
                     onClick={(event) => {
                       event.stopPropagation();
-                      setInfoPreset(preset);
+                      showDetails(preset, event.currentTarget);
                     }}
                   >
                     <InfoIcon width={16} height={16} aria-hidden="true" />
@@ -472,21 +476,13 @@ function PalettePickerMenu({
           {!list.length && <div className="cp-picker-empty">No palettes found</div>}
         </div>
       </div>
-      {overflowPreview &&
+      {detailsPopover &&
         createPortal(
-          <div
-            className="cp-palette-overflow-popover"
-            style={{ top: overflowPreview.top, left: overflowPreview.left }}
-            role="tooltip"
-          >
-            <strong>{overflowPreview.preset.name}</strong>
-            <PaletteSwatches colors={overflowPreview.preset.colors} />
-          </div>,
-          document.body,
-        )}
-      {infoPreset &&
-        createPortal(
-          <PaletteInfoModal preset={infoPreset} onClose={() => setInfoPreset(null)} />,
+          <PaletteDetailsPopover
+            preset={detailsPopover.preset}
+            onClose={() => setDetailsPopover(null)}
+            style={{ top: detailsPopover.top, left: detailsPopover.left }}
+          />,
           document.body,
         )}
     </div>
@@ -523,6 +519,12 @@ export function PaletteSelector({
       const target = e.target as Node;
       if (triggerRef.current?.contains(target)) return;
       if (menuRef.current?.contains(target)) return;
+      if (
+        target instanceof Element &&
+        target.closest(".cp-palette-details-popover")
+      ) {
+        return;
+      }
       setPickerOpen(false);
     };
     const onLayout = () => syncMenuPosition();
