@@ -4353,6 +4353,261 @@ button {
   flex: 0 0 auto;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lc-border-strong) 35%, transparent);
 }
+
+.cp-palette-picker-row {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.cp-palette-picker-row:focus-visible {
+  outline: 2px solid var(--lc-border-control-focus);
+  outline-offset: -2px;
+}
+
+.cp-palette-picker-row__end {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.cp-palette-overflow-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 var(--spacing-xs);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-ui-small);
+  background: var(--lc-bg-neutral-subtle);
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-micro);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.cp-palette-overflow-badge:hover,
+.cp-palette-overflow-badge:focus-visible {
+  border-color: var(--lc-border-control-hover);
+  color: var(--lc-text-primary);
+  outline: none;
+}
+
+.cp-palette-info-button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--lc-text-tertiary);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+
+.cp-palette-info-button:hover,
+.cp-palette-info-button:focus-visible {
+  background: var(--lc-bg-neutral-subtle-hover);
+  color: var(--lc-text-primary);
+  outline: none;
+}
+
+.cp-palette-overflow-popover {
+  --cp-picker-dot-size: 20px;
+  position: fixed;
+  z-index: 10050;
+  display: grid;
+  gap: var(--spacing-md);
+  width: 344px;
+  padding: var(--spacing-lg);
+  border: 1px solid var(--lc-border-default);
+  border-radius: var(--radius-ui-default);
+  background: var(--lc-surface-3);
+  box-shadow: var(--lc-shadow-dropdown);
+  color: var(--lc-text-primary);
+  opacity: 1;
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  pointer-events: none;
+}
+
+.cp-palette-overflow-popover strong {
+  font: var(--lc-font-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+.cp-palette-overflow-popover .cp-picker-dots {
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.cp-palette-info-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: grid;
+  place-items: center;
+  padding: var(--spacing-3xl);
+  background: color-mix(in srgb, var(--lc-bg-modal-scrim) 45%, transparent);
+  -webkit-backdrop-filter: blur(var(--blur-xs));
+  backdrop-filter: blur(var(--blur-xs));
+}
+
+.cp-palette-info-modal {
+  width: min(520px, 100%);
+  max-height: min(580px, calc(100vh - var(--spacing-4xl)));
+  overflow: hidden;
+  border: 1px solid var(--lc-border-modal);
+  border-radius: var(--radius-ui-x-large);
+  background: var(--lc-bg-modal);
+  box-shadow: var(--lc-shadow-modal);
+}
+
+.cp-palette-info-modal > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xl);
+  min-height: 56px;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--lc-border-default);
+}
+
+.cp-palette-info-modal > header > div {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.cp-palette-info-modal h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-heading-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-palette-info-modal > header span {
+  flex: 0 0 auto;
+  padding: var(--spacing-3xs) var(--spacing-sm);
+  border-radius: var(--radius-xs);
+  background: var(--lc-bg-neutral-subtle);
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-micro);
+  font-family: var(--lc-font-mono);
+  text-transform: uppercase;
+}
+
+.cp-palette-info-modal > header button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--lc-text-secondary);
+  cursor: pointer;
+}
+
+.cp-palette-info-modal > header button:hover {
+  background: var(--lc-bg-neutral-subtle-hover);
+  color: var(--lc-text-primary);
+}
+
+.cp-palette-info-modal__body {
+  display: grid;
+  gap: var(--spacing-lg);
+  max-height: 500px;
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+}
+
+.cp-palette-info-modal__body > p {
+  margin: 0;
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  font-weight: var(--font-weight-medium);
+}
+
+.cp-palette-info-colors {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.cp-palette-info-colors > div {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--lc-border-default);
+}
+
+.cp-palette-info-colors > div:last-child {
+  border-bottom: 0;
+}
+
+.cp-palette-info-colors > div > span {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--lc-border-control-hover);
+  border-radius: var(--radius-full);
+}
+
+.cp-palette-info-colors code {
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-mono);
+  text-overflow: ellipsis;
+}
+
+.cp-palette-info-copy {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--lc-text-tertiary);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+
+.cp-palette-info-copy:hover,
+.cp-palette-info-copy:focus-visible {
+  background: var(--lc-bg-neutral-subtle-hover);
+  color: var(--lc-text-primary);
+  outline: none;
+}
+
+.cp-palette-info-copy svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .cp-picker-empty {
   padding: var(--space-lg) var(--space-md);
   color: var(--lc-text-tertiary);
