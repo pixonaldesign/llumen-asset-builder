@@ -198,7 +198,7 @@ function colorMode(
   index: number,
   value: number,
   max: number,
-  _category?: string,
+  category?: string,
   n?: number,
   along?: { x: number; y: number },
 ): string {
@@ -208,7 +208,13 @@ function colorMode(
     y: value / Math.max(max, 1),
   };
   const t = mode.style === "Gradient" && (mode.gradientAxis || "Y") === "X" ? unit.x : unit.y;
-  return resolveColorMode(mode, t, index);
+  const categoryIndex =
+    mode.style === "Per Category" && category
+      ? mode.categoryLabels.findIndex(
+          (label) => label.toLowerCase() === category.toLowerCase(),
+        )
+      : -1;
+  return resolveColorMode(mode, t, categoryIndex >= 0 ? categoryIndex : index);
 }
 
 function axisAlong(index: number, n: number, value: number, min: number, max: number) {

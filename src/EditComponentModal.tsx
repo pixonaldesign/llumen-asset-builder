@@ -33,12 +33,12 @@ import {
 import { charts } from "./chartModel";
 import type { Opt } from "./chartModel";
 import {
+  defaultGradientAxisForVisual,
   fieldsForVisual,
   isFeatureTabOn,
   isFieldVisible,
   settingsNavSections,
   subCategoriesForVisual,
-  visualHasGradientAxis,
 } from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
 import DataSourceQueryPreview from "./DataSourceQueryPreview";
@@ -314,7 +314,7 @@ function isZoomScalingField(o: Opt) {
   );
 }
 
-function defaultFor(o: Opt): unknown {
+function defaultFor(o: Opt, visualId?: string): unknown {
   if (o.defaultValue !== undefined) return o.defaultValue;
   switch (o.type) {
     case "toggle":
@@ -331,7 +331,11 @@ function defaultFor(o: Opt): unknown {
       return o.name.toLowerCase().includes("range") ? "" : "24";
     case "color":
       return isPaletteField(o)
-        ? { ...DEFAULT_COLOR_MODE, stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })) }
+        ? {
+            ...DEFAULT_COLOR_MODE,
+            gradientAxis: defaultGradientAxisForVisual(visualId ?? "vertical-bar"),
+            stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })),
+          }
         : "#3FA7A0";
     case "colorList":
       return defaultColorList(o);
@@ -1025,7 +1029,11 @@ function Control({
             setColor={() => {}}
             value={current}
             onChange={(next) => setVal(o, next)}
-            styles={o.group === "Color" ? ["Single", "Gradient", "Steps"] : undefined}
+            styles={
+              o.group === "Color"
+                ? ["Single", "Per Category", "Gradient", "Steps"]
+                : undefined
+            }
           />
         );
       }
@@ -1836,9 +1844,9 @@ export default function EditComponentModal({
     const legacyKey = LEGACY_SETTING_KEYS[currentKey];
     const v = config[currentKey] ?? (legacyKey !== undefined ? config[legacyKey] : undefined);
     if (o.type === "field" && o.level === "required" && !isValueFilled(o, v)) {
-      return defaultFor(o);
+      return defaultFor(o, displayVisualId);
     }
-    return v === undefined ? defaultFor(o) : v;
+    return v === undefined ? defaultFor(o, displayVisualId) : v;
   };
   const setVal = (o: Opt, v: unknown) => setConfig((c) => ({ ...c, [keyOf(o)]: v }));
 
@@ -1877,11 +1885,11 @@ export default function EditComponentModal({
         next[k] === undefined ||
         (o.type === "field" && o.level === "required" && !isValueFilled(o, next[k]))
       ) {
-        next[k] = defaultFor(o);
+        next[k] = defaultFor(o, displayVisualId);
       }
     }
     return next;
-  }, [config, visualFields]);
+  }, [config, visualFields, displayVisualId]);
 
   const previewSeries = useMemo(
     () =>
@@ -1946,6 +1954,22 @@ export default function EditComponentModal({
   };
 
   const selectVisual = (visual: VisualType) => {
+    const paletteField = fieldsForVisual(visual.id).find(isPaletteField);
+    if (paletteField) {
+      setConfig((current) => {
+        const paletteKey = keyOf(paletteField);
+        const palette = asColorMode(
+          current[paletteKey] ?? defaultFor(paletteField, visual.id),
+        );
+        return {
+          ...current,
+          [paletteKey]: {
+            ...palette,
+            gradientAxis: defaultGradientAxisForVisual(visual.id),
+          },
+        };
+      });
+    }
     setSelectedVisualId(visual.id);
     setActiveChart(visual.chartId);
     setActiveSubCategory("Mapping");
@@ -2039,7 +2063,14 @@ export default function EditComponentModal({
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
-      <ColorPaletteProvider dataRange={colorDataRange} hideGradientAxis={!visualHasGradientAxis(displayVisualId)}>
+      <ColorPaletteProvider
+        dataRange={colorDataRange}
+        categoryLabels={
+          previewSeries.groups?.length
+            ? previewSeries.groups.map((group) => group.name)
+            : previewSeries.labels
+        }
+      >
       <div className="modal">
         {/* Header */}
         <header className="modal__header">

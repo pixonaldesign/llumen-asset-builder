@@ -4108,10 +4108,6 @@ button {
   justify-content: space-between;
   gap: var(--space-md);
 }
-.cp-axis-group {
-  display: grid;
-  gap: var(--space-md);
-}
 .cp-field-head {
   display: flex;
   align-items: center;
@@ -4363,9 +4359,9 @@ button {
 }
 
 .cp-palette-picker-row .cp-picker-row-name {
-  flex: 0 1 46%;
-  width: 46%;
-  max-width: 206px;
+  flex: 1 1 0;
+  width: auto;
+  max-width: none;
 }
 
 .cp-palette-picker-row:focus-visible {
@@ -4375,6 +4371,7 @@ button {
 
 .cp-palette-picker-row__end {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: var(--spacing-sm);
@@ -4546,38 +4543,6 @@ button {
   text-overflow: ellipsis;
 }
 
-.cp-palette-info-copy {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--lc-text-tertiary);
-  cursor: pointer;
-  transition: background 0.14s, color 0.14s;
-}
-
-.cp-palette-info-copy:hover,
-.cp-palette-info-copy:focus-visible {
-  background: var(--lc-bg-neutral-subtle-hover);
-  color: var(--lc-text-primary);
-  outline: none;
-}
-
-.cp-palette-info-copy svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 .cp-picker-empty {
   padding: var(--space-lg) var(--space-md);
   color: var(--lc-text-tertiary);
@@ -4714,23 +4679,23 @@ button {
 }
 .cp-type {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--spacing-sm);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-xs);
   min-width: 0;
 }
 .cp-type__btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   height: 36px;
   min-width: 0;
-  padding: 0 var(--spacing-lg);
+  padding: 0 var(--spacing-sm);
   border: 1px solid var(--lc-border-control);
   border-radius: var(--lc-ui-radius);
   background: var(--lc-bg-default);
   color: var(--lc-text-primary);
-  font: var(--lc-font-body);
+  font: var(--lc-font-small);
   cursor: pointer;
   -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
   backdrop-filter: blur(var(--lc-backdrop-blur-ui));
@@ -4753,7 +4718,7 @@ button {
 }
 .cp-type__icon {
   flex: 0 0 auto;
-  width: auto;
+  width: 22px;
   height: 8px;
   color: currentColor;
   opacity: 0.85;

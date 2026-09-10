@@ -1179,6 +1179,20 @@ export function visualHasGradientAxis(visualId: string): boolean {
   return notionType != null && (AXIS_CHARTS as readonly string[]).includes(notionType);
 }
 
+/** Natural gradient direction for each visual's primary reading direction. */
+export function defaultGradientAxisForVisual(visualId: string): "X" | "Y" {
+  return [
+    "horizontal-bar",
+    "line-chart",
+    "area-chart",
+    "progress-bar",
+    "availability",
+    "fences",
+  ].includes(visualId)
+    ? "X"
+    : "Y";
+}
+
 function levelRank(level: Opt["level"]): number {
   if (level === "required") return 0;
   if (level === "advanced") return 2;

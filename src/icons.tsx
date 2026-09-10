@@ -239,6 +239,24 @@ export const SinglePillIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Per Category — two contrasting pills */
+export const PerCategoryPillsIcon = (p: IconProps) => (
+  <svg width={26} height={8} viewBox="0 0 26 8" fill="none" aria-hidden="true" {...p}>
+    <rect x="0.5" y="0.5" width="11" height="7" rx="3.5" fill="currentColor" />
+    <rect
+      x="14.5"
+      y="0.5"
+      width="11"
+      height="7"
+      rx="3.5"
+      fill="currentColor"
+      fillOpacity="0.42"
+      stroke="currentColor"
+      strokeOpacity="0.35"
+    />
+  </svg>
+);
+
 /** Gradient — 24×8 pill with a left-to-right fade */
 export const GradientPillIcon = (p: IconProps) => {
   const gid = `cp-grad-pill-${useId().replace(/:/g, "")}`;

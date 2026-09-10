@@ -2,7 +2,7 @@
  * ColorPalette — Color Palette Selector V2.
  *
  *   1. Color palette — picker popover (Sequential / Categorical / Diverging)
- *   2. Palette type  — Single / Gradient / Steps
+ *   2. Palette type  — Single / Per Category / Gradient / Steps
  *   3. Stops editor  — solid swatch, gradient ramp, or discrete steps
  */
 
@@ -14,6 +14,7 @@ import {
   ContrastIcon,
   GradientPillIcon,
   InfoIcon,
+  PerCategoryPillsIcon,
   PlusIcon,
   CloseIcon,
   SearchIcon,
@@ -87,25 +88,26 @@ const PaletteContext = createContext<{
 } | null>(null);
 
 const DataRangeContext = createContext<DataRange | null>(null);
-const PaletteChromeContext = createContext({ hideGradientAxis: false });
+const PaletteCategoriesContext = createContext<string[]>([]);
 
 export function ColorPaletteProvider({
   children,
   dataRange,
-  hideGradientAxis = false,
+  categoryLabels = [],
 }: {
   children: ReactNode;
   dataRange?: DataRange | null;
-  hideGradientAxis?: boolean;
+  categoryLabels?: string[];
 }) {
   const [selection, setSelection] = useState<PaletteSelection>(DEFAULT_SELECTION);
   const value = useMemo(() => ({ selection, setSelection }), [selection]);
-  const chrome = useMemo(() => ({ hideGradientAxis }), [hideGradientAxis]);
   return (
     <PaletteContext.Provider value={value}>
-      <PaletteChromeContext.Provider value={chrome}>
-        <DataRangeContext.Provider value={dataRange ?? null}>{children}</DataRangeContext.Provider>
-      </PaletteChromeContext.Provider>
+      <DataRangeContext.Provider value={dataRange ?? null}>
+        <PaletteCategoriesContext.Provider value={categoryLabels}>
+          {children}
+        </PaletteCategoriesContext.Provider>
+      </DataRangeContext.Provider>
     </PaletteContext.Provider>
   );
 }
@@ -260,8 +262,6 @@ function PaletteDetailsPopover({
   onClose: () => void;
   style: CSSProperties;
 }) {
-  const [copiedColor, setCopiedColor] = useState<string | null>(null);
-
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -292,21 +292,6 @@ function PaletteDetailsPopover({
           <div key={`${color}-${index}`}>
             <span style={{ background: color }} aria-hidden="true" />
             <code>{color.toUpperCase()}</code>
-            <button
-              type="button"
-              className="cp-palette-info-copy"
-              aria-label={`Copy ${color.toUpperCase()}`}
-              title={copiedColor === color ? "Copied" : `Copy ${color.toUpperCase()}`}
-              onClick={() => {
-                void navigator.clipboard?.writeText(color.toUpperCase());
-                setCopiedColor(color);
-              }}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="8" y="8" width="11" height="11" rx="2" />
-                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
-              </svg>
-            </button>
           </div>
         ))}
       </div>
@@ -1062,12 +1047,12 @@ export default function ColorPalette({
   onChange?: (next: ColorModeConfig) => void;
   styles?: PaletteStyle[];
 }) {
-  const { hideGradientAxis } = useContext(PaletteChromeContext);
   const isSimple = variant === "simple";
   const isSwatch = variant === "swatch";
   const isStepsOnly = variant === "steps";
   const isFull = !isSimple && !isSwatch && !isStepsOnly;
   const dataRange = useContext(DataRangeContext);
+  const previewCategoryLabels = useContext(PaletteCategoriesContext);
   const [local, setLocal] = useState<ColorModeConfig>(() => asColorMode(value ?? { ...DEFAULT_COLOR_MODE, color }));
   const config = value ?? local;
   const commit = (patch: Partial<ColorModeConfig>) => {
@@ -1097,7 +1082,11 @@ export default function ColorPalette({
         ? ctxSelection.colors
         : config.colors
       : DEFAULT_COLOR_MODE.colors;
-  const allowedStyles = styles ?? (["Single", "Gradient", "Steps"] as PaletteStyle[]);
+  const categoryLabels = previewCategoryLabels.length
+    ? Array.from(new Set(previewCategoryLabels.filter(Boolean)))
+    : Array.from({ length: 6 }, (_, i) => `Category ${i + 1}`);
+  const allowedStyles =
+    styles ?? (["Single", "Per Category", "Gradient", "Steps"] as PaletteStyle[]);
   const style = isStepsOnly
     ? "Steps"
     : allowedStyles.includes(config.style)
@@ -1139,6 +1128,7 @@ export default function ColorPalette({
       paletteFamily: preset.type as PaletteFamily,
       colors: preset.colors,
       color: last,
+      categoryLabels: style === "Per Category" ? categoryLabels : config.categoryLabels,
       stops: persistable(style === "Steps" ? s : g),
     });
   };
@@ -1209,6 +1199,7 @@ export default function ColorPalette({
     const src = next === "Steps" ? sStops : gStops;
     commit({
       style: next,
+      categoryLabels: next === "Per Category" ? categoryLabels : config.categoryLabels,
       stops: persistable(src),
     });
   };
@@ -1244,7 +1235,14 @@ export default function ColorPalette({
         <Field label="Palette type">
           <div className="cp-type">
             {(allowedStyles).map((s) => {
-              const Icon = s === "Single" ? SinglePillIcon : s === "Gradient" ? GradientPillIcon : StepsDotsIcon;
+              const Icon =
+                s === "Single"
+                  ? SinglePillIcon
+                  : s === "Per Category"
+                    ? PerCategoryPillsIcon
+                    : s === "Gradient"
+                      ? GradientPillIcon
+                      : StepsDotsIcon;
               const label = s === "Single" && styles ? "Solid" : s;
               return (
                 <button
@@ -1290,21 +1288,6 @@ export default function ColorPalette({
               options={DISTRIBUTION_OPTIONS.map((o) => ({ value: o, label: o }))}
             />
           </Field>
-          {!hideGradientAxis && (
-          <div className="cp-axis-group">
-          <Field label="Gradient axis">
-            <div className="ia-segmented">
-              {(["X", "Y"] as const).map((axis) => (
-                <span
-                  key={axis}
-                  className={(config.gradientAxis || "Y") === axis ? "active" : ""}
-                  onClick={() => commit({ gradientAxis: axis })}
-                >
-                  {axis}
-                </span>
-              ))}
-            </div>
-          </Field>
           <Field label="Reverse direction" inline>
             <span
               role="switch"
@@ -1313,8 +1296,6 @@ export default function ColorPalette({
               onClick={() => commit({ gradientReverse: !config.gradientReverse })}
             />
           </Field>
-          </div>
-          )}
           <DataRangeEditor
             sorted={sorted}
             colors={paletteColors}

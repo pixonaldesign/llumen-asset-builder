@@ -399,7 +399,7 @@ export function listHas(v: unknown, label: string): boolean {
 }
 
 export type PaletteFamily = "Sequential" | "Categorical" | "Diverging";
-export type PaletteStyle = "Single" | "Gradient" | "Steps";
+export type PaletteStyle = "Single" | "Per Category" | "Gradient" | "Steps";
 
 export type ColorStop = { value: number; color: string; opacity: number };
 
@@ -410,6 +410,8 @@ export type ColorModeConfig = {
   style: PaletteStyle;
   color: string;
   opacity: number;
+  categoryLabels: string[];
+  categoryOpacities: number[];
   distribution: string;
   gradientAxis: "X" | "Y";
   gradientReverse: boolean;
@@ -423,6 +425,8 @@ export const DEFAULT_COLOR_MODE: ColorModeConfig = {
   style: "Single",
   color: "#2b61f5",
   opacity: 100,
+  categoryLabels: [],
+  categoryOpacities: [],
   distribution: "Linear",
   gradientAxis: "Y",
   gradientReverse: false,
@@ -443,6 +447,14 @@ export function asColorMode(v: unknown): ColorModeConfig {
       ...DEFAULT_COLOR_MODE,
       ...o,
       colors: Array.isArray(o.colors) && o.colors.length ? o.colors : DEFAULT_COLOR_MODE.colors,
+      categoryLabels: Array.isArray(o.categoryLabels)
+        ? o.categoryLabels.map(String)
+        : DEFAULT_COLOR_MODE.categoryLabels,
+      categoryOpacities: Array.isArray(o.categoryOpacities)
+        ? o.categoryOpacities.map((opacity) =>
+            Math.max(0, Math.min(100, Number(opacity) || 0)),
+          )
+        : DEFAULT_COLOR_MODE.categoryOpacities,
       gradientAxis: o.gradientAxis === "X" ? "X" : "Y",
       gradientReverse: Boolean(o.gradientReverse),
       stops: Array.isArray(o.stops) && o.stops.length ? o.stops : DEFAULT_COLOR_MODE.stops,
@@ -465,6 +477,15 @@ export function resolveColorMode(
 ): string {
   const u = Math.max(0, Math.min(1, t));
   if (mode.style === "Single") return withOpacity(mode.color, mode.opacity);
+  if (mode.style === "Per Category") {
+    const colors = mode.colors.length ? mode.colors : DEFAULT_COLOR_MODE.colors;
+    const categoryIndex = Math.max(0, index);
+    const colorIndex = categoryIndex % colors.length;
+    return withOpacity(
+      colors[colorIndex] ?? mode.color,
+      mode.categoryOpacities[categoryIndex] ?? mode.opacity,
+    );
+  }
   const stops = mode.stops.length ? [...mode.stops].sort((a, b) => a.value - b.value) : DEFAULT_COLOR_MODE.stops;
   const min = stops[0].value;
   const max = stops[stops.length - 1].value;
