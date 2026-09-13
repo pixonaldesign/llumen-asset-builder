@@ -207,14 +207,11 @@ function colorMode(
     x: index / Math.max((n ?? 1) - 1, 1),
     y: value / Math.max(max, 1),
   };
-  const t = mode.style === "Gradient" && (mode.gradientAxis || "Y") === "X" ? unit.x : unit.y;
-  const categoryIndex =
-    mode.style === "Per Category" && category
-      ? mode.categoryLabels.findIndex(
-          (label) => label.toLowerCase() === category.toLowerCase(),
-        )
-      : -1;
-  return resolveColorMode(mode, t, categoryIndex >= 0 ? categoryIndex : index);
+  const t =
+    mode.style === "Gradient" && (mode.gradientAxis || "Y") === "X"
+      ? unit.x
+      : unit.y;
+  return resolveColorMode(mode, t, index, category, n);
 }
 
 function axisAlong(index: number, n: number, value: number, min: number, max: number) {
@@ -600,7 +597,10 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
         1,
       )
     : max;
-  const gradFill = mode.style === "Gradient" ? `url(#${gradId})` : "";
+  const gradFill =
+    mode.style === "Gradient" && mode.sequentialBasis !== "Category"
+      ? `url(#${gradId})`
+      : "";
 
   const stackedMax = yMax;
   const axisFmt = str(cfg("Scaling / axes", "Format", ""), "");
@@ -681,7 +681,12 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
         }
         const bh = fillH(d, total);
         const y = box.bottom - bh;
-        const color = markColor(i, d, n, labels[i]);
+        const color = markColor(
+          i,
+          d,
+          n,
+          series?.colorCategories?.[srcIndex] ?? labels[i],
+        );
         return (
           <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, srcIndex)}>
             {track === "Full" && <rect x={x} y={box.top} width={bw} height={box.height} rx={r} fill="rgba(255,255,255,.06)" />}
@@ -737,7 +742,10 @@ function LineArea({ cfg, chartId, minimal, compact, series, decorate, setHover, 
   const max = hasManual ? domain[1] : Math.max(...values, 1);
   const box = plotBox(cfg, !!decorate, 0, 0, usePlot());
   const mode = colorFromCfg(cfg);
-  const axisPaint = mode.style === "Gradient" ? `url(#${gradId})` : "";
+  const axisPaint =
+    mode.style === "Gradient" && mode.sequentialBasis !== "Category"
+      ? `url(#${gradId})`
+      : "";
   const color0 = colorMode(cfg, 0, values[0] ?? 1, max, labels[0] ?? "", values.length, axisAlong(0, values.length, values[0] ?? 1, min, max));
   const stroke = axisPaint || (isArea ? pair.stroke || color0 : color0);
   const fill = axisPaint || (isArea ? pair.fill || color0 : color0);
@@ -834,7 +842,8 @@ function PieDonut({ cfg, chartId, minimal, compact, series, decorate, setHover, 
         const a0 = cursor + 1;
         const a1 = cursor + sweep - 1;
         cursor += sweep;
-        const color = colorMode(cfg, i, d, max, labels[i], data.length, axisAlong(i, data.length, d, 0, max));
+        const colorCategory = series?.colorCategories?.[i] ?? labels[i];
+        const color = colorMode(cfg, i, d, max, colorCategory, data.length, axisAlong(i, data.length, d, 0, max));
         const [lx, ly] = polar(cx, cy, (rO + rI) / 2 + 2, (a0 + a1) / 2);
         const sliceLabel =
           fmt === "Value" ? formatBySpec(d, "") : fmt === "Both" ? `${formatBySpec(d, "")} (${Math.round((d / total) * 100)}%)` : `${Math.round((d / total) * 100)}%`;
@@ -858,7 +867,7 @@ function PieDonut({ cfg, chartId, minimal, compact, series, decorate, setHover, 
         <Legend
           cfg={cfg}
           series={series}
-          items={labels.map((lab, i) => ({ label: lab, color: colorMode(cfg, i, data[i], max, lab, data.length), value: data[i] }))}
+          items={labels.map((lab, i) => ({ label: lab, color: colorMode(cfg, i, data[i], max, series?.colorCategories?.[i] ?? lab, data.length), value: data[i] }))}
           box={plotBox(cfg, true, 0, 0, metrics)}
         />
       )}
@@ -883,7 +892,7 @@ function PolarRose({ cfg, series, setHover, onMarkEnter, onMarkLeave }: RenderPr
       {dirs.map((d, i) => {
         const ang = (i / dirs.length) * 360;
         const r = ring * 0.25 + (d.frequency / max) * ring * 0.75;
-        const color = colorMode(cfg, i, d.speed, maxSpeed, d.direction, dirs.length, {
+        const color = colorMode(cfg, i, d.speed, maxSpeed, d.colorCategory ?? d.direction, dirs.length, {
           x: i / Math.max(dirs.length - 1, 1),
           y: d.speed / maxSpeed,
         });
@@ -926,7 +935,10 @@ function Gauge({ cfg, visualId, minimal, compact, series, setHover, onMarkEnter,
   const va = a0 + ((a1 - a0) * value) / 100;
   const [nx, ny] = polar(cx, cy, r - 12, va);
   const paletteZones = (mode.colors?.length ? mode.colors : mode.stops.map((s) => s.color)).filter(Boolean);
-  const zones = paletteZones.length >= 2 ? paletteZones.slice(0, 5) : ["#34d399", "#fbbf24", "#f87171"];
+  const orderedZones = mode.gradientReverse
+    ? [...paletteZones].reverse()
+    : paletteZones;
+  const zones = orderedZones.length >= 2 ? orderedZones.slice(0, 5) : ["#34d399", "#fbbf24", "#f87171"];
   const zonesOn = (minimal && !series) || mode.style !== "Single";
 
   if (gaugeType === "Vertical gauge") {
@@ -1158,7 +1170,10 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
     top: P,
     bottom: P + n * (bh + gap) - gap,
   };
-  const gradFill = mode.style === "Gradient" ? `url(#${gradId})` : "";
+  const gradFill =
+    mode.style === "Gradient" && mode.sequentialBasis !== "Category"
+      ? `url(#${gradId})`
+      : "";
   const scaleMax = hasMappedTotal
     ? Math.max(...paired.map((p) => (p.maxTotal && p.maxTotal > 0 ? p.maxTotal : p.value)), 1)
     : fallbackMax;
@@ -1176,7 +1191,7 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
         const span = cap - minTotal || 1;
         const color =
           gradFill ||
-          colorMode(cfg, i, v, cap, labels[i], n, {
+          colorMode(cfg, i, v, cap, series?.colorCategories?.[paired[i]?.i ?? i] ?? labels[i], n, {
             x: (v - minTotal) / span,
             y: i / Math.max(n - 1, 1),
           });

@@ -25,6 +25,8 @@ import {
 import {
   DEFAULT_COLOR_MODE,
   asColorMode,
+  hexToRgb,
+  rgbToHex,
   type ColorModeConfig,
   type ColorStop,
   type PaletteFamily,
@@ -239,6 +241,372 @@ function Field({
       <span className="cp-label">{label}</span>
       {children}
     </div>
+  );
+}
+
+type HsvColor = { h: number; s: number; v: number };
+type HslColor = { h: number; s: number; l: number };
+type ColorFormat = "HEX" | "RGB" | "HSL";
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function validHex(value: string) {
+  const trimmed = value.trim();
+  if (!/^#?[0-9a-f]{6}$/i.test(trimmed)) return null;
+  return `#${trimmed.replace("#", "").toLowerCase()}`;
+}
+
+function rgbToHsvColor(r: number, g: number, b: number): HsvColor {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  let h = 0;
+  if (delta) {
+    if (max === rn) h = 60 * (((gn - bn) / delta) % 6);
+    else if (max === gn) h = 60 * ((bn - rn) / delta + 2);
+    else h = 60 * ((rn - gn) / delta + 4);
+  }
+  if (h < 0) h += 360;
+  return { h, s: max === 0 ? 0 : delta / max, v: max };
+}
+
+function hsvToHex({ h, s, v }: HsvColor) {
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  const [r, g, b] =
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
+}
+
+function rgbToHslColor(r: number, g: number, b: number): HslColor {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const delta = max - min;
+  const l = (max + min) / 2;
+  let h = 0;
+  if (delta) {
+    if (max === rn) h = 60 * (((gn - bn) / delta) % 6);
+    else if (max === gn) h = 60 * ((bn - rn) / delta + 2);
+    else h = 60 * ((rn - gn) / delta + 4);
+  }
+  if (h < 0) h += 360;
+  const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  return { h, s, l };
+}
+
+function hslToHex({ h, s, l }: HslColor) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] =
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+  return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
+}
+
+export function DirectColorPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  const normalizedValue = validHex(value) ?? DEFAULT_COLOR_MODE.color;
+  const [hexDraft, setHexDraft] = useState(normalizedValue);
+  const [pickerDraft, setPickerDraft] = useState(normalizedValue);
+  const [recentColor, setRecentColor] = useState("#8f5065");
+  const [format, setFormat] = useState<ColorFormat>("RGB");
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLElement>(null);
+
+  const [r, g, b] = hexToRgb(pickerDraft);
+  const hsv = rgbToHsvColor(r, g, b);
+  const hsl = rgbToHslColor(r, g, b);
+  const channels: Array<{
+    label: string;
+    value: number;
+    update: (raw: string) => void;
+  }> =
+    format === "RGB"
+      ? [
+          { label: "R", value: r, update: (raw) => updateRgb(0, raw) },
+          { label: "G", value: g, update: (raw) => updateRgb(1, raw) },
+          { label: "B", value: b, update: (raw) => updateRgb(2, raw) },
+        ]
+      : [
+          { label: "H", value: Math.round(hsl.h), update: (raw) => updateHsl("h", raw) },
+          { label: "S", value: Math.round(hsl.s * 100), update: (raw) => updateHsl("s", raw) },
+          { label: "L", value: Math.round(hsl.l * 100), update: (raw) => updateHsl("l", raw) },
+        ];
+
+  useEffect(() => {
+    setHexDraft(normalizedValue);
+    if (!open) setPickerDraft(normalizedValue);
+  }, [normalizedValue, open]);
+
+  const syncPosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const width = 240;
+    const estimatedHeight = 430;
+    const gap = 8;
+    const left = clamp(rect.right - width, gap, window.innerWidth - width - gap);
+    const below = rect.bottom + gap;
+    setPosition({
+      left,
+      top:
+        below + estimatedHeight <= window.innerHeight - gap
+          ? below
+          : Math.max(gap, rect.top - estimatedHeight - gap),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
+      setPickerDraft(normalizedValue);
+      setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setPickerDraft(normalizedValue);
+      setOpen(false);
+    };
+    const onLayout = () => syncPosition();
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onLayout);
+    window.addEventListener("scroll", onLayout, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onLayout);
+      window.removeEventListener("scroll", onLayout, true);
+    };
+  }, [open, normalizedValue, syncPosition]);
+
+  const setSvFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPickerDraft(
+      hsvToHex({
+        h: hsv.h,
+        s: clamp((event.clientX - rect.left) / rect.width, 0, 1),
+        v: clamp(1 - (event.clientY - rect.top) / rect.height, 0, 1),
+      }),
+    );
+  };
+
+  const updateRgb = (channel: 0 | 1 | 2, raw: string) => {
+    const channels: [number, number, number] = [r, g, b];
+    channels[channel] = clamp(Number(raw) || 0, 0, 255);
+    setPickerDraft(rgbToHex(...channels));
+  };
+
+  const updateHsl = (channel: "h" | "s" | "l", raw: string) => {
+    const next = { ...hsl };
+    next[channel] =
+      channel === "h"
+        ? clamp(Number(raw) || 0, 0, 360)
+        : clamp(Number(raw) || 0, 0, 100) / 100;
+    setPickerDraft(hslToHex(next));
+  };
+
+  return (
+    <>
+      <div className="cp-direct-color">
+        <input
+          value={hexDraft.toUpperCase()}
+          aria-label="Color hex value"
+          spellCheck={false}
+          onChange={(event) => {
+            const next = event.target.value;
+            setHexDraft(next);
+            const parsed = validHex(next);
+            if (parsed) onChange(parsed);
+          }}
+          onBlur={() => setHexDraft(normalizedValue)}
+        />
+        <button
+          ref={triggerRef}
+          type="button"
+          className="cp-direct-color__swatch"
+          aria-label="Open color picker"
+          aria-expanded={open}
+          style={{ background: normalizedValue }}
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              return;
+            }
+            setPickerDraft(normalizedValue);
+            syncPosition();
+            setOpen(true);
+          }}
+        />
+      </div>
+      {open &&
+        createPortal(
+          <section
+            ref={popoverRef}
+            className="cp-direct-picker-popover"
+            role="dialog"
+            aria-label="Choose color"
+            style={{ top: position.top, left: position.left }}
+          >
+            <div
+              className="cp-direct-picker__sv"
+              style={{ backgroundColor: `hsl(${hsv.h} 100% 50%)` }}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setSvFromPointer(event);
+              }}
+              onPointerMove={(event) => {
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  setSvFromPointer(event);
+                }
+              }}
+            >
+              <span
+                className="cp-direct-picker__marker"
+                style={{
+                  left: `${hsv.s * 100}%`,
+                  top: `${(1 - hsv.v) * 100}%`,
+                }}
+              />
+            </div>
+
+            <input
+              className="cp-direct-picker__hue"
+              type="range"
+              min={0}
+              max={359}
+              value={Math.round(hsv.h)}
+              aria-label="Hue"
+              onChange={(event) =>
+                setPickerDraft(
+                  hsvToHex({ ...hsv, h: Number(event.target.value) }),
+                )
+              }
+            />
+
+            <div className="cp-direct-picker__format-head">
+              <span
+                className="cp-direct-picker__preview"
+                style={{ background: pickerDraft }}
+                aria-hidden="true"
+              />
+              <div className="cp-direct-picker__formats" role="tablist" aria-label="Color format">
+                {(["HEX", "RGB", "HSL"] as ColorFormat[]).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    role="tab"
+                    aria-selected={format === item}
+                    className={format === item ? "is-active" : ""}
+                    onClick={() => setFormat(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {format === "HEX" ? (
+              <label className="cp-direct-picker__single-value">
+                <span>HEX</span>
+                <input
+                  value={pickerDraft.toUpperCase()}
+                  onChange={(event) => {
+                    const parsed = validHex(event.target.value);
+                    if (parsed) setPickerDraft(parsed);
+                  }}
+                />
+              </label>
+            ) : (
+              <div className="cp-direct-picker__channels">
+                {channels.map((channel) => (
+                  <label key={channel.label}>
+                    <span>{channel.label}</span>
+                    <input
+                      type="number"
+                      value={channel.value}
+                      onChange={(event) => channel.update(event.target.value)}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="cp-direct-picker__recent">
+              <span className="cp-label">Recent</span>
+              <button
+                type="button"
+                aria-label={`Use recent color ${recentColor}`}
+                style={{ background: recentColor }}
+                onClick={() => setPickerDraft(recentColor)}
+              />
+            </div>
+
+            <footer>
+              <button
+                type="button"
+                className="pg-btn pg-btn--secondary"
+                onClick={() => {
+                  setPickerDraft(normalizedValue);
+                  setOpen(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="pg-btn pg-btn--primary"
+                onClick={() => {
+                  setRecentColor(normalizedValue);
+                  onChange(pickerDraft);
+                  setOpen(false);
+                }}
+              >
+                Apply
+              </button>
+            </footer>
+          </section>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -1200,6 +1568,10 @@ export default function ColorPalette({
     commit({
       style: next,
       categoryLabels: next === "Per Category" ? categoryLabels : config.categoryLabels,
+      sequentialBasis:
+        next === "Gradient" || next === "Steps"
+          ? "Value"
+          : config.sequentialBasis,
       stops: persistable(src),
     });
   };

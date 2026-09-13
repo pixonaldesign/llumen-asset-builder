@@ -13,6 +13,7 @@ export type MarkTip = {
 export type PreviewSeries = {
   values?: number[];
   labels?: string[];
+  colorCategories?: string[];
   gaugeValue?: number;
   kpiPrimary?: string;
   kpiUnit?: string;
@@ -50,7 +51,12 @@ export type PreviewSeries = {
     speed?: number;
   }[];
   mapArcs?: { from: string; to: string; value: number }[];
-  polar?: { direction: string; speed: number; frequency: number }[];
+  polar?: {
+    direction: string;
+    speed: number;
+    frequency: number;
+    colorCategory?: string;
+  }[];
   availability?: { label: string; cells: number[] }[];
 };
 

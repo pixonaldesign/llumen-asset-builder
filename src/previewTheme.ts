@@ -410,8 +410,11 @@ export type ColorModeConfig = {
   style: PaletteStyle;
   color: string;
   opacity: number;
+  categoryField: string;
+  categoryColors: Record<string, string>;
   categoryLabels: string[];
   categoryOpacities: number[];
+  sequentialBasis: "Value" | "Category";
   distribution: string;
   gradientAxis: "X" | "Y";
   gradientReverse: boolean;
@@ -425,8 +428,11 @@ export const DEFAULT_COLOR_MODE: ColorModeConfig = {
   style: "Single",
   color: "#2b61f5",
   opacity: 100,
+  categoryField: "Auto",
+  categoryColors: {},
   categoryLabels: [],
   categoryOpacities: [],
+  sequentialBasis: "Value",
   distribution: "Linear",
   gradientAxis: "Y",
   gradientReverse: false,
@@ -447,6 +453,20 @@ export function asColorMode(v: unknown): ColorModeConfig {
       ...DEFAULT_COLOR_MODE,
       ...o,
       colors: Array.isArray(o.colors) && o.colors.length ? o.colors : DEFAULT_COLOR_MODE.colors,
+      categoryField:
+        typeof o.categoryField === "string" && o.categoryField
+          ? o.categoryField
+          : DEFAULT_COLOR_MODE.categoryField,
+      categoryColors:
+        o.categoryColors &&
+        typeof o.categoryColors === "object" &&
+        !Array.isArray(o.categoryColors)
+          ? Object.fromEntries(
+              Object.entries(o.categoryColors).filter(
+                ([, color]) => typeof color === "string",
+              ),
+            )
+          : DEFAULT_COLOR_MODE.categoryColors,
       categoryLabels: Array.isArray(o.categoryLabels)
         ? o.categoryLabels.map(String)
         : DEFAULT_COLOR_MODE.categoryLabels,
@@ -455,6 +475,8 @@ export function asColorMode(v: unknown): ColorModeConfig {
             Math.max(0, Math.min(100, Number(opacity) || 0)),
           )
         : DEFAULT_COLOR_MODE.categoryOpacities,
+      sequentialBasis:
+        o.sequentialBasis === "Category" ? "Category" : "Value",
       gradientAxis: o.gradientAxis === "X" ? "X" : "Y",
       gradientReverse: Boolean(o.gradientReverse),
       stops: Array.isArray(o.stops) && o.stops.length ? o.stops : DEFAULT_COLOR_MODE.stops,
@@ -474,15 +496,34 @@ export function resolveColorMode(
   mode: ColorModeConfig,
   t: number,
   index: number,
+  category?: string,
+  categoryCount?: number,
 ): string {
-  const u = Math.max(0, Math.min(1, t));
+  const matchedCategoryIndex = category
+    ? mode.categoryLabels.findIndex(
+        (label) => label.toLowerCase() === category.toLowerCase(),
+      )
+    : -1;
+  const categoryIndex =
+    matchedCategoryIndex >= 0 ? matchedCategoryIndex : Math.max(0, index);
+  let u = Math.max(0, Math.min(1, t));
+  if (mode.style === "Gradient" && mode.sequentialBasis === "Category") {
+    u =
+      categoryIndex /
+      Math.max(
+        mode.categoryLabels.length - 1,
+        (categoryCount ?? 1) - 1,
+        1,
+      );
+  }
+  if (mode.style === "Gradient" && mode.gradientReverse) u = 1 - u;
   if (mode.style === "Single") return withOpacity(mode.color, mode.opacity);
   if (mode.style === "Per Category") {
     const colors = mode.colors.length ? mode.colors : DEFAULT_COLOR_MODE.colors;
-    const categoryIndex = Math.max(0, index);
+    const directColor = category ? mode.categoryColors[category] : undefined;
     const colorIndex = categoryIndex % colors.length;
     return withOpacity(
-      colors[colorIndex] ?? mode.color,
+      directColor ?? colors[colorIndex] ?? mode.color,
       mode.categoryOpacities[categoryIndex] ?? mode.opacity,
     );
   }

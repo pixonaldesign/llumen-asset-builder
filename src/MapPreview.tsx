@@ -33,18 +33,34 @@ function colorsByType(cfg: Cfg): boolean {
 
 function mapColor(cfg: Cfg, value: number, max: number, category: string, index: number): string {
   const mode = mapPalette(cfg);
-  if (colorsByType(cfg)) {
-    const catMap = asRecord(cfg("Color", "Categorical color stops + Other", {}));
-    if (category && catMap[category]) return catMap[category];
-    return resolveColorMode(mode, 0, index);
-  }
   const t = max ? value / max : 0;
   const dist = str(cfg("Color", "Distribution", "Linear"), "Linear");
   const stepped = dist === "Quantize" ? Math.round(t * 4) / 4 : dist === "Quantile" ? Math.ceil(t * 3) / 3 : t;
-  return resolveColorMode(mode, stepped, index);
+  if (mode.style !== "Single") {
+    return resolveColorMode(
+      mode,
+      stepped,
+      index,
+      category,
+      mode.categoryLabels.length,
+    );
+  }
+  if (colorsByType(cfg)) {
+    const catMap = asRecord(cfg("Color", "Categorical color stops + Other", {}));
+    if (category && catMap[category]) return catMap[category];
+    return resolveColorMode(mode, 0, index, category, mode.categoryLabels.length);
+  }
+  return resolveColorMode(
+    mode,
+    stepped,
+    index,
+    category,
+    mode.categoryLabels.length,
+  );
 }
 
 function catColor(cfg: Cfg, category: string, fallback: string, index: number) {
+  if (mapPalette(cfg).style !== "Single") return fallback;
   if (!colorsByType(cfg)) return fallback;
   const map = {
     ...asRecord(cfg("Color", "Categorical color stops + Other", {})),
@@ -182,10 +198,18 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     const d = visible
       .map((p, i) => `${i ? "L" : "M"} ${P + p.x * (W - 2 * P)} ${P + p.y * (H - 2 * P)}`)
       .join(" ");
+    const fenceColor = mapColor(
+      cfg,
+      visible.reduce((sum, point) => sum + point.value, 0) /
+        Math.max(visible.length, 1),
+      max,
+      visible[0]?.category ?? "",
+      0,
+    );
     layer = (
       <>
         <Ground cfg={cfg} />
-        <path d={d} fill="none" stroke={solid} strokeWidth={width} strokeLinecap="round" opacity={0.85} />
+        <path d={d} fill="none" stroke={fenceColor} strokeWidth={width} strokeLinecap="round" opacity={0.85} />
         {visible.map((p) => (
           <circle
             key={p.id}
@@ -316,7 +340,9 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
             { i: 0, d: Infinity },
           ).i;
           const t = Math.max(0, Math.min(1, heat));
-          const color = gradFill ? resolveColorMode(palette, t, i) : mixOrSolid(solid, t);
+          const color = gradFill || palette.style !== "Single"
+            ? resolveColorMode(palette, t, i)
+            : mixOrSolid(solid, t);
           const hLift = extrude ? t * (elev / 80) : 0;
           if (style === "Contour") {
             const band = Math.round(t * bands);

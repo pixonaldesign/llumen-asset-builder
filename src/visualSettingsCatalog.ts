@@ -1193,6 +1193,140 @@ export function defaultGradientAxisForVisual(visualId: string): "X" | "Y" {
     : "Y";
 }
 
+export type ColorPickerMode =
+  | "Single Color"
+  | "Categorical Colors"
+  | "Sequential Colors";
+
+export type VisualColorPickerProfile = {
+  modes: readonly ColorPickerMode[];
+  autoCategoryFields: readonly string[];
+  autoValueFields: readonly string[];
+  categoryFallback: string;
+};
+
+const ALL_PICKER_MODES: readonly ColorPickerMode[] = [
+  "Single Color",
+  "Categorical Colors",
+  "Sequential Colors",
+];
+
+const VALUE_PICKER_MODES: readonly ColorPickerMode[] = [
+  "Single Color",
+  "Sequential Colors",
+];
+
+const COLOR_PICKER_PROFILES: Record<string, VisualColorPickerProfile> = {
+  "vertical-bar": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Series", "X axis"],
+    autoValueFields: ["Y axis"],
+    categoryFallback: "district",
+  },
+  "horizontal-bar": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Series", "Y category"],
+    autoValueFields: ["X value"],
+    categoryFallback: "district",
+  },
+  "line-chart": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Series", "X axis"],
+    autoValueFields: ["Y axis"],
+    categoryFallback: "timestamp",
+  },
+  "area-chart": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Series", "X axis"],
+    autoValueFields: ["Y axis"],
+    categoryFallback: "timestamp",
+  },
+  "scatter-plot": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Color/Category"],
+    autoValueFields: ["Y value"],
+    categoryFallback: "category",
+  },
+  "donut-chart": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Category"],
+    autoValueFields: ["Value"],
+    categoryFallback: "district",
+  },
+  "progress-bar": {
+    modes: VALUE_PICKER_MODES,
+    autoCategoryFields: ["Y category"],
+    autoValueFields: ["X value"],
+    categoryFallback: "district",
+  },
+  "gauge-linear": {
+    modes: VALUE_PICKER_MODES,
+    autoCategoryFields: ["Status"],
+    autoValueFields: ["Value"],
+    categoryFallback: "status",
+  },
+  "polar-wind-rose": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Direction", "Band"],
+    autoValueFields: ["Wind speed", "Frequency"],
+    categoryFallback: "direction",
+  },
+  availability: {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Value"],
+    autoValueFields: ["Y axis", "Value"],
+    categoryFallback: "district",
+  },
+  arcs: {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Type", "Origin"],
+    autoValueFields: ["Value"],
+    categoryFallback: "category",
+  },
+  discs: {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Location field"],
+    autoValueFields: ["Value"],
+    categoryFallback: "category",
+  },
+  fences: {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Coordinates (Geometry)"],
+    autoValueFields: ["Value"],
+    categoryFallback: "category",
+  },
+  heatmap: {
+    modes: VALUE_PICKER_MODES,
+    autoCategoryFields: ["Type"],
+    autoValueFields: ["Intensity Value Field", "Value"],
+    categoryFallback: "category",
+  },
+  wind: {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Coordinates"],
+    autoValueFields: ["U Component (Eastward)", "Wind speed"],
+    categoryFallback: "category",
+  },
+  points: {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Color by category field", "Location field"],
+    autoValueFields: ["Value"],
+    categoryFallback: "category",
+  },
+  "map-area": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Type", "Name"],
+    autoValueFields: ["Value"],
+    categoryFallback: "category",
+  },
+};
+
+export function colorPickerProfileForVisual(
+  visualId: string,
+): VisualColorPickerProfile | undefined {
+  return COLOR_PICKER_PROFILES[visualId];
+}
+
 function levelRank(level: Opt["level"]): number {
   if (level === "required") return 0;
   if (level === "advanced") return 2;

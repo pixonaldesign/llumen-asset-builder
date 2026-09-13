@@ -6,7 +6,7 @@ import {
   type MockDataset,
   type MockRow,
 } from "./mockDataset";
-import { asRepeatable, asStringArray, formatBySpec, formatCompactNumber, matchThreshold, parseMinMax, withOpacity } from "./previewTheme";
+import { asColorMode, asRepeatable, asStringArray, formatBySpec, formatCompactNumber, matchThreshold, parseMinMax, withOpacity } from "./previewTheme";
 
 type Config = Record<string, unknown>;
 
@@ -379,7 +379,12 @@ export function derivePreviewSeries({
     const xCol = mapped(config, "X value", "amount");
     const yScatter = mapped(config, "Y value", "incidents");
     const sizeCol = mapped(config, "Point size", "value");
-    const catCol = mapped(config, "Color/Category", "category");
+    const pickerColorMode = asColorMode(config["Colors::Palette"]);
+    const catCol =
+      (pickerColorMode.categoryField !== "Auto"
+        ? pickerColorMode.categoryField
+        : "") ||
+      mapped(config, "Color/Category", "category");
     out.scatterPoints = rows.map((r) => ({
       x: numCell(r, xCol),
       y: numCell(r, yScatter),
@@ -395,11 +400,17 @@ export function derivePreviewSeries({
     const speedCol = mapped(config, "Wind speed") || mapped(config, "Wind speed / band", "wind_speed");
     const bandCol = mapped(config, "Band");
     const freqCol = mapped(config, "Frequency");
+    const pickerColorMode = asColorMode(config["Colors::Palette"]);
+    const colorCategoryCol =
+      pickerColorMode.categoryField !== "Auto"
+        ? pickerColorMode.categoryField
+        : bandCol || dirCol;
     const groups = groupRows(rows, dirCol);
     out.polar = groups.map((g) => ({
       direction: g.label,
       speed: aggregate(g.rows.map((r) => numCell(r, speedCol)), "Average"),
       frequency: freqCol ? aggregate(g.rows.map((r) => numCell(r, freqCol)), "Sum") : g.rows.length,
+      colorCategory: strCell(g.rows[0] ?? {}, colorCategoryCol),
     }));
     out.labels = out.polar.map((p) => p.direction);
     out.values = out.polar.map((p) => p.frequency);
@@ -413,7 +424,12 @@ export function derivePreviewSeries({
   }
 
   if (chartId === "availability") {
-    const cat = mapped(config, "Value", "district");
+    const pickerColorMode = asColorMode(config["Colors::Palette"]);
+    const cat =
+      (pickerColorMode.categoryField !== "Auto"
+        ? pickerColorMode.categoryField
+        : "") ||
+      mapped(config, "Value", "district");
     const val = yCol || "completion_rate";
     out.availability = groupRows(rows, cat).map((g) => ({
       label: g.label,
@@ -436,9 +452,27 @@ export function derivePreviewSeries({
       mapped(config, "Intensity Value Field") ||
       cfgStr(config, "Color", "Data Field") ||
       "value";
+    const mapColorMode = asColorMode(config["Color::Palette"]);
+    const autoCategoryCol =
+      visualId === "points"
+        ? cfgStr(config, "Color", "Color by category field") ||
+          mapped(config, "Location field")
+        : visualId === "discs"
+          ? mapped(config, "Location field")
+          : visualId === "fences"
+            ? mapped(config, "Coordinates (Geometry)")
+            : visualId === "arcs"
+              ? mapped(config, "Origin")
+              : visualId === "wind" || visualId === "heatmap"
+                ? mapped(config, "Coordinates")
+                : visualId === "map-area"
+                  ? mapped(config, "Type") || mapped(config, "Name")
+                  : "";
     const catCol =
-      mapped(config, "Type") ||
-      cfgStr(config, "Color", "Color by category field") ||
+      (mapColorMode.categoryField !== "Auto"
+        ? mapColorMode.categoryField
+        : "") ||
+      autoCategoryCol ||
       "category";
     const groups = groupRows(rows, locCol);
     out.mapPoints = groups.map((g, i) => {
@@ -513,6 +547,15 @@ export function derivePreviewSeries({
   out.labels = grouped.labels;
   out.values = chartId === "progress" ? [grouped.values[0] ?? 0] : grouped.values;
   if (chartId === "progress") out.labels = grouped.labels.slice(0, 1);
+  const colorMode = asColorMode(config["Colors::Palette"]);
+  const categoryField =
+    colorMode.categoryField === "Auto"
+      ? seriesCol || cat
+      : colorMode.categoryField;
+  out.colorCategories = sliced.map(
+    (group) => strCell(group.rows[0] ?? {}, categoryField) || group.label,
+  );
+  if (chartId === "progress") out.colorCategories = out.colorCategories.slice(0, 1);
   const tipAgg = valueAgg;
   const tipGroups = chartId === "progress" ? sliced.slice(0, 1) : sliced;
   out.markTips = tipGroups.map((g) => markTipFromGroup(g, val, tipAgg));

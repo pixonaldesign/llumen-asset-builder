@@ -1478,6 +1478,53 @@ button {
 .vs-panel__content .ia-stack {
   padding-bottom: 0;
 }
+.vs-color-view-toggle {
+  display: grid;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+.vs-color-picker-settings {
+  display: grid;
+  gap: var(--space-xl);
+}
+.vs-color-picker-settings__help {
+  margin: 0;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-micro);
+  font-family: var(--lc-font-mono);
+  line-height: 1.45;
+}
+.vs-color-picker-categories,
+.vs-color-picker-category,
+.vs-color-picker-categories__list {
+  display: grid;
+  min-width: 0;
+}
+.vs-color-picker-categories {
+  gap: var(--space-sm);
+}
+.vs-color-picker-categories__list {
+  gap: var(--space-lg);
+}
+.vs-color-picker-category {
+  gap: var(--space-sm);
+}
+.vs-color-picker-settings__rule {
+  height: 1px;
+  background: var(--lc-border-default);
+}
+.vs-color-picker-reverse {
+  display: grid;
+  gap: var(--space-sm);
+}
+.vs-color-picker-reverse > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+}
 .settings-search-menu {
   position: absolute;
   top: calc(100% + var(--space-sm));
@@ -4120,6 +4167,196 @@ button {
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--lc-text-secondary);
+}
+.cp-direct-color {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  height: var(--lc-control-height);
+  padding: 0 var(--space-md);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-md);
+  background: var(--lc-bg-control);
+}
+.cp-direct-color:focus-within {
+  border-color: var(--lc-border-control-focus);
+  box-shadow: var(--lc-shadow-control-focus);
+}
+.cp-direct-color > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+  text-transform: uppercase;
+}
+.cp-direct-color__swatch {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--lc-border-control-hover);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+.cp-direct-color__swatch:hover,
+.cp-direct-color__swatch:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--lc-text-primary) 50%, transparent);
+  outline-offset: 2px;
+}
+.cp-direct-picker-popover {
+  position: fixed;
+  z-index: 140;
+  display: grid;
+  width: 240px;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  border: 1px solid var(--lc-border-default);
+  border-radius: var(--lc-ui-radius);
+  background: var(--lc-surface-3);
+  box-shadow:
+    0 12px 16px -4px rgba(10, 13, 18, 0.08),
+    0 4px 6px -2px rgba(10, 13, 18, 0.03),
+    0 2px 2px -1px rgba(10, 13, 18, 0.04);
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+}
+.cp-direct-picker__sv {
+  position: relative;
+  height: 174px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-md);
+  background-image:
+    linear-gradient(to bottom, transparent, #000),
+    linear-gradient(to right, #fff, transparent);
+  cursor: crosshair;
+  touch-action: none;
+}
+.cp-direct-picker__marker {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.cp-direct-picker__hue {
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+  cursor: ew-resize;
+}
+.cp-direct-picker__hue::-webkit-slider-thumb {
+  width: 6px;
+  height: 20px;
+  appearance: none;
+  border: 2px solid #fff;
+  border-radius: var(--radius-full);
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+}
+.cp-direct-picker__hue::-moz-range-thumb {
+  width: 4px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: var(--radius-full);
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+}
+.cp-direct-picker__format-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+.cp-direct-picker__preview {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--lc-border-control-hover);
+  border-radius: var(--radius-sm);
+}
+.cp-direct-picker__formats {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: var(--space-xxs);
+  border-radius: var(--radius-md);
+  background: var(--lc-bg-neutral-subtle);
+}
+.cp-direct-picker__formats button {
+  height: 26px;
+  padding: 0 var(--space-xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-micro);
+  cursor: pointer;
+}
+.cp-direct-picker__formats button.is-active {
+  background: var(--lc-bg-neutral-subtle-hover);
+  color: var(--lc-text-primary);
+}
+.cp-direct-picker__channels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+.cp-direct-picker__channels label,
+.cp-direct-picker__single-value {
+  display: grid;
+  gap: var(--space-xs);
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-micro);
+}
+.cp-direct-picker__channels input,
+.cp-direct-picker__single-value input {
+  min-width: 0;
+  height: 30px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-sm);
+  outline: 0;
+  background: var(--lc-bg-control);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-small);
+}
+.cp-direct-picker__channels input:focus,
+.cp-direct-picker__single-value input:focus {
+  border-color: var(--lc-border-control-focus);
+  box-shadow: var(--lc-shadow-control-focus);
+}
+.cp-direct-picker__recent {
+  display: grid;
+  gap: var(--space-sm);
+}
+.cp-direct-picker__recent > button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--lc-border-control-hover);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.cp-direct-picker-popover > footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--lc-border-default);
+}
+.cp-direct-picker-popover > footer .pg-btn {
+  width: 100%;
 }
 .cp-select-wrap {
   position: relative;

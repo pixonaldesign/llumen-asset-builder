@@ -33,6 +33,7 @@ import {
 import { charts } from "./chartModel";
 import type { Opt } from "./chartModel";
 import {
+  colorPickerProfileForVisual,
   defaultGradientAxisForVisual,
   fieldsForVisual,
   isFeatureTabOn,
@@ -43,7 +44,12 @@ import {
 import ChartPreview from "./ChartPreview";
 import DataSourceQueryPreview from "./DataSourceQueryPreview";
 import DataSourceDataProfile from "./DataSourceDataProfile";
-import ColorPalette, { CategoryColorMap, ColorPaletteProvider, PaletteSelector } from "./ColorPalette";
+import ColorPalette, {
+  CategoryColorMap,
+  ColorPaletteProvider,
+  PaletteSelector,
+} from "./ColorPalette";
+import ColorPickerSettings from "./ColorPickerSettings";
 import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
 import Dropdown from "./Dropdown";
@@ -289,6 +295,15 @@ function defaultColorList(o: Opt): Record<string, string> {
 
 function isPaletteField(o: Opt): boolean {
   return o.type === "color" && o.name === "Palette" && (o.group === "Colors" || o.group === "Color");
+}
+
+function isPickerManagedColorField(o: Opt): boolean {
+  return (
+    isPaletteField(o) ||
+    (o.group === "Color" &&
+      (o.name === "Color Source" ||
+        o.name === "Categorical color stops + Other"))
+  );
 }
 
 function defaultSlider(o: Opt): number {
@@ -1748,6 +1763,7 @@ export default function EditComponentModal({
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(startAtVisualPicker ? 0 : 1);
   const [query, setQuery] = useState("");
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
+  const [colorSettingsView, setColorSettingsView] = useState<"Picker" | "Palette">("Picker");
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("asset");
   const [dataPreviewMode, setDataPreviewMode] = useState<DataPreviewMode>("results");
@@ -1866,6 +1882,12 @@ export default function EditComponentModal({
   const normalizedSettingsQuery = query.trim().toLowerCase();
   const searchingVisualSettings = normalizedSettingsQuery.length > 0;
   const tabFields = visualFields.filter((o) => o.group === activeSubCategory);
+  const activePaletteField = tabFields.find(isPaletteField);
+  const isPaletteTab = Boolean(activePaletteField);
+  const colorPickerProfile = colorPickerProfileForVisual(displayVisualId);
+  const pickerSiblingFields = tabFields.filter(
+    (field) => !isPickerManagedColorField(field),
+  );
   const settingsSearchResults = searchingVisualSettings
     ? visualFields.filter(
         (o) =>
@@ -1965,6 +1987,8 @@ export default function EditComponentModal({
           ...current,
           [paletteKey]: {
             ...palette,
+            style: "Single",
+            sequentialBasis: "Value",
             gradientAxis: defaultGradientAxisForVisual(visual.id),
           },
         };
@@ -2309,6 +2333,9 @@ export default function EditComponentModal({
                                 aria-current={selected ? "true" : undefined}
                                 onClick={() => {
                                   setActiveSubCategory(label);
+                                  if (label === "Colors" || label === "Color") {
+                                    setColorSettingsView("Picker");
+                                  }
                                   setQuery("");
                                 }}
                               >
@@ -2343,7 +2370,49 @@ export default function EditComponentModal({
                       ))}
                     </nav>
                     <div className="vs-panel__content">
-                      {tabFields.length === 0 ? (
+                      {isPaletteTab && (
+                        <div className="vs-color-view-toggle">
+                          <span className="cp-label">Color mode</span>
+                          <Segmented
+                            values={["Picker", "Palette"]}
+                            value={colorSettingsView}
+                            onChange={(view) =>
+                              setColorSettingsView(view as "Picker" | "Palette")
+                            }
+                          />
+                        </div>
+                      )}
+                      {isPaletteTab &&
+                      colorSettingsView === "Picker" &&
+                      activePaletteField &&
+                      colorPickerProfile ? (
+                        <div className="ia-stack">
+                          <ColorPickerSettings
+                            value={asColorMode(getVal(activePaletteField))}
+                            profile={colorPickerProfile}
+                            columns={SAMPLE_COLUMNS}
+                            dataRange={colorDataRange}
+                            mappedField={(name) =>
+                              String(
+                                getValByKey("Mapping", name) ||
+                                  getValByKey("Color", name) ||
+                                  "",
+                              )
+                            }
+                            onChange={(next) => setVal(activePaletteField, next)}
+                          />
+                          {pickerSiblingFields.length > 0 && (
+                            <GroupCard
+                              key={`${displayVisualId}:${activeSubCategory}:picker-siblings`}
+                              items={pickerSiblingFields}
+                              advancedOpen={advancedSettingsOpen}
+                              getVal={getVal}
+                              setVal={setVal}
+                              getValByKey={getValByKey}
+                            />
+                          )}
+                        </div>
+                      ) : isPaletteTab && colorSettingsView === "Picker" ? null : tabFields.length === 0 ? (
                         <div className="ia-empty">No options for this visual in this section.</div>
                       ) : (
                         <div className="ia-stack">
