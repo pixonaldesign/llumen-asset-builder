@@ -2024,6 +2024,9 @@ export default function EditComponentModal({
   const [activeSubCategory, setActiveSubCategory] = useState("Mapping");
   const [currentStep, setCurrentStep] = useState(startAtVisualPicker ? 0 : 1);
   const [maxUnlockedStep, setMaxUnlockedStep] = useState(startAtVisualPicker ? 0 : 1);
+  const [completedStepIds, setCompletedStepIds] = useState<Set<WizardStepId>>(
+    () => new Set(),
+  );
   const [query, setQuery] = useState("");
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const [colorSettingsView, setColorSettingsView] = useState<"Picker" | "Palette">("Picker");
@@ -2207,6 +2210,14 @@ export default function EditComponentModal({
 
   const goNext = () => {
     if (currentStep >= WIZARD_STEPS.length - 1) return;
+    const completedStepId = WIZARD_STEPS[currentStep]?.id;
+    if (completedStepId) {
+      setCompletedStepIds((current) => {
+        const next = new Set(current);
+        next.add(completedStepId);
+        return next;
+      });
+    }
     const next = currentStep + 1;
     setCurrentStep(next);
     setMaxUnlockedStep((m) => Math.max(m, next));
@@ -2401,6 +2412,14 @@ export default function EditComponentModal({
           </div>
           {WIZARD_STEPS.map((step, i) => {
             const state = wizardStepState(i, currentStep, maxUnlockedStep);
+            const complete =
+              step.id === "data-source"
+                ? dataSourceConfigured && !dataSourceLoading
+                : step.id === "viz-mapping"
+                  ? hasCompletedVisual
+                  : step.id === "general-info"
+                    ? !generalInfoIncomplete
+                    : completedStepIds.has(step.id);
             return (
               <div key={step.id} className="wizard-stepper__slot">
                 {i > 0 && (
@@ -2413,7 +2432,11 @@ export default function EditComponentModal({
                     stepRefs.current[i] = el;
                   }}
                   type="button"
-                  className={"wizard-step wizard-step--" + state}
+                  className={
+                    "wizard-step wizard-step--" +
+                    state +
+                    (complete ? " wizard-step--complete" : "")
+                  }
                   disabled={state === "disabled"}
                   aria-current={state === "selected" ? "step" : undefined}
                   onClick={() => selectStep(i)}

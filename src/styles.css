@@ -641,8 +641,16 @@ button {
   flex: 1 1 auto;
   min-width: 1px;
   height: 0;
-  border-top: 1px solid var(--lc-text-primary);
+  border-top: 1px solid var(--lc-text-disabled);
+  opacity: 0.25;
   align-self: center;
+  transition:
+    border-color var(--duration-fast) ease,
+    opacity var(--duration-fast) ease;
+}
+.wizard-step--complete .wizard-step__marker::after {
+  border-color: var(--lc-text-primary);
+  opacity: 1;
 }
 .wizard-step__label {
   display: block;
@@ -655,7 +663,7 @@ button {
   text-overflow: ellipsis;
 }
 /* Inactive — locked */
-.wizard-step--disabled .wizard-step__marker,
+.wizard-step--disabled .wizard-step__marker::before,
 .wizard-step--disabled .wizard-step__label {
   opacity: 0.25;
 }
