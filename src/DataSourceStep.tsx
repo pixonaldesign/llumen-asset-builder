@@ -125,12 +125,12 @@ type MlInputOption = {
 
 const SOURCE_TYPE_ICON_BASE_URL = `${import.meta.env.BASE_URL}figma/source-types`;
 
-function SourceTypeIcon({ name, size = 44 }: { name: string; size?: number }) {
+function SourceTypeIcon({ name, size }: { name: string; size?: number }) {
   return (
     <img
-      src={`${SOURCE_TYPE_ICON_BASE_URL}/${name}.png`}
-      width={size}
-      height={size}
+      src={`${SOURCE_TYPE_ICON_BASE_URL}/${name}.svg?v=2`}
+      className={`source-type-icon source-type-icon--${name}`}
+      style={size ? { width: size, height: size } : undefined}
       alt=""
       aria-hidden="true"
       draggable={false}
@@ -1029,7 +1029,7 @@ function DatabaseConnectionPicker({
                     {type}
                   </label>
                 ))}
-              </div>
+      </div>
             </div>
           )}
         </div>
@@ -2021,7 +2021,7 @@ function DataFlowPicker({
             <FunnelSimple size={15} aria-hidden="true" />
             {DATA_FLOW_SORT_LABELS[sort]}
             <CaretDown size={15} aria-hidden="true" />
-          </button>
+        </button>
           {sortMenuOpen && (
             <div className="ds-db-manager__menu ds-db-manager__sort-menu" role="menu">
               <div className="dropdown-menu__inner">
@@ -2399,18 +2399,18 @@ function ApiParameterSection({ title }: { title?: string }) {
                   <DotsSixVertical size={18} weight="bold" aria-hidden="true" />
                 </button>
               ) : null}
-              <input
+                  <input
                   className="ds-api-parameter-row__key"
                   value={row.key}
                   onChange={(event) => updateRow(row.id, "key", event.target.value)}
-                  placeholder="Key"
+                    placeholder="Key"
                   aria-label={`${rowLabel} key`}
-              />
-              <input
+                  />
+                  <input
                   className="ds-api-parameter-row__value"
                   value={row.value}
                   onChange={(event) => updateRow(row.id, "value", event.target.value)}
-                  placeholder="Value"
+                    placeholder="Value"
                   aria-label={`${rowLabel} value`}
               />
               {canManageRows && (
@@ -2425,9 +2425,9 @@ function ApiParameterSection({ title }: { title?: string }) {
               )}
             </div>
           ))}
-        </div>
-      </div>
-    </section>
+                </div>
+              </div>
+            </section>
   );
 }
 
@@ -2690,7 +2690,7 @@ function DatabaseSchemaBrowser({
             <div className="ds-schema-browser__loading" role="status">
               <i aria-hidden="true" />
               Refreshing schema…
-            </div>
+          </div>
           ) : selectedTable ? (
             <>
               <div className="ds-schema-browser__object-header">
@@ -2845,7 +2845,7 @@ function DatabaseSchemaBrowser({
                       </div>
                     ))}
                   </div>
-                </section>
+      </section>
               ) : (
                 <section className="ds-schema-browser__technical">
                   <div className="ds-schema-browser__technical-grid">
@@ -2865,7 +2865,7 @@ function DatabaseSchemaBrowser({
                           <div key={label}>
                             <dt>{label}</dt>
                             <dd>{value}</dd>
-                          </div>
+    </div>
                         ))}
                       </dl>
                     </section>
@@ -3826,11 +3826,13 @@ function SourceConfiguration({
 export default function DataSourceStep({
   onConfigurationChange,
   onSourceTypeChange,
+  onSelectedDatabaseChange,
   onQueryPreviewChange,
   onLoadingChange,
 }: {
   onConfigurationChange?: (configured: boolean) => void;
   onSourceTypeChange?: (selected: boolean) => void;
+  onSelectedDatabaseChange?: (databaseId: string | null) => void;
   onQueryPreviewChange?: (query: string) => void;
   onLoadingChange?: (loading: boolean) => void;
 }) {
@@ -3938,6 +3940,12 @@ export default function DataSourceStep({
   useEffect(() => {
     onSourceTypeChange?.(Boolean(sourceType));
   }, [onSourceTypeChange, sourceType]);
+
+  useEffect(() => {
+    onSelectedDatabaseChange?.(
+      sourceType === "database" ? selectedDatabaseId : null,
+    );
+  }, [onSelectedDatabaseChange, selectedDatabaseId, sourceType]);
 
   useEffect(() => {
     onQueryPreviewChange?.(activeQueryPreview);

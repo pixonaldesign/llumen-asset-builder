@@ -21,6 +21,7 @@ export type GeneralInfo = {
   name: string;
   description: string;
   insight: string;
+  aiContext: string;
   location: string[];
   tags: string[];
   updateFrequency: string;
@@ -592,7 +593,9 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
     setAiMenuOpen(false);
     setIsGenerating(true);
     generationTimer.current = window.setTimeout(() => {
-      onFillWithAI?.(generationInstructions.trim() || undefined);
+      onFillWithAI?.(
+        generationInstructions.trim() || value.aiContext.trim() || undefined,
+      );
       setIsGenerating(false);
       setHasGenerated(true);
       generationTimer.current = null;
@@ -661,7 +664,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
                     setInstructionsOpen(true);
                   }}
                 >
-                  <span className="cp-picker-row-name">Add instructions</span>
+                  <span className="cp-picker-row-name">Add Prompt</span>
                 </button>
               </div>
             </div>
@@ -802,6 +805,26 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
               </span>
             </label>
           )}
+        </div>
+
+        <div className="general-info-field">
+          <div className="general-info-field__label-row">
+            <label
+              className="general-info-field__label"
+              htmlFor="general-info-ai-context"
+            >
+              AI Context
+            </label>
+            <span className="general-info-field__status">Optional</span>
+          </div>
+          <textarea
+            id="general-info-ai-context"
+            className="general-info-field__input general-info-field__textarea general-info-field__ai-context"
+            value={value.aiContext}
+            onChange={(event) => set({ aiContext: event.target.value })}
+            placeholder="Add context or instructions for AI"
+            rows={3}
+          />
         </div>
       </div>
 

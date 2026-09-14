@@ -1770,6 +1770,7 @@ export default function EditComponentModal({
   const [config, setConfig] = useState<Config>({});
   const [dataSourceConfigured, setDataSourceConfigured] = useState(false);
   const [dataSourceTypeSelected, setDataSourceTypeSelected] = useState(false);
+  const [selectedDatabaseId, setSelectedDatabaseId] = useState<string | null>(null);
   const [dataSourceQuery, setDataSourceQuery] = useState("");
   const [dataSourceLoading, setDataSourceLoading] = useState(false);
   const [deepDiveHasTabs, setDeepDiveHasTabs] = useState(false);
@@ -1778,6 +1779,7 @@ export default function EditComponentModal({
     name: componentName ?? "",
     description: "",
     insight: "",
+    aiContext: "",
     location: [],
     tags: [],
     updateFrequency: "",
@@ -2170,6 +2172,7 @@ export default function EditComponentModal({
               <DataSourceStep
                 onConfigurationChange={setDataSourceConfigured}
                 onSourceTypeChange={setDataSourceTypeSelected}
+                onSelectedDatabaseChange={setSelectedDatabaseId}
                 onQueryPreviewChange={setDataSourceQuery}
                 onLoadingChange={setDataSourceLoading}
               />
@@ -2178,6 +2181,7 @@ export default function EditComponentModal({
               <div className="settings__content settings__content--viz-picker">
                 <VisualTypePicker
                   selectedId={selectedVisualId}
+                  databaseId={selectedDatabaseId}
                   onSelect={selectVisual}
                 />
               </div>
@@ -2231,6 +2235,7 @@ export default function EditComponentModal({
                       insight:
                         generalInfo.insight ||
                         `Monitor ${chart.name.toLowerCase()} to identify meaningful changes and trends.`,
+                      aiContext: generalInfo.aiContext,
                       location: generalInfo.location,
                       tags:
                         generalInfo.tags.length > 0
@@ -2491,7 +2496,7 @@ export default function EditComponentModal({
                       <div className="asset-source-preview__connection">
                         <img
                           className="asset-source-preview__icon"
-                          src={`${import.meta.env.BASE_URL}figma/source-types/database.png`}
+                          src={`${import.meta.env.BASE_URL}figma/source-types/database.svg?v=2`}
                           alt=""
                           width="30"
                           height="30"
@@ -2691,7 +2696,7 @@ export default function EditComponentModal({
                       <div className="asset-source-preview__connection">
                         <img
                           className="asset-source-preview__icon"
-                          src={`${import.meta.env.BASE_URL}figma/source-types/database.png`}
+                          src={`${import.meta.env.BASE_URL}figma/source-types/database.svg?v=2`}
                           alt=""
                           width="30"
                           height="30"

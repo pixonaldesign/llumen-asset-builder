@@ -42,8 +42,9 @@ export function getChartVisualSrc(visualId: string): string | undefined {
 }
 
 export function getChartPickerIconSrc(visualId: string): string | undefined {
-  if (!CHART_PICKER_ICON_IDS.has(visualId)) return undefined;
-  return encodeURI(`${import.meta.env.BASE_URL}figma/chart-types/${visualId}.svg?v=2`);
+  const assetId = visualId === "legacy-kpi" ? "kpi-card" : visualId;
+  if (!CHART_PICKER_ICON_IDS.has(assetId)) return undefined;
+  return encodeURI(`${import.meta.env.BASE_URL}figma/chart-types/${assetId}.svg?v=2`);
 }
 
 export function isChartVisualAsset(visualId: string): boolean {

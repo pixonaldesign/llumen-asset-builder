@@ -55,6 +55,7 @@ export const NOTION_TYPE_BY_VISUAL_ID: Record<string, NotionVisualType> = {
   availability: "Availability",
   "kpi-card": "KPI Card",
   "kpi-grid": "KPI Grid",
+  "legacy-kpi": "KPI Card",
   table: "Data Table",
   points: "Points",
   wind: "Wind",

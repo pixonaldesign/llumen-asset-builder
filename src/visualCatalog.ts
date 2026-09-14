@@ -15,7 +15,7 @@ export interface VisualCategory {
 
 export const VISUAL_CATEGORIES: VisualCategory[] = [
   { id: "chart", label: "Charts" },
-  { id: "map-layer", label: "Maps" },
+  { id: "map-layer", label: "Map Layers" },
 ];
 
 export const VISUAL_TYPES: VisualType[] = [
@@ -118,6 +118,13 @@ export const VISUAL_TYPES: VisualType[] = [
     category: "chart",
   },
   {
+    id: "legacy-kpi",
+    label: "Legacy Kpi",
+    description: "Display a key metric using the legacy KPI presentation.",
+    chartId: "legacyKpi",
+    category: "chart",
+  },
+  {
     id: "table",
     label: "Data Table",
     description: "Inspect raw values in a sortable, readable table.",
@@ -134,7 +141,7 @@ export const VISUAL_TYPES: VisualType[] = [
   },
   {
     id: "fences",
-    label: "Fences",
+    label: "Links",
     description: "Draw linear boundaries or corridors on the map.",
     chartId: "line",
     category: "map-layer",

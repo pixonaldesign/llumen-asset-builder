@@ -292,7 +292,12 @@ export function derivePreviewSeries({
     "arcs", "fences", "pillars", "discs", "map-area", "heatmap", "points", "wind",
   ].includes(visualId);
 
-  if (chartId === "kpi" || visualId === "kpi-card" || visualId === "score-indicator") {
+  if (
+    chartId === "kpi" ||
+    chartId === "legacyKpi" ||
+    visualId === "kpi-card" ||
+    visualId === "score-indicator"
+  ) {
     const valueCol = mapped(config, "Value", yCol || "completion_rate");
     const calc = cfgStr(config, "Mapping", "Value calculation") || "First row";
     const nums = rows.map((r) => numCell(r, valueCol));

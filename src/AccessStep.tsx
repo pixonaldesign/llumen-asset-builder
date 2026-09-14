@@ -10,6 +10,7 @@ type AccessMember = {
   name: string;
   email: string;
   initials: string;
+  kind: "workspace" | "person";
   access: AccessLevel;
   isAdmin?: boolean;
 };
@@ -19,6 +20,7 @@ type InviteCandidate = {
   name: string;
   email: string;
   initials: string;
+  kind: "workspace" | "person";
 };
 
 const ACCESS_LEVELS: { value: AccessLevel; label: string }[] = [
@@ -35,28 +37,53 @@ const INVITE_ACCESS_LEVELS: { value: AccessLevel; label: string }[] = [
 
 const INVITE_DIRECTORY: InviteCandidate[] = [
   {
+    id: "workspace-data",
+    name: "Data & Insights",
+    email: "workspace:data-and-insights",
+    initials: "DI",
+    kind: "workspace",
+  },
+  {
+    id: "workspace-maps",
+    name: "Maps & Location",
+    email: "workspace:maps-and-location",
+    initials: "ML",
+    kind: "workspace",
+  },
+  {
+    id: "workspace-operations",
+    name: "Operations",
+    email: "workspace:operations",
+    initials: "OP",
+    kind: "workspace",
+  },
+  {
     id: "dir-jane",
     name: "Jane Cooper",
     email: "jane.cooper@llumen.com",
     initials: "JC",
+    kind: "person",
   },
   {
     id: "dir-michael",
     name: "Michael Chen",
     email: "michael.chen@llumen.com",
     initials: "MC",
+    kind: "person",
   },
   {
     id: "dir-sarah",
     name: "Sarah Williams",
     email: "sarah.williams@llumen.com",
     initials: "SW",
+    kind: "person",
   },
   {
     id: "dir-david",
     name: "David Patel",
     email: "david.patel@llumen.com",
     initials: "DP",
+    kind: "person",
   },
 ];
 
@@ -80,6 +107,7 @@ function candidateFromQuery(query: string): InviteCandidate {
     name,
     email: target.includes("@") ? target : `${localName.toLowerCase().replace(/\s+/g, ".")}@llumen.com`,
     initials,
+    kind: "person",
   };
 }
 
@@ -89,6 +117,7 @@ const INITIAL_MEMBERS: AccessMember[] = [
     name: "John Doe",
     email: "john.doe@example.com",
     initials: "JD",
+    kind: "person",
     access: "full",
     isAdmin: true,
   },
@@ -97,6 +126,7 @@ const INITIAL_MEMBERS: AccessMember[] = [
     name: "John Smith",
     email: "john.smith@example.com",
     initials: "JS",
+    kind: "person",
     access: "limited",
   },
   {
@@ -104,6 +134,7 @@ const INITIAL_MEMBERS: AccessMember[] = [
     name: "John Doe",
     email: "john.doe@example.com",
     initials: "JD",
+    kind: "person",
     access: "view",
   },
 ];
@@ -247,7 +278,9 @@ function AccessMemberRow({
             <span className="access-row__name">{member.name}</span>
             {member.isAdmin && <span className="access-row__badge">Admin</span>}
           </div>
-          <span className="access-row__email">{member.email}</span>
+          <span className="access-row__email">
+            {member.kind === "workspace" ? "Workspace" : member.email}
+          </span>
         </div>
       </div>
       <div className="access-row__actions">
@@ -295,6 +328,16 @@ export default function AccessStep() {
       );
     });
   }, [inviteQuery, takenEmails]);
+  const workspaceSuggestions = suggestions.filter(
+    (candidate) => candidate.kind === "workspace",
+  );
+  const peopleSuggestions = suggestions.filter(
+    (candidate) => candidate.kind === "person",
+  );
+  const workspaceMembers = members.filter(
+    (member) => member.kind === "workspace",
+  );
+  const peopleMembers = members.filter((member) => member.kind === "person");
 
   useEffect(() => {
     if (!suggestOpen) return;
@@ -350,6 +393,7 @@ export default function AccessStep() {
         name: person.name,
         email: person.email,
         initials: person.initials,
+        kind: person.kind,
         access: inviteAccess,
       })),
     ]);
@@ -427,24 +471,44 @@ export default function AccessStep() {
           {suggestOpen && suggestions.length > 0 && (
             <div className="access-step__invite-suggest" role="listbox" aria-label="People and workspaces">
               <div className="dropdown-menu__inner">
-                {suggestions.map((person) => (
-                  <button
-                    key={person.id}
-                    type="button"
-                    role="option"
-                    className="access-step__invite-suggest-row"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => addPending(person)}
-                  >
-                    <span className="access-row__avatar" aria-hidden="true">
-                      {person.initials}
-                    </span>
-                    <span>
-                      <strong>{person.name}</strong>
-                      <small>{person.email.startsWith("workspace:") ? "Workspace" : person.email}</small>
-                    </span>
-                  </button>
-                ))}
+                {[
+                  { id: "people", label: "People", items: peopleSuggestions },
+                  { id: "workspaces", label: "Workspaces", items: workspaceSuggestions },
+                ].map(
+                  (group) =>
+                    group.items.length > 0 && (
+                      <section
+                        className="access-step__invite-suggest-group"
+                        role="group"
+                        aria-labelledby={`access-suggest-${group.id}`}
+                        key={group.id}
+                      >
+                        <h4 id={`access-suggest-${group.id}`}>{group.label}</h4>
+                        {group.items.map((candidate) => (
+                          <button
+                            key={candidate.id}
+                            type="button"
+                            role="option"
+                            className="access-step__invite-suggest-row"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => addPending(candidate)}
+                          >
+                            <span className="access-row__avatar" aria-hidden="true">
+                              {candidate.initials}
+                            </span>
+                            <span>
+                              <strong>{candidate.name}</strong>
+                              <small>
+                                {candidate.kind === "workspace"
+                                  ? "Workspace"
+                                  : candidate.email}
+                              </small>
+                            </span>
+                          </button>
+                        ))}
+                      </section>
+                    ),
+                )}
               </div>
             </div>
           )}
@@ -459,16 +523,33 @@ export default function AccessStep() {
         </button>
       </div>
 
-      <ul className="access-step__list">
-        {members.map((member) => (
-          <AccessMemberRow
-            key={member.id}
-            member={member}
-            onAccessChange={(access) => updateMemberAccess(member.id, access)}
-            onRemove={() => removeMember(member.id)}
-          />
+      <div className="access-step__member-groups">
+        {[
+          { id: "people", label: "People", items: peopleMembers },
+          { id: "workspaces", label: "Workspaces", items: workspaceMembers },
+        ].map((group) => (
+          <section className="access-step__member-group" key={group.id}>
+            <h4>{group.label}</h4>
+            <ul className="access-step__list">
+              {group.items.map((member) => (
+                <AccessMemberRow
+                  key={member.id}
+                  member={member}
+                  onAccessChange={(access) =>
+                    updateMemberAccess(member.id, access)
+                  }
+                  onRemove={() => removeMember(member.id)}
+                />
+              ))}
+              {group.items.length === 0 && (
+                <li className="access-step__list-empty">
+                  No {group.label.toLowerCase()} added
+                </li>
+              )}
+            </ul>
+          </section>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

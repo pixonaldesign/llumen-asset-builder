@@ -11,6 +11,7 @@ import {
   isSquarePreviewComponent,
 } from "./componentPreviewImages";
 import { PlusIcon, TrashIcon } from "./icons";
+import { allColumnNames } from "./mockDataset";
 import { visualTypeById } from "./visualCatalog";
 import WidgetFrame from "./WidgetFrame";
 
@@ -59,10 +60,188 @@ function setCardDragImage(e: React.DragEvent, card: HTMLElement) {
 }
 
 const MODULAR_SLOT_COUNT = 24;
+const DEFAULT_DATA_FIELDS = ["district_id", "district_name_ar", "municipality"];
+const DATA_FIELD_OPTIONS = Array.from(
+  new Set([...DEFAULT_DATA_FIELDS, ...allColumnNames()]),
+);
 
 function widgetTypeLabel(item: ComponentLibraryItem): string {
   const visual = visualTypeById(item.visualId);
   return visual?.label ?? item.type.replace(/_/g, " ");
+}
+
+function DeepDiveDataFields() {
+  const [search, setSearch] = useState("");
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [pendingFields, setPendingFields] = useState<string[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const availableFields = DATA_FIELD_OPTIONS.filter(
+    (field) =>
+      !selectedFields.includes(field) &&
+      field.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const togglePendingField = (field: string) => {
+    setPendingFields((current) =>
+      current.includes(field)
+        ? current.filter((item) => item !== field)
+        : [...current, field],
+    );
+  };
+
+  const addFields = () => {
+    if (!pendingFields.length) return;
+    setSelectedFields((current) => [...current, ...pendingFields]);
+    setPendingFields([]);
+    setSearch("");
+    setMenuOpen(false);
+  };
+
+  return (
+    <section className="dd-data-fields" aria-labelledby="dd-data-fields-title">
+      <div className="dd-data-fields__head">
+        <h3 id="dd-data-fields-title">Data fields</h3>
+        <p>
+          Search available data columns to save with this data dive for future filtering and context.
+        </p>
+      </div>
+      <div className="dd-data-fields__controls">
+        <div className="dd-data-fields__picker" ref={pickerRef}>
+          <div
+            className="dd-data-fields__combobox"
+            role="combobox"
+            aria-expanded={menuOpen}
+            aria-controls="dd-data-fields-menu"
+            onClick={() => setMenuOpen(true)}
+          >
+            {pendingFields.map((field) => (
+              <span
+                className="dd-data-field-chip dd-data-field-chip--pending"
+                key={field}
+              >
+                <span>{field}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${field} from selection`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    togglePendingField(field);
+                  }}
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+            {pendingFields.length === 0 && (
+              <input
+                type="search"
+                value={search}
+                autoComplete="off"
+                onFocus={() => setMenuOpen(true)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setMenuOpen(true);
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key !== "Enter" ||
+                    !search.trim() ||
+                    !availableFields[0]
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  togglePendingField(availableFields[0]);
+                  setSearch("");
+                }}
+                placeholder="Search data fields..."
+                aria-label="Search data fields"
+              />
+            )}
+          </div>
+          {menuOpen && (
+            <div
+              id="dd-data-fields-menu"
+              className="dd-data-fields__menu pg-surface-dropdown-menu"
+              role="listbox"
+              aria-label="Available data fields"
+              aria-multiselectable="true"
+            >
+              <div className="dropdown-menu__inner">
+                {availableFields.map((field) => {
+                  const selected = pendingFields.includes(field);
+                  return (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      className={
+                        "dd-data-fields__option" +
+                        (selected ? " is-selected" : "")
+                      }
+                      key={field}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => togglePendingField(field)}
+                    >
+                      <span>{field}</span>
+                      {selected && (
+                        <Check size={15} weight="bold" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+                {availableFields.length === 0 && (
+                  <p className="dd-data-fields__empty">
+                    No available data fields match your search.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        <button type="button" disabled={!pendingFields.length} onClick={addFields}>
+          Add
+        </button>
+      </div>
+      <div className="dd-data-fields__chips" aria-label="Selected data fields">
+        {selectedFields.map((field) => (
+          <span className="dd-data-field-chip" key={field}>
+            <span>{field}</span>
+            <button
+              type="button"
+              aria-label={`Remove ${field}`}
+              onClick={() =>
+                setSelectedFields((current) =>
+                  current.filter((item) => item !== field),
+                )
+              }
+            >
+              <X size={13} aria-hidden="true" />
+            </button>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function DeepDiveTabChip({
@@ -723,6 +902,8 @@ export default function DeepDiveStep({
           <span>Add Tab</span>
         </button>
       </div>
+
+      {hasTabs && <DeepDiveDataFields />}
 
       {activeTab && (
         <section className="dd-panel" aria-label={`${activeTab.name} assets`}>

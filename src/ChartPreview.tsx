@@ -331,13 +331,16 @@ function AxisChrome({
   labels,
   max,
   min = 0,
+  unit = "",
 }: {
   cfg: Cfg;
   box: ReturnType<typeof plotBox>;
   labels: string[];
   max: number;
   min?: number;
+  unit?: string;
 }) {
+  const { W } = usePlot();
   const format = str(cfg("Scaling / axes", "Format", ""), "");
   const tickMode = str(cfg("Scaling / axes", "Tick mode", "Standard"), "Standard");
   const showTicks = listHas(box.ticks, "Show Ticks");
@@ -350,6 +353,27 @@ function AxisChrome({
   const yLabelX = box.left - (box.showTickLabels ? 34 : 16);
   const yLabelY = (box.top + box.bottom) / 2;
   const xLabelY = box.bottom + (box.showTickLabels ? 26 : 14);
+  const yTickUnit = unit
+    ? /^[%°]/.test(unit)
+      ? unit
+      : ` ${unit}`
+    : "";
+  const compactXAxis = W < 220;
+  const maxVisibleXTicks = compactXAxis
+    ? Math.max(2, Math.floor(box.width / 52))
+    : labels.length;
+  const visibleXTickIndices = new Set(
+    Array.from(
+      { length: Math.min(labels.length, maxVisibleXTicks) },
+      (_, index) =>
+        maxVisibleXTicks <= 1
+          ? 0
+          : Math.round(
+              (index * Math.max(labels.length - 1, 0)) /
+                Math.max(maxVisibleXTicks - 1, 1),
+            ),
+    ),
+  );
   return (
     <g>
       {showGrid &&
@@ -368,15 +392,27 @@ function AxisChrome({
           return (
             <text key={`l${i}`} x={box.left - 6} y={y + 4} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="end">
               {formatBySpec(t, format)}
+              {yTickUnit}
             </text>
           );
         })}
       {box.showTickLabels &&
         labels.map((lab, i) => {
-          const x = box.left + ((i + 0.5) / Math.max(labels.length, 1)) * box.width;
+          if (compactXAxis && !visibleXTickIndices.has(i)) return null;
+          const columnX =
+            box.left +
+            ((i + 0.5) / Math.max(labels.length, 1)) * box.width;
+          const x =
+            columnX +
+            (compactXAxis && i === 0
+              ? 5
+              : compactXAxis && i === labels.length - 1
+                ? -5
+                : 0);
+          const maxChars = compactXAxis ? 7 : 12;
           return (
-            <text key={`x${i}`} x={x} y={box.bottom + 13} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="middle">
-              {lab.length > 12 ? `${lab.slice(0, 11)}…` : lab}
+            <text key={`x${i}`} x={x} y={box.bottom + 13} fill={INK} fontSize={compactXAxis ? 9 : FS_TICK} fontWeight="500" textAnchor="middle">
+              {lab.length > maxChars ? `${lab.slice(0, maxChars - 1)}…` : lab}
             </text>
           );
         })}
@@ -641,7 +677,7 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
           <GradientPaint id={gradId} mode={mode} box={box} min={min} max={stackedMax} />
         </defs>
       )}
-      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={stack && groups && !hasTotals ? stackedMax : max} min={min} />}
+      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={stack && groups && !hasTotals ? stackedMax : max} min={min} unit={series?.storyKpi?.unit} />}
       {data.map((d, i) => {
         const x = box.left + i * slot + (slot - bw) / 2;
         const srcIndex = paired[i]?.i ?? i;
@@ -765,7 +801,7 @@ function LineArea({ cfg, chartId, minimal, compact, series, decorate, setHover, 
           <GradientPaint id={gradId} mode={mode} box={box} min={min} max={max} />
         </defs>
       )}
-      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={max} min={min} />}
+      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={max} min={min} unit={series?.storyKpi?.unit} />}
       {lines.map((line, li) => {
         const pts = toPts(line.values);
         const path = buildPath(pts, curve);
@@ -1098,7 +1134,7 @@ function Scatter({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave }: 
 
   return (
     <>
-      {decorate && <AxisChrome cfg={cfg} box={plot} labels={["min", "max"]} max={maxY} min={minY} />}
+      {decorate && <AxisChrome cfg={cfg} box={plot} labels={["min", "max"]} max={maxY} min={minY} unit={series?.storyKpi?.unit} />}
       {marks.map((p, i) => {
         const color = colorMode(cfg, cats.indexOf(p.category), p.value, maxV, p.category, Math.max(cats.length, marks.length), p.along);
         return (
@@ -1248,7 +1284,7 @@ function RangeChart({ cfg, series, decorate, setHover, onMarkEnter, onMarkLeave 
   const bw = slot * 0.45;
   return (
     <>
-      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={max} min={min} />}
+      {decorate && <AxisChrome cfg={cfg} box={box} labels={labels} max={max} min={min} unit={series?.storyKpi?.unit} />}
       <defs>
         <linearGradient id="cp-range-grad" x1="0" y1="1" x2="0" y2="0">
           {stops.map((s) => (
@@ -1555,6 +1591,9 @@ export default function ChartPreview({
     onMarkLeave,
   };
   const isMap = visualId ? MAP_IDS.has(visualId) : false;
+  const storyUnitOnYAxis =
+    !isMap &&
+    ["bar", "line", "area", "scatter", "range"].includes(chartId);
   const tipText =
     decorate && hover != null
       ? isMap
@@ -1608,7 +1647,9 @@ export default function ChartPreview({
         {decorate && series?.storyKpi && (
           <div className="cp-preview__story-kpi">
             <strong>{series.storyKpi.value}</strong>
-            <StoryKpiUnit unit={series.storyKpi.unit} />
+            {!storyUnitOnYAxis && (
+              <StoryKpiUnit unit={series.storyKpi.unit} />
+            )}
           </div>
         )}
         {showBadge && series?.badge && (
