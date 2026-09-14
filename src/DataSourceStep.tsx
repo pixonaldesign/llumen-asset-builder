@@ -39,6 +39,13 @@ type SourceType =
   | "data-flow"
   | "marketplace"
   | "etl-flow";
+
+export type DataSourceSummary = {
+  type: string;
+  name: string;
+  detail: string;
+};
+
 type MlInputSource = "database" | "api" | "file-source" | "local-file";
 type PickerContext = "source" | "ml";
 type DatabaseType = "Fusion" | "PostgreSQL";
@@ -3827,12 +3834,14 @@ export default function DataSourceStep({
   onConfigurationChange,
   onSourceTypeChange,
   onSelectedDatabaseChange,
+  onSourceSummaryChange,
   onQueryPreviewChange,
   onLoadingChange,
 }: {
   onConfigurationChange?: (configured: boolean) => void;
   onSourceTypeChange?: (selected: boolean) => void;
   onSelectedDatabaseChange?: (databaseId: string | null) => void;
+  onSourceSummaryChange?: (summary: DataSourceSummary | null) => void;
   onQueryPreviewChange?: (query: string) => void;
   onLoadingChange?: (loading: boolean) => void;
 }) {
@@ -3883,6 +3892,8 @@ export default function DataSourceStep({
     ) ?? null;
   const selectedApi =
     API_SOURCES.find((source) => source.id === selectedApiId && source.active) ?? null;
+  const selectedApiRequest =
+    selectedApi?.requests.find((request) => request.id === selectedRequest) ?? null;
   const selectedFile =
     FILE_SOURCES.find((source) => source.id === selectedFileId && source.active) ?? null;
   const mlSelectedDatabase =
@@ -3891,6 +3902,8 @@ export default function DataSourceStep({
     ) ?? null;
   const mlSelectedApi =
     API_SOURCES.find((source) => source.id === mlSelectedApiId && source.active) ?? null;
+  const mlSelectedApiRequest =
+    mlSelectedApi?.requests.find((request) => request.id === mlSelectedRequest) ?? null;
   const hasSelectedApiRequest =
     selectedApi?.requests.some((request) => request.id === selectedRequest) ?? false;
   const hasMlSelectedApiRequest =
@@ -3946,6 +3959,83 @@ export default function DataSourceStep({
       sourceType === "database" ? selectedDatabaseId : null,
     );
   }, [onSelectedDatabaseChange, selectedDatabaseId, sourceType]);
+
+  useEffect(() => {
+    let summary: DataSourceSummary | null = null;
+    if (sourceType === "database" && selectedDatabase) {
+      summary = {
+        type: "Database",
+        name: selectedDatabase.name,
+        detail: selectedDatabase.description || selectedDatabase.schema,
+      };
+    } else if (sourceType === "api" && selectedApi && selectedApiRequest) {
+      summary = {
+        type: "API Request",
+        name: selectedApiRequest.name,
+        detail: `${selectedApiRequest.method} ${selectedApiRequest.endpoint} · ${selectedApi.name}`,
+      };
+    } else if (sourceType === "file-upload" && selectedFile) {
+      summary = {
+        type: "File",
+        name: selectedFile.name,
+        detail: `${selectedFile.fileName} · ${selectedFile.rows.toLocaleString()} rows`,
+      };
+    } else if (
+      (sourceType === "data-flow" || sourceType === "etl-flow") &&
+      selectedDataFlow
+    ) {
+      summary = {
+        type: sourceType === "etl-flow" ? "ETL Flow" : "Data Flow",
+        name: selectedDataFlow.name,
+        detail: selectedDataFlow.description,
+      };
+    } else if (sourceType === "marketplace" && selectedMarketplaceProvider) {
+      summary = {
+        type: "Marketplace",
+        name: selectedMarketplaceProvider.name,
+        detail: selectedMarketplaceProvider.description,
+      };
+    } else if (sourceType === "ml-model") {
+      if (mlInputSource === "database" && mlSelectedDatabase) {
+        summary = {
+          type: "ML Model · Database",
+          name: mlSelectedDatabase.name,
+          detail: mlSelectedDatabase.description || mlSelectedDatabase.schema,
+        };
+      } else if (
+        mlInputSource === "api" &&
+        mlSelectedApi &&
+        mlSelectedApiRequest
+      ) {
+        summary = {
+          type: "ML Model · API Request",
+          name: mlSelectedApiRequest.name,
+          detail: `${mlSelectedApiRequest.method} ${mlSelectedApiRequest.endpoint} · ${mlSelectedApi.name}`,
+        };
+      } else if (mlInputSource === "file-source" && mlSelectedFile) {
+        summary = {
+          type: "ML Model · File",
+          name: mlSelectedFile.name,
+          detail: mlSelectedFile.fileName,
+        };
+      }
+    }
+    onSourceSummaryChange?.(summary);
+  }, [
+    mlInputSource,
+    mlSelectedApi,
+    mlSelectedApiRequest,
+    mlSelectedDatabase,
+    mlSelectedFile,
+    onSourceSummaryChange,
+    selectedApi,
+    selectedApiRequest,
+    selectedDataFlow,
+    selectedDatabase,
+    selectedFile,
+    selectedMarketplaceProvider,
+    sourceType,
+  ]);
 
   useEffect(() => {
     onQueryPreviewChange?.(activeQueryPreview);

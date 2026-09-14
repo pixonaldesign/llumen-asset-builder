@@ -70,7 +70,7 @@ import {
   type GradientStop,
   type RepeatableRow,
 } from "./previewTheme";
-import DataSourceStep from "./DataSourceStep";
+import DataSourceStep, { type DataSourceSummary } from "./DataSourceStep";
 import FiltersStep from "./FiltersStep";
 import DeepDiveStep from "./DeepDiveStep";
 import AccessStep from "./AccessStep";
@@ -1739,6 +1739,269 @@ function GroupCard({
   );
 }
 
+function assetInfoValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "Not set";
+  if (Array.isArray(value)) {
+    return value.length ? value.map((item) => assetInfoValue(item)).join(", ") : "Not set";
+  }
+  if (typeof value === "boolean") return value ? "On" : "Off";
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+function isAssetInfoColor(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (/^#[0-9a-f]{3,8}$/i.test(value.trim()) ||
+      /^(rgb|hsl)a?\(/i.test(value.trim()))
+  );
+}
+
+function AssetInfoSettingValue({ value }: { value: unknown }) {
+  if (isAssetInfoColor(value)) {
+    return (
+      <span className="asset-info-color-value">
+        <i style={{ background: value }} aria-hidden="true" />
+        <span>{value}</span>
+      </span>
+    );
+  }
+  if (Array.isArray(value)) {
+    const colors = value.filter(isAssetInfoColor);
+    if (colors.length === value.length && colors.length > 0) {
+      return (
+        <span className="asset-info-color-values">
+          {colors.map((color, index) => (
+            <i
+              key={`${color}-${index}`}
+              style={{ background: color }}
+              title={color}
+              aria-label={color}
+            />
+          ))}
+        </span>
+      );
+    }
+    const colorRows = value.filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(
+          item &&
+            typeof item === "object" &&
+            typeof (item as Record<string, unknown>).color === "string",
+        ),
+    );
+    if (colorRows.length === value.length && colorRows.length > 0) {
+      return (
+        <div className="asset-info-color-list">
+          {colorRows.map((row, index) => {
+            const color = String(row.color);
+            const label =
+              typeof row.label === "string" && row.label
+                ? row.label
+                : `Color ${index + 1}`;
+            const min = typeof row.min === "string" ? row.min : "";
+            const max = typeof row.max === "string" ? row.max : "";
+            const range = [min, max].filter(Boolean).join(" – ");
+            const opacity =
+              typeof row.opacity === "number" ? `${row.opacity}%` : "100%";
+            return (
+              <div className="asset-info-color-list__row" key={`${label}-${index}`}>
+                <span
+                  className="asset-info-color-list__swatch"
+                  style={{ background: color }}
+                  aria-hidden="true"
+                />
+                <span className="asset-info-color-list__copy">
+                  <strong>{label}</strong>
+                  <small>
+                    {[color, range || null, `${opacity} opacity`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </small>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+  }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const palette = value as Record<string, unknown>;
+    const colors = Array.isArray(palette.colors)
+      ? palette.colors.filter(
+          (color): color is string => typeof color === "string",
+        )
+      : [];
+    if (colors.length > 0) {
+      const paletteName =
+        typeof palette.paletteName === "string"
+          ? palette.paletteName
+          : "Custom palette";
+      const family =
+        typeof palette.paletteFamily === "string"
+          ? palette.paletteFamily
+          : "Palette";
+      const style =
+        typeof palette.style === "string" ? palette.style : undefined;
+      const selectedColor =
+        typeof palette.color === "string" ? palette.color : colors[0];
+      const opacity =
+        typeof palette.opacity === "number" ? `${palette.opacity}%` : "100%";
+      return (
+        <div className="asset-info-palette">
+          <div className="asset-info-palette__swatches" aria-hidden="true">
+            {colors.map((color, index) => (
+              <span
+                key={`${color}-${index}`}
+                style={{ background: color }}
+              />
+            ))}
+          </div>
+          <div className="asset-info-palette__summary">
+            <strong>{paletteName}</strong>
+            <span>{[family, style].filter(Boolean).join(" · ")}</span>
+            <small>
+              <i style={{ background: selectedColor }} aria-hidden="true" />
+              {selectedColor} · {opacity} opacity
+            </small>
+          </div>
+        </div>
+      );
+    }
+  }
+  return <>{assetInfoValue(value)}</>;
+}
+
+function AssetInformationModal({
+  onClose,
+  visualLabel,
+  chartName,
+  size,
+  source,
+  config,
+  generalInfo,
+}: {
+  onClose: () => void;
+  visualLabel: string;
+  chartName: string;
+  size: PreviewSize;
+  source: DataSourceSummary | null;
+  config: Config;
+  generalInfo: GeneralInfo;
+}) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  const settings = Object.entries(config).filter(
+    ([, value]) => value !== undefined && value !== null && value !== "",
+  );
+  const generalRows = [
+    ["Asset name", generalInfo.name],
+    ["Description", generalInfo.description],
+    ["Insight", generalInfo.insight],
+    ["Location", generalInfo.location],
+    ["Tags", generalInfo.tags],
+    ["Update frequency", generalInfo.updateFrequency || "None"],
+    ["Custom frequency", generalInfo.customUpdateFrequency],
+    ["Auto-refresh", generalInfo.scheduleAutoRefresh],
+    ["Category", generalInfo.category],
+    ["AI context", generalInfo.aiContext],
+  ] as const;
+
+  return createPortal(
+    <div
+      className="general-info-ai-instructions-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="general-info-ai-instructions asset-info-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="asset-info-modal-title"
+      >
+        <header>
+          <span>
+            <h2 id="asset-info-modal-title">Asset information</h2>
+          </span>
+          <button type="button" aria-label="Close asset information" onClick={onClose}>
+            <CloseIcon width={16} height={16} aria-hidden="true" />
+          </button>
+        </header>
+
+        <div className="asset-info-modal__body">
+          <section className="asset-info-modal__section">
+            <h3>Visual chart</h3>
+            <dl>
+              <div><dt>Visualization</dt><dd>{visualLabel}</dd></div>
+              <div><dt>Chart type</dt><dd>{chartName}</dd></div>
+              <div><dt>Preview size</dt><dd>{size[0].toUpperCase() + size.slice(1)}</dd></div>
+            </dl>
+          </section>
+
+          <section className="asset-info-modal__section">
+            <h3>Data source</h3>
+            <dl>
+              <div><dt>Source type</dt><dd>{source?.type ?? "Not configured"}</dd></div>
+              <div><dt>Source</dt><dd>{source?.name ?? "Not configured"}</dd></div>
+              <div><dt>Details</dt><dd>{source?.detail || "Not set"}</dd></div>
+            </dl>
+          </section>
+
+          <section className="asset-info-modal__section">
+            <h3>Visualization settings</h3>
+            <dl>
+              {settings.length > 0 ? (
+                settings.map(([key, value]) => {
+                  const [group, name] = key.split("::");
+                  return (
+                    <div key={key}>
+                      <dt>{name ? `${group} · ${name}` : key}</dt>
+                      <dd><AssetInfoSettingValue value={value} /></dd>
+                    </div>
+                  );
+                })
+              ) : (
+                <div><dt>Settings</dt><dd>No custom settings</dd></div>
+              )}
+            </dl>
+          </section>
+
+          <section className="asset-info-modal__section">
+            <h3>General info</h3>
+            <dl>
+              {generalRows.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{assetInfoValue(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+
+        <footer>
+          <button type="button" onClick={onClose}>Close</button>
+        </footer>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
 /* ---------- modal ---------- */
 export default function EditComponentModal({
   onClose,
@@ -1771,10 +2034,13 @@ export default function EditComponentModal({
   const [dataSourceConfigured, setDataSourceConfigured] = useState(false);
   const [dataSourceTypeSelected, setDataSourceTypeSelected] = useState(false);
   const [selectedDatabaseId, setSelectedDatabaseId] = useState<string | null>(null);
+  const [dataSourceSummary, setDataSourceSummary] =
+    useState<DataSourceSummary | null>(null);
   const [dataSourceQuery, setDataSourceQuery] = useState("");
   const [dataSourceLoading, setDataSourceLoading] = useState(false);
   const [deepDiveHasTabs, setDeepDiveHasTabs] = useState(false);
   const [deepDivePreviewOpen, setDeepDivePreviewOpen] = useState(false);
+  const [assetInfoOpen, setAssetInfoOpen] = useState(false);
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     name: componentName ?? "",
     description: "",
@@ -2173,6 +2439,7 @@ export default function EditComponentModal({
                 onConfigurationChange={setDataSourceConfigured}
                 onSourceTypeChange={setDataSourceTypeSelected}
                 onSelectedDatabaseChange={setSelectedDatabaseId}
+                onSourceSummaryChange={setDataSourceSummary}
                 onQueryPreviewChange={setDataSourceQuery}
                 onLoadingChange={setDataSourceLoading}
               />
@@ -2628,13 +2895,41 @@ export default function EditComponentModal({
                             ? " chart-card--deep-dive-preview"
                             : "")
                         }
+                        role={isDeepDiveStep && deepDiveHasTabs ? "button" : undefined}
+                        tabIndex={isDeepDiveStep && deepDiveHasTabs ? 0 : undefined}
+                        aria-label={
+                          isDeepDiveStep && deepDiveHasTabs
+                            ? "Open Deep Dive preview"
+                            : undefined
+                        }
+                        onClick={() => {
+                          if (isDeepDiveStep && deepDiveHasTabs) {
+                            setDeepDivePreviewOpen(true);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if ((event.target as HTMLElement).closest("button")) {
+                            return;
+                          }
+                          if (
+                            isDeepDiveStep &&
+                            deepDiveHasTabs &&
+                            (event.key === "Enter" || event.key === " ")
+                          ) {
+                            event.preventDefault();
+                            setDeepDivePreviewOpen(true);
+                          }
+                        }}
                       >
                         {isDeepDiveStep && deepDiveHasTabs && (
                           <button
                             type="button"
                             className="chart-card__deep-dive-info"
-                            aria-label="Preview Deep Dive assets"
-                            onClick={() => setDeepDivePreviewOpen(true)}
+                            aria-label="View asset information"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setAssetInfoOpen(true);
+                            }}
                           >
                             <Info size={14} weight="regular" aria-hidden="true" />
                           </button>
@@ -2764,6 +3059,17 @@ export default function EditComponentModal({
           </footer>
         </div>
       </div>
+      {assetInfoOpen && (
+        <AssetInformationModal
+          onClose={() => setAssetInfoOpen(false)}
+          visualLabel={displayVisualLabel}
+          chartName={chart.name}
+          size={size}
+          source={dataSourceSummary}
+          config={resolvedConfig}
+          generalInfo={generalInfo}
+        />
+      )}
       </ColorPaletteProvider>
     </div>
   );

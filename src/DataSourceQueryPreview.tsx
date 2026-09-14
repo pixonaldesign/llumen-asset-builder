@@ -1,3 +1,5 @@
+import { useCallback, useLayoutEffect, useRef } from "react";
+
 const QUERY_COLUMNS = [
   "grid_id",
   "longitude",
@@ -24,6 +26,42 @@ const QUERY_ROWS = Array.from({ length: 30 }, (_, index) => {
 });
 
 export default function DataSourceQueryPreview() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  const syncScrollIndicator = useCallback(() => {
+    const scroller = scrollRef.current;
+    const indicator = indicatorRef.current;
+    if (!scroller || !indicator) return;
+    const { clientHeight, scrollHeight, scrollTop } = scroller;
+    const scrollable = scrollHeight > clientHeight + 1;
+    indicator.hidden = !scrollable;
+    if (!scrollable) return;
+    const trackHeight = Math.max(0, clientHeight - 4);
+    const indicatorHeight = Math.max(
+      24,
+      (clientHeight / scrollHeight) * trackHeight,
+    );
+    const maxScrollTop = scrollHeight - clientHeight;
+    const maxIndicatorTop = Math.max(0, trackHeight - indicatorHeight);
+    const indicatorTop =
+      scroller.offsetTop +
+      2 +
+      (scrollTop / Math.max(maxScrollTop, 1)) * maxIndicatorTop;
+    indicator.style.height = `${indicatorHeight}px`;
+    indicator.style.transform = `translateY(${indicatorTop}px)`;
+  }, []);
+
+  useLayoutEffect(() => {
+    syncScrollIndicator();
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const observer = new ResizeObserver(syncScrollIndicator);
+    observer.observe(scroller);
+    const table = scroller.querySelector("table");
+    if (table) observer.observe(table);
+    return () => observer.disconnect();
+  }, [syncScrollIndicator]);
+
   return (
     <div className="data-source-query-preview" aria-label="Query results">
       <table className="data-source-query-preview__header">
@@ -42,7 +80,11 @@ export default function DataSourceQueryPreview() {
           </tr>
         </thead>
       </table>
-      <div className="data-source-query-preview__scroll">
+      <div
+        ref={scrollRef}
+        className="data-source-query-preview__scroll"
+        onScroll={syncScrollIndicator}
+      >
         <table aria-label="Query result rows">
           <colgroup>
             {QUERY_COLUMN_WIDTHS.map((width, index) => (
@@ -60,6 +102,11 @@ export default function DataSourceQueryPreview() {
           </tbody>
         </table>
       </div>
+      <span
+        ref={indicatorRef}
+        className="data-source-query-preview__scroll-indicator"
+        aria-hidden="true"
+      />
     </div>
   );
 }
