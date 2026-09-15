@@ -2474,17 +2474,6 @@ const QUERY_FILTER_OPTIONS = [
   "Violation Type",
 ];
 
-function queryVariableAtOffset(value: string, offset: number) {
-  const pattern = /\$[A-Za-z_][A-Za-z0-9_]*/g;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(value))) {
-    if (offset >= match.index && offset <= match.index + match[0].length) {
-      return match[0];
-    }
-  }
-  return null;
-}
-
 function HighlightedSql({
   value,
   filterBindings,
@@ -3124,30 +3113,6 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
             <textarea
               value={value}
               onChange={(event) => onChange(event.target.value)}
-              onClick={(event) => {
-                const variable = queryVariableAtOffset(
-                  value,
-                  event.currentTarget.selectionStart,
-                );
-                if (!variable) {
-                  setFilterPopover(null);
-                  return;
-                }
-                const width = 280;
-                const height = 320;
-                setFilterSearch("");
-                setFilterPopover({
-                  variable,
-                  left: Math.max(
-                    12,
-                    Math.min(event.clientX + 12, window.innerWidth - width - 12),
-                  ),
-                  top: Math.max(
-                    12,
-                    Math.min(event.clientY + 16, window.innerHeight - height - 12),
-                  ),
-                });
-              }}
               onScroll={(event) => {
                 setFilterPopover(null);
                 const highlight = event.currentTarget.previousElementSibling;
