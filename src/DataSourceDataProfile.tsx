@@ -122,6 +122,21 @@ const COLUMN_PROFILES: ColumnProfile[] = [
   },
 ];
 
+const REPRESENTATIVE_ROWS = [
+  ["734", "54.447012", "24.381584", "10,901"],
+  ["1", "54.363716", "24.488927", "10,000"],
+  ["1,467", "54.531837", "24.270192", "11,443"],
+  ["412", "54.419846", "24.421533", "17,959"],
+  ["1,098", "54.503211", "24.307041", "5,799"],
+];
+
+const REPRESENTATIVE_COLUMNS = [
+  { name: "GRID_ID", width: "20%" },
+  { name: "LONGITUDE", width: "26%" },
+  { name: "LATITUDE", width: "26%" },
+  { name: "POPULATION_DENSITY", width: "28%" },
+];
+
 function MiniHistogram({ values }: { values: number[] }) {
   const barWidth = 240 / values.length;
   return (
@@ -353,6 +368,49 @@ export default function DataSourceDataProfile() {
               alt=""
               aria-hidden="true"
             />
+          </div>
+        </div>
+
+        <div className="data-profile-availability__section data-profile-representative">
+          <header className="data-profile-representative__heading">
+            <h3>Representative Rows</h3>
+            <span>most typical + widest coverage</span>
+          </header>
+          <div className="data-source-query-preview data-profile-representative__table">
+            <table className="data-source-query-preview__header">
+              <colgroup>
+                {REPRESENTATIVE_COLUMNS.map((column) => (
+                  <col key={column.name} style={{ width: column.width }} />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  {REPRESENTATIVE_COLUMNS.map((column) => (
+                    <th key={column.name} scope="col">
+                      {column.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            </table>
+            <div className="data-source-query-preview__scroll">
+              <table aria-label="Representative data rows">
+                <colgroup>
+                  {REPRESENTATIVE_COLUMNS.map((column) => (
+                    <col key={column.name} style={{ width: column.width }} />
+                  ))}
+                </colgroup>
+                <tbody>
+                  {REPRESENTATIVE_ROWS.map((row) => (
+                    <tr key={row.join("-")}>
+                      {row.map((cell, index) => (
+                        <td key={`${index}-${cell}`}>{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>

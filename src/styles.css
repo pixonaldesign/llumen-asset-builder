@@ -2846,6 +2846,28 @@ button {
   font-weight: var(--font-weight-medium);
 }
 
+.data-profile-representative__heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-md);
+}
+
+.data-profile-representative__heading > span {
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-caption);
+}
+
+.data-profile-representative__table {
+  flex: none;
+  height: auto;
+}
+
+.data-profile-representative__table .data-source-query-preview__scroll {
+  flex: none;
+  height: 180px;
+  overflow-y: auto;
+}
+
 .data-profile-availability__controls {
   display: flex;
   align-items: center;
