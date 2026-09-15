@@ -617,7 +617,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
             {isGenerating ? (
               <span className="ds-query-generate-spinner" aria-hidden="true" />
             ) : (
-              <Sparkle size={14} weight="bold" aria-hidden="true" />
+              <Sparkle size={14} weight="fill" aria-hidden="true" />
             )}
             {isGenerating ? "Generating..." : hasGenerated ? "Regenerate" : "Fill fields with AI"}
           </button>
