@@ -33,7 +33,6 @@ import {
 import { charts } from "./chartModel";
 import type { Opt } from "./chartModel";
 import {
-  colorPickerProfileForVisual,
   defaultGradientAxisForVisual,
   fieldsForVisual,
   isFeatureTabOn,
@@ -49,7 +48,6 @@ import ColorPalette, {
   ColorPaletteProvider,
   PaletteSelector,
 } from "./ColorPalette";
-import ColorPickerSettings from "./ColorPickerSettings";
 import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
 import Dropdown from "./Dropdown";
@@ -176,6 +174,12 @@ const WIZARD_STEPS = ALL_WIZARD_STEPS.filter(
   (step) => FILTERS_STEP_ENABLED || step.id !== "filters",
 );
 
+type WizardStepperDesign = "rail" | "legacy";
+
+/** Set to "legacy" to restore the numbered stepper with the travelling bottom light. */
+const WIZARD_STEPPER_DESIGN = "rail" as WizardStepperDesign;
+const legacyStepper = WIZARD_STEPPER_DESIGN === "legacy";
+
 function isValueFilled(o: Opt, value: unknown): boolean {
   if (o.type === "toggle") return true;
   if (Array.isArray(value)) return value.length > 0;
@@ -295,15 +299,6 @@ function defaultColorList(o: Opt): Record<string, string> {
 
 function isPaletteField(o: Opt): boolean {
   return o.type === "color" && o.name === "Palette" && (o.group === "Colors" || o.group === "Color");
-}
-
-function isPickerManagedColorField(o: Opt): boolean {
-  return (
-    isPaletteField(o) ||
-    (o.group === "Color" &&
-      (o.name === "Color Source" ||
-        o.name === "Categorical color stops + Other"))
-  );
 }
 
 function defaultSlider(o: Opt): number {
@@ -2029,7 +2024,6 @@ export default function EditComponentModal({
   );
   const [query, setQuery] = useState("");
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
-  const [colorSettingsView, setColorSettingsView] = useState<"Picker" | "Palette">("Picker");
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("asset");
   const [dataPreviewMode, setDataPreviewMode] = useState<DataPreviewMode>("results");
@@ -2153,12 +2147,6 @@ export default function EditComponentModal({
   const normalizedSettingsQuery = query.trim().toLowerCase();
   const searchingVisualSettings = normalizedSettingsQuery.length > 0;
   const tabFields = visualFields.filter((o) => o.group === activeSubCategory);
-  const activePaletteField = tabFields.find(isPaletteField);
-  const isPaletteTab = Boolean(activePaletteField);
-  const colorPickerProfile = colorPickerProfileForVisual(displayVisualId);
-  const pickerSiblingFields = tabFields.filter(
-    (field) => !isPickerManagedColorField(field),
-  );
   const settingsSearchResults = searchingVisualSettings
     ? visualFields.filter(
         (o) =>
@@ -2399,17 +2387,23 @@ export default function EditComponentModal({
           </div>
         </header>
 
-        <nav ref={stepperRef} className="wizard-stepper" aria-label="Asset setup steps">
-          <div
-            className="wizard-stepper__glow"
-            aria-hidden="true"
-            style={{
-              transform: `translate(${stepGlow.x}px, 50%)`,
-              width: stepGlow.width,
-            }}
-          >
-            <div className="wizard-stepper__glow-bloom" />
-          </div>
+        <nav
+          ref={stepperRef}
+          className={"wizard-stepper wizard-stepper--" + WIZARD_STEPPER_DESIGN}
+          aria-label="Asset setup steps"
+        >
+          {legacyStepper && (
+            <div
+              className="wizard-stepper__glow"
+              aria-hidden="true"
+              style={{
+                transform: `translate(${stepGlow.x}px, 50%)`,
+                width: stepGlow.width,
+              }}
+            >
+              <div className="wizard-stepper__glow-bloom" />
+            </div>
+          )}
           {WIZARD_STEPS.map((step, i) => {
             const state = wizardStepState(i, currentStep, maxUnlockedStep);
             const complete =
@@ -2422,7 +2416,7 @@ export default function EditComponentModal({
                     : completedStepIds.has(step.id);
             return (
               <div key={step.id} className="wizard-stepper__slot">
-                {i > 0 && (
+                {legacyStepper && i > 0 && (
                   <span className="wizard-stepper__sep" aria-hidden="true">
                     <ArrowRightIcon width={14} height={14} />
                   </span>
@@ -2441,7 +2435,13 @@ export default function EditComponentModal({
                   aria-current={state === "selected" ? "step" : undefined}
                   onClick={() => selectStep(i)}
                 >
-                  <span className="wizard-step__marker">{i + 1}</span>
+                  <span className="wizard-step__marker">
+                    {legacyStepper ? (
+                      i + 1
+                    ) : (
+                      <span className="wizard-step__dot" aria-hidden="true" />
+                    )}
+                  </span>
                   <span className="wizard-step__label">{step.label}</span>
                 </button>
               </div>
@@ -2628,9 +2628,6 @@ export default function EditComponentModal({
                                 aria-current={selected ? "true" : undefined}
                                 onClick={() => {
                                   setActiveSubCategory(label);
-                                  if (label === "Colors" || label === "Color") {
-                                    setColorSettingsView("Picker");
-                                  }
                                   setQuery("");
                                 }}
                               >
@@ -2665,49 +2662,7 @@ export default function EditComponentModal({
                       ))}
                     </nav>
                     <div className="vs-panel__content">
-                      {isPaletteTab && (
-                        <div className="vs-color-view-toggle">
-                          <span className="cp-label">Color mode</span>
-                          <Segmented
-                            values={["Picker", "Palette"]}
-                            value={colorSettingsView}
-                            onChange={(view) =>
-                              setColorSettingsView(view as "Picker" | "Palette")
-                            }
-                          />
-                        </div>
-                      )}
-                      {isPaletteTab &&
-                      colorSettingsView === "Picker" &&
-                      activePaletteField &&
-                      colorPickerProfile ? (
-                        <div className="ia-stack">
-                          <ColorPickerSettings
-                            value={asColorMode(getVal(activePaletteField))}
-                            profile={colorPickerProfile}
-                            columns={SAMPLE_COLUMNS}
-                            dataRange={colorDataRange}
-                            mappedField={(name) =>
-                              String(
-                                getValByKey("Mapping", name) ||
-                                  getValByKey("Color", name) ||
-                                  "",
-                              )
-                            }
-                            onChange={(next) => setVal(activePaletteField, next)}
-                          />
-                          {pickerSiblingFields.length > 0 && (
-                            <GroupCard
-                              key={`${displayVisualId}:${activeSubCategory}:picker-siblings`}
-                              items={pickerSiblingFields}
-                              advancedOpen={advancedSettingsOpen}
-                              getVal={getVal}
-                              setVal={setVal}
-                              getValByKey={getValByKey}
-                            />
-                          )}
-                        </div>
-                      ) : isPaletteTab && colorSettingsView === "Picker" ? null : tabFields.length === 0 ? (
+                      {tabFields.length === 0 ? (
                         <div className="ia-empty">No options for this visual in this section.</div>
                       ) : (
                         <div className="ia-stack">

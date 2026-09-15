@@ -1,3 +1,11 @@
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import { Question } from "@phosphor-icons/react";
 import Dropdown from "./Dropdown";
 import { DirectColorPicker } from "./ColorPalette";
 import { uniqueValues } from "./mockDataset";
@@ -20,6 +28,73 @@ type Props = {
   onChange: (next: ColorModeConfig) => void;
   onModeChange?: (mode: ColorPickerMode) => void;
 };
+
+function PickerHelpTip({ description }: { description: string }) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const syncPosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    setCoords({
+      top: rect.top,
+      left: rect.left + rect.width / 2,
+    });
+  }, []);
+
+  const show = () => {
+    syncPosition();
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const sync = () => syncPosition();
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, true);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync, true);
+    };
+  }, [open, syncPosition]);
+
+  return (
+    <>
+      <span className="ia-field-info">
+        <button
+          ref={anchorRef}
+          type="button"
+          className="ia-field-info__btn"
+          aria-label={description}
+          onMouseEnter={show}
+          onMouseLeave={() => setOpen(false)}
+          onFocus={show}
+          onBlur={() => setOpen(false)}
+        >
+          <Question
+            className="ia-field-info__icon"
+            size={20}
+            weight="regular"
+            aria-hidden="true"
+          />
+        </button>
+      </span>
+      {open &&
+        createPortal(
+          <span
+            className="ia-field-info__tip ia-field-info__tip--flyout"
+            role="tooltip"
+            style={{ top: coords.top, left: coords.left }}
+          >
+            {description}
+          </span>,
+          document.body,
+        )}
+    </>
+  );
+}
 
 function modeForStyle(style: ColorModeConfig["style"]): ColorPickerMode {
   if (style === "Per Category") return "Categorical Colors";
@@ -93,7 +168,7 @@ export default function ColorPickerSettings({
           firstValue +
           (index / Math.max(stopCount - 1, 1)) * span,
         color: shade,
-        opacity: 100,
+        opacity: value.opacity,
       })),
     };
   };
@@ -125,7 +200,10 @@ export default function ColorPickerSettings({
   return (
     <div className="vs-color-picker-settings">
       <div className="cp-field">
-        <span className="cp-label">Mode</span>
+        <span className="cp-label-with-info">
+          <span className="cp-label">Mode</span>
+          <PickerHelpTip description="Single = one color, Categorical = category groups, Sequential = value ramp." />
+        </span>
         <Dropdown
           value={mode}
           options={profile.modes.map((item) => ({
@@ -134,15 +212,15 @@ export default function ColorPickerSettings({
           }))}
           onChange={setMode}
         />
-        <p className="vs-color-picker-settings__help">
-          Single = one color, Categorical = category groups, Sequential = value ramp.
-        </p>
       </div>
 
       {mode === "Categorical Colors" ? (
         <>
           <div className="cp-field">
-            <span className="cp-label">Category field</span>
+            <span className="cp-label-with-info">
+              <span className="cp-label">Category field</span>
+              <PickerHelpTip description="Auto uses the visual’s mapped category or series field." />
+            </span>
             <Dropdown
               value={selectedCategoryField}
               options={[
@@ -166,13 +244,15 @@ export default function ColorPickerSettings({
                 });
               }}
             />
-            <p className="vs-color-picker-settings__help">
-              Auto uses the visual’s mapped category or series field.
-            </p>
           </div>
 
           <div className="vs-color-picker-categories">
-            <span className="cp-label">Category values</span>
+            <span className="cp-label-with-info">
+              <span className="cp-label">Category values</span>
+              {!categoryValues.length && (
+                <PickerHelpTip description="No values found for the selected category field. Configure mapping or preview data first." />
+              )}
+            </span>
             {categoryValues.length ? (
               <div className="vs-color-picker-categories__list">
                 {categoryValues.map((category, index) => {
@@ -188,6 +268,9 @@ export default function ColorPickerSettings({
                       <span className="cp-label">{category}</span>
                       <DirectColorPicker
                         value={color}
+                        opacity={
+                          value.categoryOpacities[index] ?? value.opacity
+                        }
                         onChange={(nextColor) =>
                           onChange({
                             ...value,
@@ -198,16 +281,19 @@ export default function ColorPickerSettings({
                             },
                           })
                         }
+                        onOpacityChange={(opacity) => {
+                          const categoryOpacities = [
+                            ...value.categoryOpacities,
+                          ];
+                          categoryOpacities[index] = opacity;
+                          onChange({ ...value, categoryOpacities });
+                        }}
                       />
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <p className="vs-color-picker-settings__help">
-                No values found for the selected category field. Configure mapping or preview data first.
-              </p>
-            )}
+            ) : null}
           </div>
         </>
       ) : mode === "Sequential Colors" ? (
@@ -238,7 +324,10 @@ export default function ColorPickerSettings({
 
           {value.sequentialBasis === "Category" && (
             <div className="cp-field">
-              <span className="cp-label">Category field</span>
+              <span className="cp-label-with-info">
+                <span className="cp-label">Category field</span>
+                <PickerHelpTip description="Auto uses the visual’s mapped category or series field." />
+              </span>
               <Dropdown
                 value={selectedCategoryField}
                 options={[
@@ -262,27 +351,38 @@ export default function ColorPickerSettings({
                   });
                 }}
               />
-              <p className="vs-color-picker-settings__help">
-                Auto uses the visual’s mapped category or series field.
-              </p>
             </div>
           )}
 
           <div className="vs-color-picker-settings__rule" />
 
           <div className="cp-field">
-            <span className="cp-label">Base color</span>
+            <span className="cp-label-with-info">
+              <span className="cp-label">Base color</span>
+              <PickerHelpTip description="Sequential uses lighter and darker shades of this color based on value or category." />
+            </span>
             <DirectColorPicker
               value={value.color}
+              opacity={value.opacity}
               onChange={(color) =>
                 onChange({ ...value, ...sequentialPatch(color) })
+              }
+              onOpacityChange={(opacity) =>
+                onChange({
+                  ...value,
+                  opacity,
+                  stops: value.stops.map((stop) => ({ ...stop, opacity })),
+                })
               }
             />
           </div>
 
           <div className="vs-color-picker-reverse">
             <div>
-              <span>Reverse ramp</span>
+              <span className="cp-label-with-info">
+                <span>Reverse ramp</span>
+                <PickerHelpTip description="High values or categories use the end of the ramp." />
+              </span>
               <MiniSwitch
                 value={value.gradientReverse}
                 onChange={(gradientReverse) =>
@@ -290,21 +390,16 @@ export default function ColorPickerSettings({
                 }
               />
             </div>
-            <p className="vs-color-picker-settings__help">
-              High values/categories use the end of the ramp.
-            </p>
           </div>
-
-          <p className="vs-color-picker-settings__help">
-            Sequential uses lighter/darker shades of this color based on value or category.
-          </p>
         </>
       ) : (
         <div className="cp-field">
           <span className="cp-label">Color</span>
           <DirectColorPicker
             value={value.color}
+            opacity={value.opacity}
             onChange={(color) => onChange({ ...value, color })}
+            onOpacityChange={(opacity) => onChange({ ...value, opacity })}
           />
         </div>
       )}

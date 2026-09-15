@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Dropdown from "./Dropdown";
+import QueryAssistantChat from "./QueryAssistantChat";
 import {
   ArrowClockwise,
   ArrowLeft,
@@ -2982,12 +2983,13 @@ function SourcePickerModal({
     | "upload-file";
 }) {
   useEffect(() => {
+    if (variant === "query-assistant") return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, variant]);
 
   return createPortal(
     <div
@@ -3034,65 +3036,13 @@ function SourcePickerModal({
 function QueryAssistantModal({
   onClose,
   onGenerate,
-  isGenerating,
 }: {
   onClose: () => void;
-  onGenerate: (prompt: string) => void;
-  isGenerating: boolean;
+  onGenerate: (prompt: string) => string;
 }) {
-  const [prompt, setPrompt] = useState("");
-  const canGenerate = prompt.trim().length > 0;
-
   return (
     <SourcePickerModal variant="query-assistant" onClose={onClose}>
-      <form
-        className="ds-query-assistant"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (canGenerate && !isGenerating) onGenerate(prompt.trim());
-        }}
-      >
-        <header className="ds-query-assistant__header">
-          <span className="ds-query-assistant__title">
-            <Sparkle size={18} weight="regular" aria-hidden="true" />
-            <h2>Generate SQL Query using AI</h2>
-          </span>
-          <button type="button" aria-label="Close AI Query Assistant" onClick={onClose}>
-            <X size={16} aria-hidden="true" />
-          </button>
-        </header>
-
-        <div className="ds-query-assistant__intro">
-          <p>Describe the query you want to create.</p>
-          <small>Example: &quot;Show all customers from last week&quot;.</small>
-        </div>
-
-        <div className="ds-query-assistant__composer">
-          <textarea
-            autoFocus
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Add instructions"
-            aria-label="Describe your query"
-            rows={5}
-            disabled={isGenerating}
-          />
-        </div>
-        <footer className="ds-query-assistant__footer">
-          <button
-            type="submit"
-            aria-label={isGenerating ? "Generating query" : "Generate query"}
-            disabled={!canGenerate || isGenerating}
-          >
-            {isGenerating ? (
-              <span className="ds-query-generate-spinner" aria-hidden="true" />
-            ) : (
-              <Sparkle size={14} weight="fill" aria-hidden="true" />
-            )}
-            {isGenerating ? "Generating..." : "Generate"}
-          </button>
-        </footer>
-      </form>
+      <QueryAssistantChat onClose={onClose} onGenerate={onGenerate} />
     </SourcePickerModal>
   );
 }
@@ -3100,7 +3050,6 @@ function QueryAssistantModal({
 function QueryEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [filterBindings, setFilterBindings] = useState<Record<string, string>>({});
   const [filterPopover, setFilterPopover] = useState<{
     variable: string;
@@ -3108,15 +3057,7 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
     left: number;
   } | null>(null);
   const [filterSearch, setFilterSearch] = useState("");
-  const generationTimer = useRef<number | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(
-    () => () => {
-      if (generationTimer.current !== null) window.clearTimeout(generationTimer.current);
-    },
-    [],
-  );
 
   useEffect(() => {
     if (!filterPopover) return;
@@ -3146,15 +3087,10 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
             <button
               type="button"
               className="ds-query__generate"
-              disabled={isGenerating}
               onClick={() => setAssistantOpen(true)}
             >
-              {isGenerating ? (
-                <span className="ds-query-generate-spinner" aria-hidden="true" />
-              ) : (
-                <Sparkle size={14} weight="fill" aria-hidden="true" />
-              )}
-              {isGenerating ? "Generating..." : hasGenerated ? "Regenerate" : "Generate"}
+              <Sparkle size={14} weight="fill" aria-hidden="true" />
+              {hasGenerated ? "Regenerate" : "Generate"}
             </button>
             <button type="button" className="ds-query__execute">
               <Play size={14} weight="fill" aria-hidden="true" />
@@ -3237,17 +3173,13 @@ function QueryEditor({ value, onChange }: { value: string; onChange: (value: str
       {assistantOpen && (
         <QueryAssistantModal
           onClose={() => setAssistantOpen(false)}
-          isGenerating={isGenerating}
           onGenerate={(prompt) => {
-            setIsGenerating(true);
-            generationTimer.current = window.setTimeout(() => {
-              const currentQuery = value.trim() || "SELECT *\nFROM source_data\nLIMIT 100;";
-              onChange(`-- Generated from: ${prompt}\n${currentQuery}`);
-              setHasGenerated(true);
-              setIsGenerating(false);
-              setAssistantOpen(false);
-              generationTimer.current = null;
-            }, 900);
+            const currentQuery =
+              value.trim() || "SELECT *\nFROM source_data\nLIMIT 100;";
+            const generatedQuery = `-- Generated from: ${prompt}\n${currentQuery}`;
+            onChange(generatedQuery);
+            setHasGenerated(true);
+            return generatedQuery;
           }}
         />
       )}

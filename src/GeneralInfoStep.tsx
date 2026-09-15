@@ -16,6 +16,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import Dropdown from "./Dropdown";
+import QueryAssistantChat from "./QueryAssistantChat";
 
 export type GeneralInfo = {
   name: string;
@@ -532,7 +533,6 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
   const [aiMenuOpen, setAiMenuOpen] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [instructions, setInstructions] = useState("");
-  const [instructionDraft, setInstructionDraft] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const aiGroupRef = useRef<HTMLDivElement>(null);
@@ -659,7 +659,6 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
                   className="cp-picker-row"
                   role="menuitem"
                   onClick={() => {
-                    setInstructionDraft(instructions);
                     setAiMenuOpen(false);
                     setInstructionsOpen(true);
                   }}
@@ -831,57 +830,36 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
       {instructionsOpen &&
         createPortal(
           <div
-            className="general-info-ai-instructions-overlay"
+            className="ds-source-picker-overlay"
             onMouseDown={(event) => {
               if (event.target === event.currentTarget) setInstructionsOpen(false);
             }}
           >
-            <form
-              className="general-info-ai-instructions"
+            <div
+              className="ds-source-picker-modal ds-source-picker-modal--query-assistant"
               role="dialog"
               aria-modal="true"
-              aria-labelledby="general-info-ai-instructions-title"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const nextInstructions = instructionDraft.trim();
-                setInstructions(nextInstructions);
-                setInstructionsOpen(false);
-                generate(nextInstructions);
-              }}
             >
-              <header>
-                <span>
-                  <Sparkle size={18} weight="regular" aria-hidden="true" />
-                  <h2 id="general-info-ai-instructions-title">Fill Asset Fields Using AI</h2>
-                </span>
-                <button
-                  type="button"
-                  aria-label="Close instructions"
-                  onClick={() => setInstructionsOpen(false)}
-                >
-                  <X size={16} weight="regular" aria-hidden="true" />
-                </button>
-              </header>
-              <div className="general-info-ai-instructions__body">
-                <label htmlFor="general-info-ai-instructions-input">
-                  Tell AI how to generate the asset information.
-                </label>
-                <textarea
-                  autoFocus
-                  id="general-info-ai-instructions-input"
-                  value={instructionDraft}
-                  onChange={(event) => setInstructionDraft(event.target.value)}
-                  placeholder="Add instructions"
-                  rows={5}
-                />
-              </div>
-              <footer>
-                <button type="button" onClick={() => setInstructionsOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit">Generate</button>
-              </footer>
-            </form>
+              <QueryAssistantChat
+                onClose={() => setInstructionsOpen(false)}
+                initialTitle="Fill Asset Fields Using AI"
+                introTitle="Describe the asset information you want to generate."
+                introExample='Example: "Create a weekly sales asset for Saudi Arabia".'
+                placeholder="Describe your asset"
+                onGenerate={(prompt) => {
+                  const nextInstructions = prompt.trim();
+                  setInstructions(nextInstructions);
+                  onFillWithAI?.(
+                    nextInstructions || value.aiContext.trim() || undefined,
+                  );
+                  setHasGenerated(true);
+                  return {
+                    text: "I filled the asset fields using your instructions.",
+                    status: "Applied to General Info",
+                  };
+                }}
+              />
+            </div>
           </div>,
           document.body,
         )}

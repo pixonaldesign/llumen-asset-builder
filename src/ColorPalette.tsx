@@ -335,12 +335,18 @@ function hslToHex({ h, s, l }: HslColor) {
 export function DirectColorPicker({
   value,
   onChange,
+  opacity = 100,
+  onOpacityChange,
 }: {
   value: string;
   onChange: (color: string) => void;
+  opacity?: number;
+  onOpacityChange?: (opacity: number) => void;
 }) {
   const normalizedValue = validHex(value) ?? DEFAULT_COLOR_MODE.color;
+  const normalizedOpacity = clamp(Number(opacity) || 0, 0, 100);
   const [hexDraft, setHexDraft] = useState(normalizedValue);
+  const [opacityDraft, setOpacityDraft] = useState(String(normalizedOpacity));
   const [pickerDraft, setPickerDraft] = useState(normalizedValue);
   const [recentColor, setRecentColor] = useState("#8f5065");
   const [format, setFormat] = useState<ColorFormat>("RGB");
@@ -373,6 +379,10 @@ export function DirectColorPicker({
     setHexDraft(normalizedValue);
     if (!open) setPickerDraft(normalizedValue);
   }, [normalizedValue, open]);
+
+  useEffect(() => {
+    setOpacityDraft(String(normalizedOpacity));
+  }, [normalizedOpacity]);
 
   const syncPosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -446,36 +456,84 @@ export function DirectColorPicker({
 
   return (
     <>
-      <div className="cp-direct-color">
-        <input
-          value={hexDraft.toUpperCase()}
-          aria-label="Color hex value"
-          spellCheck={false}
-          onChange={(event) => {
-            const next = event.target.value;
-            setHexDraft(next);
-            const parsed = validHex(next);
-            if (parsed) onChange(parsed);
-          }}
-          onBlur={() => setHexDraft(normalizedValue)}
-        />
-        <button
-          ref={triggerRef}
-          type="button"
-          className="cp-direct-color__swatch"
-          aria-label="Open color picker"
-          aria-expanded={open}
-          style={{ background: normalizedValue }}
-          onClick={() => {
-            if (open) {
-              setOpen(false);
-              return;
-            }
-            setPickerDraft(normalizedValue);
-            syncPosition();
-            setOpen(true);
-          }}
-        />
+      <div className="cp-direct-color cp-stop">
+        <div className="cp-stop-half cp-stop-half--color">
+          <input
+            className="cp-stop-hex"
+            value={hexDraft.toUpperCase()}
+            aria-label="Color hex value"
+            spellCheck={false}
+            onChange={(event) => {
+              const next = event.target.value;
+              setHexDraft(next);
+              const parsed = validHex(next);
+              if (parsed) onChange(parsed);
+            }}
+            onBlur={() => setHexDraft(normalizedValue)}
+          />
+          <button
+            ref={triggerRef}
+            type="button"
+            className={"cp-swatch" + (open ? " is-open" : "")}
+            aria-label="Open color picker"
+            aria-expanded={open}
+            onClick={() => {
+              if (open) {
+                setOpen(false);
+                return;
+              }
+              setPickerDraft(normalizedValue);
+              syncPosition();
+              setOpen(true);
+            }}
+          >
+            <span style={{ background: normalizedValue }} />
+          </button>
+        </div>
+
+        <span className="cp-divider" />
+
+        <div className="cp-stop-half cp-stop-half--slider">
+          <ContrastIcon className="cp-opacity-ico" width={20} height={20} />
+          <input
+            type="range"
+            className="cp-range"
+            min={0}
+            max={100}
+            value={normalizedOpacity}
+            aria-label="Color opacity"
+            onChange={(event) => onOpacityChange?.(Number(event.target.value))}
+          />
+          <label className="cp-pct-input">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={1}
+              value={opacityDraft}
+              aria-label="Opacity percentage"
+              onChange={(event) => {
+                const draft = event.target.value;
+                setOpacityDraft(draft);
+                if (draft === "") return;
+                const next = Number(draft);
+                if (!Number.isFinite(next)) return;
+                onOpacityChange?.(clamp(next, 0, 100));
+              }}
+              onBlur={() => {
+                const next = Number(opacityDraft);
+                if (!Number.isFinite(next) || opacityDraft === "") {
+                  setOpacityDraft(String(normalizedOpacity));
+                  return;
+                }
+                const clamped = clamp(next, 0, 100);
+                setOpacityDraft(String(clamped));
+                onOpacityChange?.(clamped);
+              }}
+            />
+            <span>%</span>
+          </label>
+        </div>
       </div>
       {open &&
         createPortal(
