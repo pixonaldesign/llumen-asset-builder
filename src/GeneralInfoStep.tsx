@@ -846,6 +846,7 @@ export default function GeneralInfoStep({ value, onChange, onFillWithAI }: Props
                 introTitle="Describe the asset information you want to generate."
                 introExample='Example: "Create a weekly sales asset for Saudi Arabia".'
                 placeholder="Describe your asset"
+                thinkingText="Generating your asset information…"
                 onGenerate={(prompt) => {
                   const nextInstructions = prompt.trim();
                   setInstructions(nextInstructions);

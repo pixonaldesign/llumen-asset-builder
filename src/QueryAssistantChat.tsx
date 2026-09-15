@@ -47,6 +47,7 @@ export default function QueryAssistantChat({
   introTitle = "Describe the query you want to create.",
   introExample = 'Example: "Show all customers from last week".',
   placeholder = "Ask about anything",
+  thinkingText = "Generating your SQL query…",
 }: {
   onClose: () => void;
   onGenerate: (prompt: string) => string | QueryAssistantResult;
@@ -54,6 +55,7 @@ export default function QueryAssistantChat({
   introTitle?: string;
   introExample?: string;
   placeholder?: string;
+  thinkingText?: string;
 }) {
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<QueryChatMessage[]>([]);
@@ -200,10 +202,7 @@ export default function QueryAssistantChat({
             )}
             {generating && (
               <div className="ds-query-chat__thinking" role="status">
-                <span />
-                <span />
-                <span />
-                <p>Llumen is generating your query</p>
+                <p>{thinkingText}</p>
               </div>
             )}
           </div>
