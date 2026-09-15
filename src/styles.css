@@ -13914,11 +13914,6 @@ html[data-theme="light"] .dd-component-menu {
   gap: 0;
   padding: 0;
   overflow: hidden;
-  background: #424242;
-  opacity: 1;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  isolation: isolate;
 }
 
 .ds-query-filter-menu__inner {
@@ -13926,10 +13921,6 @@ html[data-theme="light"] .dd-component-menu {
   gap: var(--spacing-2xs);
   min-height: 0;
   padding: var(--spacing-2xs);
-}
-
-html[data-theme="light"] .ds-query-filter-menu {
-  background: #e2ecf9;
 }
 
 .ds-query-filter-menu .cp-picker-search input {
@@ -13942,6 +13933,7 @@ html[data-theme="light"] .ds-query-filter-menu {
 
 .ds-query-filter-menu .cp-picker-list {
   max-height: 254px;
+  overflow-x: hidden;
 }
 
 .ds-query__footer {
