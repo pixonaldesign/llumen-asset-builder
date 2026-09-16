@@ -54,7 +54,7 @@ const PRESETS: PalettePreset[] = [
   { name: "Azure Horizon Sequential Palette", type: "Sequential", colors: ["#f7f9ff", "#edf3ff", "#e3edfe", "#d8e6fd", "#c8dcfc", "#b8d3fb", "#a8c9fa", "#96bdf8", "#86b2f7", "#76a7f5", "#6a9ef3", "#6095f0", "#578eed", "#4f86ea", "#457fe8", "#3d76e8", "#356eea", "#3068ef", "#2d64f2", "#2b61f5"] },
   { name: "Royal Purple Sequential Palette", type: "Sequential", colors: ["#f6f2ff", "#b899f5", "#5a2fc7"] },
   { name: "Coastal Teal Sequential Palette", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#7de0d0", "#45cdb9", "#23b899", "#159a7d"] },
-  { name: "Crimson Spectrum Sequential Palette", type: "Sequential", colors: ["#fff7f7", "#fff0f0", "#ffe7e7", "#ffdddd", "#ffd5d5", "#ffc9c9", "#ffbbbb", "#ffadad", "#ff9f9f", "#ff9292", "#f98282", "#f57575", "#f56b6b", "#ef6060", "#eb5555", "#e64a4a", "#e03e3e", "#d93636", "#d13333", "#c62828"] },
+  { name: "Crimson Spectrum Extended Sequential Palette for High-Density Data", type: "Sequential", colors: ["#fff7f7", "#fff0f0", "#ffe7e7", "#ffdddd", "#ffd5d5", "#ffc9c9", "#ffbbbb", "#ffadad", "#ff9f9f", "#ff9292", "#f98282", "#f57575", "#f56b6b", "#ef6060", "#eb5555", "#e64a4a", "#e03e3e", "#d93636", "#d13333", "#c62828"] },
   { name: "Golden Sunrise Sequential Palette", type: "Sequential", colors: ["#fffbeb", "#fef3c7", "#fde68a", "#fbbf24", "#f59e0b"] },
   { name: "Ocean and Violet Two-Step Categories", type: "Categorical", colors: ["#5b8df0", "#7c5cff"] },
   { name: "Traffic Light Three-Step Categories", type: "Categorical", colors: ["#e85c5c", "#e8b84d", "#3db89a"] },
@@ -696,6 +696,25 @@ function PaletteDetailsPopover({
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
+  const middleColor = preset.colors[Math.floor(preset.colors.length / 2)];
+  const baseColors =
+    preset.type === "Sequential"
+      ? [{ label: "", color: preset.colors[preset.colors.length - 1] }]
+      : preset.type === "Diverging"
+        ? [
+            { label: "Negative", color: preset.colors[0] },
+            { label: "Neutral", color: middleColor },
+            { label: "Positive", color: preset.colors[preset.colors.length - 1] },
+          ]
+        : [];
+
+  const basisDescription =
+    preset.type === "Sequential"
+      ? "The system generates this palette from shades of one base color."
+      : preset.type === "Diverging"
+        ? "The system generates this palette between negative and positive colors through a neutral midpoint."
+        : "Each color in a categorical palette is an independent base color.";
+
   return (
     <section
       className="cp-palette-details-popover"
@@ -713,14 +732,43 @@ function PaletteDetailsPopover({
           <CloseIcon width={18} height={18} strokeWidth={1} aria-hidden="true" />
         </button>
       </header>
-      <div className="cp-palette-details-popover__colors">
-        {preset.colors.map((color, index) => (
-          <div key={`${color}-${index}`}>
-            <span style={{ background: color }} aria-hidden="true" />
-            <code>{color.toUpperCase()}</code>
+      <section className="cp-palette-details-popover__basis">
+        <strong>{preset.type === "Sequential" ? "Base color" : "Base colors"}</strong>
+        {baseColors.length > 0 && (
+          <div className="cp-palette-details-popover__base-swatches">
+            {baseColors.map(({ label, color }) => (
+              <div key={`${label}-${color}`}>
+                <span style={{ background: color }} aria-hidden="true" />
+                {label && <span>{label}</span>}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )}
+        <p>{basisDescription}</p>
+      </section>
+      {preset.type === "Categorical" ? (
+        <div className="cp-palette-details-popover__colors">
+          {preset.colors.map((color, index) => (
+            <div key={`${color}-${index}`}>
+              <span
+                className="cp-palette-details-popover__color-swatch"
+                style={{ background: color }}
+                aria-hidden="true"
+              />
+              <span className="cp-palette-details-popover__color-index">{index + 1}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <section className="cp-palette-details-popover__preview">
+          <h3>Preview</h3>
+          <div className="cp-palette-details-popover__preview-swatches">
+            {preset.colors.map((color, index) => (
+              <span key={`${color}-${index}`} style={{ background: color }} aria-hidden="true" />
+            ))}
+          </div>
+        </section>
+      )}
     </section>
   );
 }
@@ -855,20 +903,22 @@ function PalettePickerMenu({
               >
                 <span className="cp-picker-row-name">{preset.name}</span>
                 <span className="cp-palette-picker-row__end">
-                  <PaletteSwatches colors={preset.colors} limit={7} />
-                  {hasOverflow && (
-                    <button
-                      type="button"
-                      className="cp-palette-overflow-badge"
-                      aria-label={`View all ${preset.colors.length} ${preset.name} colors`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        showDetails(preset, event.currentTarget);
-                      }}
-                    >
-                      10+
-                    </button>
-                  )}
+                  <span className="cp-palette-picker-row__palette">
+                    <PaletteSwatches colors={preset.colors} limit={7} />
+                    {hasOverflow && (
+                      <button
+                        type="button"
+                        className="cp-palette-overflow-badge"
+                        aria-label={`View all ${preset.colors.length} ${preset.name} colors`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          showDetails(preset, event.currentTarget);
+                        }}
+                      >
+                        10+
+                      </button>
+                    )}
+                  </span>
                   <button
                     type="button"
                     className="cp-palette-info-button"
