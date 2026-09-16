@@ -376,40 +376,42 @@ export default function DataSourceDataProfile() {
             <h3>Representative Rows</h3>
             <span>most typical + widest coverage</span>
           </header>
-          <div className="data-source-query-preview data-profile-representative__table">
-            <table className="data-source-query-preview__header">
-              <colgroup>
-                {REPRESENTATIVE_COLUMNS.map((column) => (
-                  <col key={column.name} style={{ width: column.width }} />
-                ))}
-              </colgroup>
-              <thead>
-                <tr>
-                  {REPRESENTATIVE_COLUMNS.map((column) => (
-                    <th key={column.name} scope="col">
-                      {column.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-            </table>
-            <div className="data-source-query-preview__scroll">
-              <table aria-label="Representative data rows">
+          <div className="data-profile-representative__table-scroll">
+            <div className="data-source-query-preview data-profile-representative__table">
+              <table className="data-source-query-preview__header">
                 <colgroup>
                   {REPRESENTATIVE_COLUMNS.map((column) => (
                     <col key={column.name} style={{ width: column.width }} />
                   ))}
                 </colgroup>
-                <tbody>
-                  {REPRESENTATIVE_ROWS.map((row) => (
-                    <tr key={row.join("-")}>
-                      {row.map((cell, index) => (
-                        <td key={`${index}-${cell}`}>{cell}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
+                <thead>
+                  <tr>
+                    {REPRESENTATIVE_COLUMNS.map((column) => (
+                      <th key={column.name} scope="col">
+                        {column.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
               </table>
+              <div className="data-source-query-preview__scroll">
+                <table aria-label="Representative data rows">
+                  <colgroup>
+                    {REPRESENTATIVE_COLUMNS.map((column) => (
+                      <col key={column.name} style={{ width: column.width }} />
+                    ))}
+                  </colgroup>
+                  <tbody>
+                    {REPRESENTATIVE_ROWS.map((row) => (
+                      <tr key={row.join("-")}>
+                        {row.map((cell, index) => (
+                          <td key={`${index}-${cell}`}>{cell}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
