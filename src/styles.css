@@ -2882,6 +2882,10 @@ button {
   gap: var(--spacing-md);
 }
 
+.data-profile-representative {
+  margin-bottom: var(--spacing-2xl);
+}
+
 .data-profile-representative__heading > span {
   color: var(--lc-text-tertiary);
   font: var(--lc-font-caption);
@@ -2900,8 +2904,13 @@ button {
 
 .data-profile-representative__table .data-source-query-preview__scroll {
   flex: none;
-  height: 180px;
-  overflow-y: auto;
+  height: auto;
+  overflow: visible;
+  container-type: normal;
+}
+
+.data-profile-representative__table .data-source-query-preview__scroll tr {
+  height: auto;
 }
 
 .data-profile-availability__controls {

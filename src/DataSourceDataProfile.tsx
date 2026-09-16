@@ -161,6 +161,55 @@ function MiniHistogram({ values }: { values: number[] }) {
   );
 }
 
+function RepresentativeRows() {
+  return (
+    <section className="data-profile-availability__section data-profile-representative">
+      <header className="data-profile-representative__heading">
+        <h3>Representative Rows</h3>
+        <span>most typical + widest coverage</span>
+      </header>
+      <div className="data-profile-representative__table-scroll">
+        <div className="data-source-query-preview data-profile-representative__table">
+          <table className="data-source-query-preview__header">
+            <colgroup>
+              {REPRESENTATIVE_COLUMNS.map((column) => (
+                <col key={column.name} style={{ width: column.width }} />
+              ))}
+            </colgroup>
+            <thead>
+              <tr>
+                {REPRESENTATIVE_COLUMNS.map((column) => (
+                  <th key={column.name} scope="col">
+                    {column.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+          <div className="data-source-query-preview__scroll">
+            <table aria-label="Representative data rows">
+              <colgroup>
+                {REPRESENTATIVE_COLUMNS.map((column) => (
+                  <col key={column.name} style={{ width: column.width }} />
+                ))}
+              </colgroup>
+              <tbody>
+                {REPRESENTATIVE_ROWS.map((row) => (
+                  <tr key={row.join("-")}>
+                    {row.map((cell, index) => (
+                      <td key={`${index}-${cell}`}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function DataSourceDataProfile() {
   const [temporalField, setTemporalField] = useState<"observation" | "calibrated">(
     "observation",
@@ -211,6 +260,8 @@ export default function DataSourceDataProfile() {
           </div>
         </dl>
       </section>
+
+      <RepresentativeRows />
 
       <section className="data-profile-columns" aria-labelledby="data-profile-columns-title">
         <h3 id="data-profile-columns-title">Data Columns</h3>
@@ -371,50 +422,6 @@ export default function DataSourceDataProfile() {
           </div>
         </div>
 
-        <div className="data-profile-availability__section data-profile-representative">
-          <header className="data-profile-representative__heading">
-            <h3>Representative Rows</h3>
-            <span>most typical + widest coverage</span>
-          </header>
-          <div className="data-profile-representative__table-scroll">
-            <div className="data-source-query-preview data-profile-representative__table">
-              <table className="data-source-query-preview__header">
-                <colgroup>
-                  {REPRESENTATIVE_COLUMNS.map((column) => (
-                    <col key={column.name} style={{ width: column.width }} />
-                  ))}
-                </colgroup>
-                <thead>
-                  <tr>
-                    {REPRESENTATIVE_COLUMNS.map((column) => (
-                      <th key={column.name} scope="col">
-                        {column.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-              </table>
-              <div className="data-source-query-preview__scroll">
-                <table aria-label="Representative data rows">
-                  <colgroup>
-                    {REPRESENTATIVE_COLUMNS.map((column) => (
-                      <col key={column.name} style={{ width: column.width }} />
-                    ))}
-                  </colgroup>
-                  <tbody>
-                    {REPRESENTATIVE_ROWS.map((row) => (
-                      <tr key={row.join("-")}>
-                        {row.map((cell, index) => (
-                          <td key={`${index}-${cell}`}>{cell}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
     </div>
   );
