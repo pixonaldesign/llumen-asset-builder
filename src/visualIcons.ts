@@ -105,6 +105,7 @@ export const SETTINGS_TAB_ICONS: Record<string, Icon> = {
   "Scaling / axes": Ruler,
   Tooltips: ChatTeardropText,
   Annotations: PencilLine,
+  Flags: FlagBanner,
   "Line Customization": LineSegment,
   Height: ArrowsVertical,
   Size: ArrowsOut,

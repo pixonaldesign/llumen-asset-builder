@@ -198,6 +198,7 @@ export const SUBCATEGORY_ORDER = [
   "Zoom Scaling",
   "Advanced",
   "Map Legend",
+  "Flags",
 ] as const;
 
 type VisibleWhen = { group: string; name: string; is: string | string[] };
@@ -1137,6 +1138,20 @@ const FIELDS: FieldDef[] = [
     advanced: true,
     def: false,
   }),
+
+  /* ---- Flags ---- */
+  f("Positive Flag", "toggle", "Flags", ["All Charts & KPIs", "All Data Tables", "All Map Layers"], {
+    desc: "Optional positive-state flag.",
+    def: false,
+  }),
+  f("Neutral Flag", "toggle", "Flags", ["All Charts & KPIs", "All Data Tables", "All Map Layers"], {
+    desc: "Optional neutral-state flag.",
+    def: false,
+  }),
+  f("Negative Flag", "toggle", "Flags", ["All Charts & KPIs", "All Data Tables", "All Map Layers"], {
+    desc: "Optional negative-state flag.",
+    def: false,
+  }),
 ];
 
 function expandTypes(types: NotionVisualType[]): Set<NotionVisualType> {
@@ -1419,7 +1434,12 @@ export function settingsNavSections(visualId: string): SettingsNavSection[] {
   };
   const extraPlain = extra.filter((name) => !hasMaster(name));
   const extraToggles = extra.filter((name) => hasMaster(name));
-  const extraOrdered = [...extraPlain, ...extraToggles];
+  const flags = extra.includes("Flags") ? ["Flags"] : [];
+  const extraOrdered = [
+    ...extraPlain.filter((name) => name !== "Flags"),
+    ...extraToggles,
+    ...flags,
+  ];
   const sections: SettingsNavSection[] = [];
   if (core.length) sections.push({ id: "core", label: "Main", tabs: core });
   if (extraOrdered.length) {

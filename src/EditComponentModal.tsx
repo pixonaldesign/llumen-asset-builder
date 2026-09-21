@@ -22,6 +22,16 @@ import {
   Play,
   Question,
   WarningCircle,
+  DotsSixVertical,
+  Function,
+  HandPointing,
+  TextT,
+  Hash,
+  CalendarBlank,
+  CheckSquare,
+  BracketsSquare,
+  BracketsCurly,
+  PencilSimple,
 } from "@phosphor-icons/react";
 import {
   CloseIcon,
@@ -29,6 +39,9 @@ import {
   ArrowRightIcon,
   SearchIcon,
   RequiredIcon,
+  PlusIcon,
+  ChevronDownIcon,
+  TrashIcon,
 } from "./icons";
 import { charts } from "./chartModel";
 import type { Opt } from "./chartModel";
@@ -1689,6 +1702,1073 @@ const INLINE_TICK_LABEL_ADVANCED = new Set([
   "Tick label formatter",
 ]);
 
+type FlagPropertyMode = "select" | "expression";
+type FlagValueMode = "string" | "expression";
+type FlagCondition = {
+  id: number;
+  propertyMode: FlagPropertyMode;
+  property: string;
+  operatorType: FlagOperatorType;
+  operator: string;
+  valueMode: FlagValueMode;
+  value: string;
+};
+
+type FlagSettingsValue = {
+  label: string;
+  conditionJoin: string;
+  conditions: Array<Omit<FlagCondition, "id">>;
+  tooltipMode: FlagValueMode;
+  tooltipInsight: string;
+};
+
+type FlagPropertyType = "text" | "number" | "boolean" | "date";
+type FlagPropertyGroup = {
+  id: "asset" | "series";
+  label: string;
+  fields: Array<{ name: string; type: FlagPropertyType }>;
+};
+
+const FLAG_PROPERTY_GROUPS: FlagPropertyGroup[] = [
+  {
+    id: "asset",
+    label: "Asset Data",
+    fields: [
+      { name: "region", type: "text" },
+      { name: "category", type: "text" },
+      { name: "status", type: "text" },
+      { name: "score", type: "number" },
+      { name: "density", type: "number" },
+      { name: "alertLevel", type: "text" },
+      { name: "isCritical", type: "boolean" },
+      { name: "updatedAt", type: "date" },
+    ],
+  },
+  {
+    id: "series",
+    label: "Series Metrics",
+    fields: [
+      { name: "populationCount", type: "number" },
+      { name: "growthRate", type: "number" },
+      { name: "anomalyScore", type: "number" },
+      { name: "variance", type: "number" },
+      { name: "hasDrift", type: "boolean" },
+    ],
+  },
+];
+
+type FlagOperatorType = "string" | "number" | "datetime" | "boolean" | "array" | "object";
+
+const FLAG_OPERATOR_GROUPS: Array<{
+  id: FlagOperatorType;
+  label: string;
+  operators: string[];
+}> = [
+  {
+    id: "string",
+    label: "String",
+    operators: [
+      "exists",
+      "does not exist",
+      "is empty",
+      "is not empty",
+      "is equal to",
+      "is equal to (case insensitive)",
+      "is not equal to",
+      "is not equal to (case insensitive)",
+      "contains",
+      "contains (case insensitive)",
+      "does not contain",
+      "does not contain (case insensitive)",
+      "starts with",
+      "starts with (case insensitive)",
+      "does not start with",
+      "does not start with (case insensitive)",
+      "ends with",
+      "ends with (case insensitive)",
+      "does not end with",
+      "does not end with (case insensitive)",
+      "matches regex",
+      "matches regex (case insensitive)",
+      "does not match regex",
+      "does not match regex (case insensitive)",
+    ],
+  },
+  {
+    id: "number",
+    label: "Number",
+    operators: [
+      "exists",
+      "does not exist",
+      "is empty",
+      "is not empty",
+      "is equal to",
+      "is not equal to",
+      "is greater than",
+      "is less than",
+      "is greater than or equal to",
+      "is less than or equal to",
+    ],
+  },
+  {
+    id: "datetime",
+    label: "Date & Time",
+    operators: [
+      "exists",
+      "does not exist",
+      "is empty",
+      "is not empty",
+      "is equal to",
+      "is not equal to",
+      "is after",
+      "is before",
+      "is after or equal to",
+      "is before or equal to",
+    ],
+  },
+  {
+    id: "boolean",
+    label: "Boolean",
+    operators: ["exists", "does not exist", "is empty", "is not empty", "is true", "is false"],
+  },
+  {
+    id: "array",
+    label: "Array",
+    operators: [
+      "exists",
+      "does not exist",
+      "is empty",
+      "is not empty",
+      "contains",
+      "does not contain",
+      "length equal to",
+      "length not equal to",
+      "length greater than",
+      "length less than",
+      "length greater than or equal to",
+      "length less than or equal to",
+    ],
+  },
+  {
+    id: "object",
+    label: "Object",
+    operators: ["exists", "does not exist", "is empty", "is not empty"],
+  },
+];
+
+function FlagOperatorTypeIcon({ type, size = 16 }: { type: FlagOperatorType; size?: number }) {
+  const props = { size, weight: "regular" as const, "aria-hidden": true };
+  if (type === "string") return <TextT {...props} />;
+  if (type === "number") return <Hash {...props} />;
+  if (type === "datetime") return <CalendarBlank {...props} />;
+  if (type === "boolean") return <CheckSquare {...props} />;
+  if (type === "array") return <BracketsSquare {...props} />;
+  return <BracketsCurly {...props} />;
+}
+
+function FlagPropertyTypeChip({ type }: { type: FlagPropertyType }) {
+  const label =
+    type === "text" ? "String" : type === "number" ? "Number" : type === "boolean" ? "Boolean" : "Date";
+  return (
+    <span className={`cp-picker-badge cp-picker-badge--${type}`} aria-hidden="true">
+      {label}
+    </span>
+  );
+}
+
+function FlagPropertyPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [expandedGroup, setExpandedGroup] = useState<FlagPropertyGroup["id"] | null>("asset");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+      setSearch("");
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const visibleGroups = FLAG_PROPERTY_GROUPS.map((group) => ({
+    ...group,
+    fields: normalizedSearch
+      ? group.fields.filter((field) => field.name.toLowerCase().includes(normalizedSearch))
+      : group.fields,
+  })).filter((group) => group.fields.length > 0);
+
+  return (
+    <div className="flag-property-picker" ref={rootRef}>
+      <button
+        type="button"
+        className={"cp-picker-trigger" + (value ? "" : " is-placeholder") + (open ? " is-open" : "")}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => {
+          setSearch("");
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="cp-picker-trigger-name">{value || "Select property"}</span>
+        <ChevronDownIcon className="cp-caret" width={16} height={16} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="cp-picker-menu flag-property-picker__menu" role="listbox">
+          <div className="dropdown-menu__inner">
+            <label className="flag-property-picker__search">
+              <SearchIcon width={16} height={16} aria-hidden="true" />
+              <input
+                autoFocus
+                type="search"
+                value={search}
+                placeholder="Search property..."
+                aria-label="Search properties"
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+            <div className="flag-property-picker__groups">
+              {visibleGroups.map((group) => {
+                const isExpanded = expandedGroup === group.id;
+                return (
+                  <section key={group.id}>
+                    <button
+                      type="button"
+                      className="flag-property-picker__group"
+                      aria-expanded={isExpanded}
+                      onClick={() =>
+                        setExpandedGroup((current) => (current === group.id ? null : group.id))
+                      }
+                    >
+                      <ChevronDownIcon
+                        className={isExpanded ? "is-expanded" : ""}
+                        width={14}
+                        height={14}
+                        aria-hidden="true"
+                      />
+                      <strong>{group.label}</strong>
+                    </button>
+                    {isExpanded && (
+                      <div className="flag-property-picker__fields">
+                        {group.fields.map((field) => (
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={value === field.name}
+                            className={value === field.name ? "is-selected" : ""}
+                            key={field.name}
+                            onClick={() => {
+                              onChange(field.name);
+                              setOpen(false);
+                              setSearch("");
+                            }}
+                          >
+                            <span className="flag-property-picker__field-name">{field.name}</span>
+                            <FlagPropertyTypeChip type={field.type} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+              {visibleGroups.length === 0 && (
+                <p className="flag-property-picker__empty">No properties found.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FlagOperatorPicker({
+  type,
+  value,
+  onChange,
+}: {
+  type: FlagOperatorType;
+  value: string;
+  onChange: (type: FlagOperatorType, value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [activeType, setActiveType] = useState<FlagOperatorType | null>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const syncMenuPosition = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const menuWidth = 486;
+    const menuHeight = Math.min(520, window.innerHeight - 16);
+    setMenuPosition({
+      top: Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - menuHeight - 8)),
+      left: Math.max(8, Math.min(rect.left - 49, window.innerWidth - menuWidth - 8)),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    setActiveType(null);
+    syncMenuPosition();
+    const close = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const sync = () => syncMenuPosition();
+    document.addEventListener("mousedown", close);
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("scroll", sync, true);
+    };
+  }, [open, type, syncMenuPosition]);
+
+  const activeGroup = activeType
+    ? FLAG_OPERATOR_GROUPS.find((group) => group.id === activeType)
+    : null;
+  const activeIndex = activeType
+    ? FLAG_OPERATOR_GROUPS.findIndex((group) => group.id === activeType)
+    : -1;
+
+  return (
+    <div className="flag-operator-picker">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={"cp-picker-trigger" + (open ? " is-open" : "")}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => {
+          syncMenuPosition();
+          setOpen((current) => !current);
+        }}
+      >
+        <span className="cp-picker-trigger-name">{value}</span>
+        <ChevronDownIcon className="cp-caret" width={16} height={16} aria-hidden="true" />
+      </button>
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="flag-operator-menu"
+            style={{ top: menuPosition.top, left: menuPosition.left }}
+            role="menu"
+            aria-label="Condition operator"
+          >
+            <div className="flag-operator-menu__types">
+              {FLAG_OPERATOR_GROUPS.map((group) => (
+                <button
+                  type="button"
+                  className={
+                    activeType === group.id
+                      ? "is-active"
+                      : type === group.id
+                        ? "is-current"
+                        : ""
+                  }
+                  key={group.id}
+                  onClick={() => setActiveType(group.id)}
+                >
+                  <FlagOperatorTypeIcon type={group.id} />
+                  <span>{group.label}</span>
+                  <ChevronDownIcon width={14} height={14} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+            {activeGroup && activeType && (
+              <div
+                className="flag-operator-menu__operators"
+                style={{
+                  marginTop: activeIndex * 36,
+                  maxHeight: `calc(100vh - ${menuPosition.top + activeIndex * 36 + 8}px)`,
+                }}
+              >
+                {activeGroup.operators.map((operator) => (
+                  <button
+                    type="button"
+                    className={type === activeType && value === operator ? "is-selected" : ""}
+                    key={operator}
+                    onClick={() => {
+                      onChange(activeType, operator);
+                      setOpen(false);
+                    }}
+                  >
+                    {operator}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
+function FlagSettingsModal({
+  flag,
+  initialValue,
+  onClose,
+  onAdd,
+}: {
+  flag: Opt;
+  initialValue?: FlagSettingsValue;
+  onClose: () => void;
+  onAdd: (value: FlagSettingsValue) => void;
+}) {
+  const initialConditions = initialValue?.conditions.length
+    ? initialValue.conditions.map((condition, index) => ({ ...condition, id: index + 1 }))
+    : [
+        {
+          id: 1,
+          propertyMode: "select" as const,
+          property: "",
+          operatorType: "string" as const,
+          operator: "is equal to",
+          valueMode: "string" as const,
+          value: "",
+        },
+      ];
+  const [label, setLabel] = useState(initialValue?.label ?? "");
+  const [conditions, setConditions] = useState<FlagCondition[]>(initialConditions);
+  const [conditionJoin, setConditionJoin] = useState(initialValue?.conditionJoin ?? "AND");
+  const [draggedConditionId, setDraggedConditionId] = useState<number | null>(null);
+  const [propertyModeMenuId, setPropertyModeMenuId] = useState<number | null>(null);
+  const [valueModeMenuId, setValueModeMenuId] = useState<number | null>(null);
+  const [tooltipMode, setTooltipMode] = useState<FlagValueMode>(
+    initialValue?.tooltipMode ?? "string",
+  );
+  const [tooltipModeOpen, setTooltipModeOpen] = useState(false);
+  const [tooltipInsight, setTooltipInsight] = useState(initialValue?.tooltipInsight ?? "");
+  const nextConditionId = useRef(initialConditions.length + 1);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (propertyModeMenuId === null) return;
+    const closeModeMenu = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(".flag-settings-modal__property-mode-trigger") ||
+        target.closest(".flag-settings-modal__property-mode-menu")
+      ) {
+        return;
+      }
+      setPropertyModeMenuId(null);
+    };
+    document.addEventListener("mousedown", closeModeMenu);
+    return () => document.removeEventListener("mousedown", closeModeMenu);
+  }, [propertyModeMenuId]);
+
+  useEffect(() => {
+    if (valueModeMenuId === null) return;
+    const closeModeMenu = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(".flag-settings-modal__value-mode-trigger") ||
+        target.closest(".flag-settings-modal__value-mode-menu")
+      ) {
+        return;
+      }
+      setValueModeMenuId(null);
+    };
+    document.addEventListener("mousedown", closeModeMenu);
+    return () => document.removeEventListener("mousedown", closeModeMenu);
+  }, [valueModeMenuId]);
+
+  useEffect(() => {
+    if (!tooltipModeOpen) return;
+    const closeModeMenu = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(".flag-settings-modal__tooltip-mode-trigger") ||
+        target.closest(".flag-settings-modal__tooltip-mode-menu")
+      ) {
+        return;
+      }
+      setTooltipModeOpen(false);
+    };
+    document.addEventListener("mousedown", closeModeMenu);
+    return () => document.removeEventListener("mousedown", closeModeMenu);
+  }, [tooltipModeOpen]);
+
+  const updateCondition = (
+    index: number,
+    key:
+      | "propertyMode"
+      | "property"
+      | "operatorType"
+      | "operator"
+      | "valueMode"
+      | "value",
+    value: string,
+  ) => {
+    setConditions((current) =>
+      current.map((condition, conditionIndex) =>
+        conditionIndex === index ? { ...condition, [key]: value } : condition,
+      ),
+    );
+  };
+  const moveCondition = (conditionId: number, direction: -1 | 1) => {
+    setConditions((current) => {
+      const fromIndex = current.findIndex((condition) => condition.id === conditionId);
+      const toIndex = fromIndex + direction;
+      if (fromIndex < 0 || toIndex < 0 || toIndex >= current.length) return current;
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+  const dropCondition = (targetId: number) => {
+    if (draggedConditionId === null || draggedConditionId === targetId) return;
+    setConditions((current) => {
+      const fromIndex = current.findIndex((condition) => condition.id === draggedConditionId);
+      const toIndex = current.findIndex((condition) => condition.id === targetId);
+      if (fromIndex < 0 || toIndex < 0) return current;
+      const next = [...current];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+    setDraggedConditionId(null);
+  };
+
+  return createPortal(
+    <div
+      className="flag-settings-modal-overlay"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="flag-settings-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="flag-settings-modal-title"
+      >
+        <header className="flag-settings-modal__header">
+          <h2 id="flag-settings-modal-title">
+            {initialValue ? "Edit" : "Add"} {flag.name}
+          </h2>
+          <button type="button" className="icon-btn" aria-label="Close flag settings" onClick={onClose}>
+            <CloseIcon width={18} height={18} aria-hidden="true" />
+          </button>
+        </header>
+        <div className="flag-settings-modal__body" aria-label={`${flag.name} settings`}>
+          <label className="flag-settings-modal__field">
+            <span>Label</span>
+            <input
+              type="text"
+              value={label}
+              placeholder="Enter flag label"
+              onChange={(event) => setLabel(event.target.value)}
+            />
+          </label>
+
+          <section className="flag-settings-modal__conditions">
+            <div className="flag-settings-modal__conditions-head">
+              <h3>Conditions</h3>
+              {conditions.length > 1 && (
+                <Dropdown
+                  value={conditionJoin}
+                  onChange={setConditionJoin}
+                  options={[
+                    { value: "AND", label: "AND" },
+                    { value: "OR", label: "OR" },
+                  ]}
+                  compact
+                  ariaLabel="Condition matching mode"
+                  className="flag-settings-modal__join"
+                  menuClassName="flag-settings-dropdown-menu"
+                />
+              )}
+            </div>
+            <div className="flag-settings-modal__condition-list">
+              {conditions.map((condition, index) => (
+                <article
+                  className={
+                    "flag-settings-modal__condition" +
+                    (draggedConditionId === condition.id ? " is-dragging" : "")
+                  }
+                  key={condition.id}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => dropCondition(condition.id)}
+                >
+                  <header>
+                    <span>Condition {index + 1}</span>
+                    {conditions.length > 1 && (
+                      <span className="flag-settings-modal__condition-actions">
+                        <button
+                          type="button"
+                          aria-label={`Delete condition ${index + 1}`}
+                          onClick={() =>
+                            setConditions((current) =>
+                              current.filter((item) => item.id !== condition.id),
+                            )
+                          }
+                        >
+                          <TrashIcon width={16} height={16} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="flag-settings-modal__drag"
+                          draggable
+                          aria-label={`Reorder condition ${index + 1}`}
+                          onDragStart={() => setDraggedConditionId(condition.id)}
+                          onDragEnd={() => setDraggedConditionId(null)}
+                          onKeyDown={(event) => {
+                            if (event.key === "ArrowUp") {
+                              event.preventDefault();
+                              moveCondition(condition.id, -1);
+                            } else if (event.key === "ArrowDown") {
+                              event.preventDefault();
+                              moveCondition(condition.id, 1);
+                            }
+                          }}
+                        >
+                          <DotsSixVertical size={16} weight="bold" aria-hidden="true" />
+                        </button>
+                      </span>
+                    )}
+                  </header>
+                  <div>
+                    <div className="flag-settings-modal__condition-control">
+                      <button
+                        type="button"
+                        className="flag-settings-modal__property-mode-trigger"
+                        aria-label="Property type"
+                        aria-haspopup="menu"
+                        aria-expanded={propertyModeMenuId === condition.id}
+                        onClick={() => {
+                          setValueModeMenuId(null);
+                          setPropertyModeMenuId((current) =>
+                            current === condition.id ? null : condition.id,
+                          );
+                        }}
+                      >
+                        {condition.propertyMode === "select" ? (
+                          <HandPointing size={16} weight="regular" aria-hidden="true" />
+                        ) : (
+                          <Function size={16} weight="regular" aria-hidden="true" />
+                        )}
+                        <ChevronDownIcon width={12} height={12} aria-hidden="true" />
+                      </button>
+                      {condition.propertyMode === "select" ? (
+                        <FlagPropertyPicker
+                          value={condition.property}
+                          onChange={(value) => updateCondition(index, "property", value)}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={condition.property}
+                          placeholder="Enter expression"
+                          onChange={(event) =>
+                            updateCondition(index, "property", event.target.value)
+                          }
+                        />
+                      )}
+                      {propertyModeMenuId === condition.id && (
+                        <div
+                          className="cp-picker-menu flag-settings-modal__property-mode-menu"
+                          role="menu"
+                          aria-label="Property type"
+                        >
+                          <div className="dropdown-menu__inner">
+                            <button
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={condition.propertyMode === "select"}
+                              className={condition.propertyMode === "select" ? "is-selected" : ""}
+                              onClick={() => {
+                                updateCondition(index, "propertyMode", "select");
+                                updateCondition(index, "property", "");
+                                setPropertyModeMenuId(null);
+                              }}
+                            >
+                              <HandPointing size={16} weight="regular" aria-hidden="true" />
+                              <span>Select</span>
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={condition.propertyMode === "expression"}
+                              className={
+                                condition.propertyMode === "expression" ? "is-selected" : ""
+                              }
+                              onClick={() => {
+                                updateCondition(index, "propertyMode", "expression");
+                                updateCondition(index, "property", "");
+                                setPropertyModeMenuId(null);
+                              }}
+                            >
+                              <Function size={16} weight="regular" aria-hidden="true" />
+                              <span>Expression</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flag-settings-modal__condition-control">
+                      <span className="flag-settings-modal__operator-type" aria-hidden="true">
+                        <FlagOperatorTypeIcon type={condition.operatorType} />
+                      </span>
+                      <FlagOperatorPicker
+                        type={condition.operatorType}
+                        value={condition.operator}
+                        onChange={(operatorType, operator) => {
+                          updateCondition(index, "operatorType", operatorType);
+                          updateCondition(index, "operator", operator);
+                        }}
+                      />
+                    </div>
+                    <div className="flag-settings-modal__condition-control">
+                      <button
+                        type="button"
+                        className="flag-settings-modal__value-mode-trigger"
+                        aria-label="Value type"
+                        aria-haspopup="menu"
+                        aria-expanded={valueModeMenuId === condition.id}
+                        onClick={() => {
+                          setPropertyModeMenuId(null);
+                          setValueModeMenuId((current) =>
+                            current === condition.id ? null : condition.id,
+                          );
+                        }}
+                      >
+                        {condition.valueMode === "string" ? (
+                          <TextT size={16} weight="regular" aria-hidden="true" />
+                        ) : (
+                          <Function size={16} weight="regular" aria-hidden="true" />
+                        )}
+                        <ChevronDownIcon width={12} height={12} aria-hidden="true" />
+                      </button>
+                      <input
+                        type="text"
+                        value={condition.value}
+                        placeholder={
+                          condition.valueMode === "string" ? "Enter text" : "Enter expression"
+                        }
+                        onChange={(event) => updateCondition(index, "value", event.target.value)}
+                      />
+                      {valueModeMenuId === condition.id && (
+                        <div
+                          className="cp-picker-menu flag-settings-modal__property-mode-menu flag-settings-modal__value-mode-menu"
+                          role="menu"
+                          aria-label="Value type"
+                        >
+                          <div className="dropdown-menu__inner">
+                            <button
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={condition.valueMode === "string"}
+                              className={condition.valueMode === "string" ? "is-selected" : ""}
+                              onClick={() => {
+                                updateCondition(index, "valueMode", "string");
+                                updateCondition(index, "value", "");
+                                setValueModeMenuId(null);
+                              }}
+                            >
+                              <TextT size={16} weight="regular" aria-hidden="true" />
+                              <span>String</span>
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={condition.valueMode === "expression"}
+                              className={condition.valueMode === "expression" ? "is-selected" : ""}
+                              onClick={() => {
+                                updateCondition(index, "valueMode", "expression");
+                                updateCondition(index, "value", "");
+                                setValueModeMenuId(null);
+                              }}
+                            >
+                              <Function size={16} weight="regular" aria-hidden="true" />
+                              <span>Expression</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="flag-settings-modal__add-condition"
+              onClick={() =>
+                setConditions((current) => [
+                  ...current,
+                  {
+                    id: nextConditionId.current++,
+                    propertyMode: "select",
+                    property: "",
+                    operatorType: "string",
+                    operator: "is equal to",
+                    valueMode: "string",
+                    value: "",
+                  },
+                ])
+              }
+            >
+              <PlusIcon width={16} height={16} strokeWidth={1.5} aria-hidden="true" />
+              <span>Add Condition</span>
+            </button>
+          </section>
+
+          <label className="flag-settings-modal__field">
+            <span>Tooltip Insight (AI Prompt)</span>
+            <div className="flag-settings-modal__prompt">
+              <button
+                type="button"
+                className="flag-settings-modal__tooltip-mode-trigger"
+                aria-label="Tooltip prompt type"
+                aria-haspopup="menu"
+                aria-expanded={tooltipModeOpen}
+                onClick={() => setTooltipModeOpen((current) => !current)}
+              >
+                {tooltipMode === "string" ? (
+                  <TextT size={16} weight="regular" aria-hidden="true" />
+                ) : (
+                  <Function size={16} weight="regular" aria-hidden="true" />
+                )}
+                <ChevronDownIcon width={12} height={12} aria-hidden="true" />
+              </button>
+              <textarea
+                value={tooltipInsight}
+                placeholder={tooltipMode === "string" ? "Enter text" : "Enter expression"}
+                onChange={(event) => setTooltipInsight(event.target.value)}
+              />
+              {tooltipModeOpen && (
+                <div
+                  className="cp-picker-menu flag-settings-modal__property-mode-menu flag-settings-modal__tooltip-mode-menu"
+                  role="menu"
+                  aria-label="Tooltip prompt type"
+                >
+                  <div className="dropdown-menu__inner">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={tooltipMode === "string"}
+                      className={tooltipMode === "string" ? "is-selected" : ""}
+                      onClick={() => {
+                        setTooltipMode("string");
+                        setTooltipInsight("");
+                        setTooltipModeOpen(false);
+                      }}
+                    >
+                      <TextT size={16} weight="regular" aria-hidden="true" />
+                      <span>String</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={tooltipMode === "expression"}
+                      className={tooltipMode === "expression" ? "is-selected" : ""}
+                      onClick={() => {
+                        setTooltipMode("expression");
+                        setTooltipInsight("");
+                        setTooltipModeOpen(false);
+                      }}
+                    >
+                      <Function size={16} weight="regular" aria-hidden="true" />
+                      <span>Expression</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <small>
+              Enter instructions for the insight you want the AI to generate inside the tooltip
+            </small>
+          </label>
+        </div>
+        <footer className="flag-settings-modal__footer">
+          <button type="button" className="pg-btn pg-btn--secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="pg-btn pg-btn--primary"
+            onClick={() =>
+              onAdd({
+                label,
+                conditionJoin,
+                conditions: conditions.map(
+                  ({ propertyMode, property, operatorType, operator, valueMode, value }) => ({
+                  propertyMode,
+                  property,
+                  operatorType,
+                  operator,
+                  valueMode,
+                  value,
+                  }),
+                ),
+                tooltipMode,
+                tooltipInsight,
+              })
+            }
+          >
+            {initialValue ? "Save Flag" : "Add Flag"}
+          </button>
+        </footer>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
+function isFlagSettingsValue(value: unknown): value is FlagSettingsValue {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<FlagSettingsValue>;
+  return typeof candidate.label === "string" && Array.isArray(candidate.conditions);
+}
+
+function flagConditionSummary(condition: FlagSettingsValue["conditions"][number]): string {
+  const source =
+    condition.propertyMode === "select"
+      ? `asset.${condition.property || "property"}`
+      : condition.property || "Expression";
+  const operatorNeedsValue = ![
+    "exists",
+    "does not exist",
+    "is empty",
+    "is not empty",
+    "is true",
+    "is false",
+  ].includes(condition.operator);
+  const formattedValue =
+    condition.valueMode === "string" ? `"${condition.value}"` : condition.value;
+  return [source, condition.operator, operatorNeedsValue ? formattedValue : ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function FlagsSettings({
+  items,
+  getVal,
+  setVal,
+}: {
+  items: Opt[];
+  getVal: (o: Opt) => unknown;
+  setVal: (o: Opt, v: unknown) => void;
+}) {
+  const [editingFlag, setEditingFlag] = useState<Opt | null>(null);
+  const editingValue = editingFlag ? getVal(editingFlag) : null;
+  const editingFlagValue = isFlagSettingsValue(editingValue) ? editingValue : undefined;
+
+  return (
+    <>
+      <section className="flags-settings" aria-label="Flags">
+        {items.map((item) => {
+          const value = getVal(item);
+          const configuredFlag = isFlagSettingsValue(value) ? value : null;
+          const tone = item.name.toLowerCase().split(" ")[0];
+          return (
+            <article
+              className={
+                "flags-settings__item" + (configuredFlag ? " is-configured" : "")
+              }
+              key={item.name}
+            >
+              <header className="flags-settings__head">
+                <span className="flags-settings__title">
+                  <i className={`flags-settings__dot flags-settings__dot--${tone}`} aria-hidden="true" />
+                  <strong>{item.name}</strong>
+                </span>
+              </header>
+              {configuredFlag ? (
+                <div className="flags-settings__summary">
+                  <header className="flags-settings__summary-head">
+                    <strong>{configuredFlag.label || "Untitled flag"}</strong>
+                    <span className="flags-settings__summary-actions">
+                      <button
+                        type="button"
+                        aria-label={`Edit ${configuredFlag.label || item.name}`}
+                        onClick={() => setEditingFlag(item)}
+                      >
+                        <PencilSimple size={16} weight="regular" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${configuredFlag.label || item.name}`}
+                        onClick={() => setVal(item, false)}
+                      >
+                        <TrashIcon width={16} height={16} aria-hidden="true" />
+                      </button>
+                    </span>
+                  </header>
+                  <small className="flags-settings__condition-summary">
+                    {configuredFlag.conditions.length > 0 ? (
+                      configuredFlag.conditions.map((condition, index) => (
+                        <Fragment key={`${condition.property}-${condition.operator}-${index}`}>
+                          <span>{flagConditionSummary(condition)}</span>
+                          {index < configuredFlag.conditions.length - 1 && (
+                            <b>{configuredFlag.conditionJoin}</b>
+                          )}
+                        </Fragment>
+                      ))
+                    ) : (
+                      <span>No conditions configured</span>
+                    )}
+                  </small>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="flags-settings__action"
+                  aria-pressed="false"
+                  onClick={() => setEditingFlag(item)}
+                >
+                  <PlusIcon width={16} height={16} strokeWidth={1.5} aria-hidden="true" />
+                  <span>Add Flag</span>
+                </button>
+              )}
+            </article>
+          );
+        })}
+      </section>
+      {editingFlag && (
+        <FlagSettingsModal
+          flag={editingFlag}
+          initialValue={editingFlagValue}
+          onClose={() => setEditingFlag(null)}
+          onAdd={(value) => {
+            setVal(editingFlag, value);
+            setEditingFlag(null);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 function GroupCard({
   items,
   advancedOpen,
@@ -2662,7 +3742,9 @@ export default function EditComponentModal({
                       ))}
                     </nav>
                     <div className="vs-panel__content">
-                      {tabFields.length === 0 ? (
+                      {activeSubCategory === "Flags" ? (
+                        <FlagsSettings items={tabFields} getVal={getVal} setVal={setVal} />
+                      ) : tabFields.length === 0 ? (
                         <div className="ia-empty">No options for this visual in this section.</div>
                       ) : (
                         <div className="ia-stack">
