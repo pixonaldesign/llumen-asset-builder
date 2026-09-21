@@ -13,7 +13,6 @@ import {
   ChevronDownIcon,
   ContrastIcon,
   GradientPillIcon,
-  InfoIcon,
   PerCategoryPillsIcon,
   PlusIcon,
   CloseIcon,
@@ -173,7 +172,7 @@ function isPlaceholderStops(stops: { value: number }[]): boolean {
 }
 
 function remapStopValues(stops: Stop[], min: number, max: number): Stop[] {
-  if (!stops.length) return spreadStops(["#f87171", "#fbbf24", "#34d399"], min, max, 3);
+  if (!stops.length) return spreadStops(["#eff5fe", "#2b61f5"], min, max, 2);
   const span = max - min;
   const lo = Math.min(...stops.map((s) => s.value));
   const hi = Math.max(...stops.map((s) => s.value));
@@ -212,7 +211,7 @@ function spreadStops(
 }
 
 function gradientStops(colors: string[], min = 0, max = 100, distribution = "Linear"): Stop[] {
-  return spreadStops(colors, min, max, 3, distribution);
+  return spreadStops(colors, min, max, 2, distribution);
 }
 
 function toUiStops(list: ColorStop[]): Stop[] {
@@ -224,7 +223,22 @@ function persistable(list: Stop[]): ColorStop[] {
 }
 
 function stepStops(colors: string[], min = 0, max = 100): Stop[] {
-  return spreadStops(colors, min, max, 4);
+  const ramp = colors.length ? colors : DEFAULT_COLOR_MODE.colors;
+  const secondColorIndex = Math.min(
+    ramp.length - 1,
+    Math.max(1, Math.round((ramp.length - 1) / 3)),
+  );
+  const stops = spreadStops(
+    [ramp[0], ramp[secondColorIndex]],
+    min,
+    max,
+    2,
+  );
+  stops[1] = {
+    ...stops[1],
+    value: niceNum(min + (max - min) / 2, max - min),
+  };
+  return stops;
 }
 
 function Field({
@@ -679,100 +693,6 @@ function PaletteSwatches({ colors, limit }: { colors: string[]; limit?: number }
   );
 }
 
-function PaletteDetailsPopover({
-  preset,
-  onClose,
-  style,
-}: {
-  preset: PalettePreset;
-  onClose: () => void;
-  style: CSSProperties;
-}) {
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
-
-  const middleColor = preset.colors[Math.floor(preset.colors.length / 2)];
-  const baseColors =
-    preset.type === "Sequential"
-      ? [{ label: "", color: preset.colors[preset.colors.length - 1] }]
-      : preset.type === "Diverging"
-        ? [
-            { label: "Negative", color: preset.colors[0] },
-            { label: "Neutral", color: middleColor },
-            { label: "Positive", color: preset.colors[preset.colors.length - 1] },
-          ]
-        : [];
-
-  const basisDescription =
-    preset.type === "Sequential"
-      ? "The system generates this palette from shades of one base color."
-      : preset.type === "Diverging"
-        ? "The system generates this palette between negative and positive colors through a neutral midpoint."
-        : "Each color in a categorical palette is an independent base color.";
-
-  return (
-    <section
-      className="cp-palette-details-popover"
-      role="dialog"
-      aria-label={`${preset.name} palette details`}
-      style={style}
-      onMouseDown={(event) => event.stopPropagation()}
-    >
-      <header>
-        <div>
-          <strong>{preset.name}</strong>
-          <span>{preset.type}</span>
-        </div>
-        <button type="button" aria-label="Close palette details" onClick={onClose}>
-          <CloseIcon width={18} height={18} strokeWidth={1} aria-hidden="true" />
-        </button>
-      </header>
-      <section className="cp-palette-details-popover__basis">
-        <strong>{preset.type === "Sequential" ? "Base color" : "Base colors"}</strong>
-        {baseColors.length > 0 && (
-          <div className="cp-palette-details-popover__base-swatches">
-            {baseColors.map(({ label, color }) => (
-              <div key={`${label}-${color}`}>
-                <span style={{ background: color }} aria-hidden="true" />
-                {label && <span>{label}</span>}
-              </div>
-            ))}
-          </div>
-        )}
-        <p>{basisDescription}</p>
-      </section>
-      {preset.type === "Categorical" ? (
-        <div className="cp-palette-details-popover__colors">
-          {preset.colors.map((color, index) => (
-            <div key={`${color}-${index}`}>
-              <span
-                className="cp-palette-details-popover__color-swatch"
-                style={{ background: color }}
-                aria-hidden="true"
-              />
-              <span className="cp-palette-details-popover__color-index">{index + 1}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <section className="cp-palette-details-popover__preview">
-          <h3>Preview</h3>
-          <div className="cp-palette-details-popover__preview-swatches">
-            {preset.colors.map((color, index) => (
-              <span key={`${color}-${index}`} style={{ background: color }} aria-hidden="true" />
-            ))}
-          </div>
-        </section>
-      )}
-    </section>
-  );
-}
-
 function PalettePickerMenu({
   open,
   tab,
@@ -796,55 +716,18 @@ function PalettePickerMenu({
   menuRef?: Ref<HTMLDivElement>;
   style?: CSSProperties;
 }) {
-  const [detailsPopover, setDetailsPopover] = useState<{
-    preset: PalettePreset;
-    top: number;
-    left: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!detailsPopover) return;
-    const closeDetails = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (
-        target.closest(".cp-palette-details-popover") ||
-        target.closest(".cp-palette-overflow-badge") ||
-        target.closest(".cp-palette-info-button")
-      ) {
-        return;
-      }
-      setDetailsPopover(null);
-    };
-    document.addEventListener("mousedown", closeDetails);
-    return () => document.removeEventListener("mousedown", closeDetails);
-  }, [detailsPopover]);
-
   if (!open) return null;
 
   const q = search.trim().toLowerCase();
   const list = PRESETS.filter((p) => p.type === tab && (!q || p.name.toLowerCase().includes(q)));
-  const showDetails = (preset: PalettePreset, anchor: HTMLElement) => {
-    const rect = anchor.getBoundingClientRect();
-    const width = 400;
-    const estimatedHeight = 480;
-    const below = rect.bottom + 6;
-    setDetailsPopover((current) =>
-      current?.preset.name === preset.name && current.preset.type === preset.type
-        ? null
-        : {
-            preset,
-            top:
-              below + estimatedHeight <= window.innerHeight - 8
-                ? below
-                : Math.max(8, rect.top - estimatedHeight - 6),
-            left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)),
-          },
-    );
-  };
 
   return (
-    <div className="cp-picker-menu cp-picker-menu--flyout" ref={menuRef} style={style} role="listbox">
+    <div
+      className="cp-picker-menu cp-picker-menu--flyout cp-palette-picker-menu"
+      ref={menuRef}
+      style={style}
+      role="listbox"
+    >
       <div className="dropdown-menu__inner">
         <div className="cp-picker-tabs">
           {(["Sequential", "Categorical", "Diverging"] as PaletteType[]).map((t) => (
@@ -906,30 +789,11 @@ function PalettePickerMenu({
                   <span className="cp-palette-picker-row__palette">
                     <PaletteSwatches colors={preset.colors} limit={7} />
                     {hasOverflow && (
-                      <button
-                        type="button"
-                        className="cp-palette-overflow-badge"
-                        aria-label={`View all ${preset.colors.length} ${preset.name} colors`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          showDetails(preset, event.currentTarget);
-                        }}
-                      >
+                      <span className="cp-palette-overflow-badge" aria-hidden="true">
                         10+
-                      </button>
+                      </span>
                     )}
                   </span>
-                  <button
-                    type="button"
-                    className="cp-palette-info-button"
-                    aria-label={`View ${preset.name} palette details`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      showDetails(preset, event.currentTarget);
-                    }}
-                  >
-                    <InfoIcon width={16} height={16} aria-hidden="true" />
-                  </button>
                 </span>
               </div>
             );
@@ -937,15 +801,6 @@ function PalettePickerMenu({
           {!list.length && <div className="cp-picker-empty">No palettes found</div>}
         </div>
       </div>
-      {detailsPopover &&
-        createPortal(
-          <PaletteDetailsPopover
-            preset={detailsPopover.preset}
-            onClose={() => setDetailsPopover(null)}
-            style={{ top: detailsPopover.top, left: detailsPopover.left }}
-          />,
-          document.body,
-        )}
     </div>
   );
 }
@@ -980,12 +835,6 @@ export function PaletteSelector({
       const target = e.target as Node;
       if (triggerRef.current?.contains(target)) return;
       if (menuRef.current?.contains(target)) return;
-      if (
-        target instanceof Element &&
-        target.closest(".cp-palette-details-popover")
-      ) {
-        return;
-      }
       setPickerOpen(false);
     };
     const onLayout = () => syncMenuPosition();
@@ -1412,7 +1261,7 @@ function DataRangeEditor({
             stop={s}
             colors={colors}
             showValue
-            showRemove
+            showRemove={removable}
             removable={removable}
             onChange={onChange}
             onRemove={() => onRemove(s.id)}
@@ -1545,7 +1394,9 @@ export default function ColorPalette({
   const domainMax = dataRange?.max;
 
   const [gStops, setGStops] = useState<Stop[]>(() =>
-    config.style !== "Steps" && config.stops.length ? toUiStops(config.stops) : gradientStops(config.colors, domainMin ?? 0, domainMax ?? 100),
+    config.style === "Gradient" && config.stops.length
+      ? toUiStops(config.stops)
+      : gradientStops(config.colors, domainMin ?? 0, domainMax ?? 100),
   );
   const [sStops, setSStops] = useState<Stop[]>(() =>
     config.style === "Steps" && config.stops.length ? toUiStops(config.stops) : stepStops(config.colors, domainMin ?? 0, domainMax ?? 100),
@@ -1574,19 +1425,25 @@ export default function ColorPalette({
     const current = style === "Steps" ? sStops : gStops;
     const lo = current.length ? Math.min(...current.map((s) => s.value)) : NaN;
     const hi = current.length ? Math.max(...current.map((s) => s.value)) : NaN;
-    const aligned = Math.abs(lo - domainMin) < 1e-6 && Math.abs(hi - domainMax) < 1e-6;
-    if (aligned && !isPlaceholderStops(current)) return;
-    if (isStepsOnly) {
-      const s = remapStopValues(current, domainMin, domainMax);
+    if (style === "Steps") {
+      const aligned =
+        Math.abs(lo - domainMin) < 1e-6 &&
+        hi <= domainMax + 1e-6 &&
+        !isPlaceholderStops(current);
+      if (aligned) return;
+      const s =
+        current.length <= 2
+          ? stepStops(paletteColors, domainMin, domainMax)
+          : remapStopValues(current, domainMin, domainMax);
       setSStops(s);
       commit({ style: "Steps", stops: persistable(s) });
       return;
     }
-    const g = spreadStops(paletteColors, domainMin, domainMax, Math.max(3, gStops.length), config.distribution);
-    const s = spreadStops(paletteColors, domainMin, domainMax, Math.max(4, sStops.length));
+    const aligned = Math.abs(lo - domainMin) < 1e-6 && Math.abs(hi - domainMax) < 1e-6;
+    if (aligned && !isPlaceholderStops(current)) return;
+    const g = spreadStops(paletteColors, domainMin, domainMax, Math.max(2, gStops.length), config.distribution);
     setGStops(g);
-    setSStops(s);
-    commit({ stops: persistable(style === "Steps" ? s : g) });
+    commit({ stops: persistable(g) });
     // Domain identity only — stop lists are rebuilt here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domainMin, domainMax]);
@@ -1660,11 +1517,33 @@ export default function ColorPalette({
       return updated;
     });
   const addStop = () => {
-    const mid = Math.round((min + max) / 2);
     setStops((list) => {
+      const value =
+        style === "Steps"
+          ? [...list.map((stop) => stop.value), max]
+              .sort((a, b) => a - b)
+              .reduce(
+                (largest, boundary, index, boundaries) => {
+                  if (index === 0) return largest;
+                  const start = boundaries[index - 1];
+                  const gap = boundary - start;
+                  return gap >= largest.gap
+                    ? { gap, value: niceNum(start + gap / 2, max - min) }
+                    : largest;
+                },
+                { gap: -1, value: niceNum(min + (max - min) / 2, max - min) },
+              ).value
+          : niceNum(min + (max - min) / 2, max - min);
       let updated = [
         ...list,
-        { id: nextId(), value: mid, color: paletteColors[1] ?? paletteColors[0], opacity: 100 },
+        {
+          id: nextId(),
+          value,
+          color:
+            paletteColors[list.length % Math.max(paletteColors.length, 1)] ??
+            paletteColors[0],
+          opacity: 100,
+        },
       ];
       if (style === "Gradient") updated = redistributeStops(updated, min, max, distribution);
       persistStops(updated);
@@ -1753,6 +1632,44 @@ export default function ColorPalette({
           }}
           onRemove={() => {}}
         />
+      )}
+
+      {isFull && style === "Per Category" && (
+        <Field label="Category values">
+          <div className="cp-category-colors">
+            {categoryLabels.map((label, index) => {
+              const categoryColor =
+                config.categoryColors[label] ??
+                paletteColors[index % Math.max(paletteColors.length, 1)] ??
+                config.color;
+              return (
+                <div className="cp-category-color" key={label}>
+                  <span className="cp-category-color__label" title={label}>
+                    {label}
+                  </span>
+                  <DirectColorPicker
+                    value={categoryColor}
+                    opacity={config.categoryOpacities[index] ?? config.opacity}
+                    onChange={(nextColor) =>
+                      commit({
+                        categoryLabels,
+                        categoryColors: {
+                          ...config.categoryColors,
+                          [label]: nextColor,
+                        },
+                      })
+                    }
+                    onOpacityChange={(nextOpacity) => {
+                      const categoryOpacities = [...config.categoryOpacities];
+                      categoryOpacities[index] = nextOpacity;
+                      commit({ categoryLabels, categoryOpacities });
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </Field>
       )}
 
       {isFull && style === "Gradient" && (

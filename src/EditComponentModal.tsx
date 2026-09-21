@@ -2702,6 +2702,7 @@ function FlagsSettings({
                   <i className={`flags-settings__dot flags-settings__dot--${tone}`} aria-hidden="true" />
                   <strong>{item.name}</strong>
                 </span>
+                <small className="flags-settings__optional">Optional</small>
               </header>
               {configuredFlag ? (
                 <div className="flags-settings__summary">
@@ -3271,6 +3272,31 @@ export default function EditComponentModal({
     ],
   );
 
+  const paletteCategoryLabels = useMemo(() => {
+    const candidates = previewSeries.groups?.length
+      ? previewSeries.groups.map((group) => group.name)
+      : previewSeries.mapPoints?.some((point) => point.category)
+        ? previewSeries.mapPoints.map((point) => point.category)
+        : previewSeries.polar?.some((point) => point.colorCategory || point.direction)
+          ? previewSeries.polar.map((point) => point.colorCategory || point.direction)
+          : previewSeries.scatterPoints?.some((point) => point.category)
+            ? previewSeries.scatterPoints.map((point) => point.category ?? "")
+            : previewSeries.colorCategories?.length
+              ? previewSeries.colorCategories
+              : previewSeries.labels?.length
+                ? previewSeries.labels
+                : previewSeries.ranges?.length
+                  ? previewSeries.ranges.map((range) => range.label)
+                  : previewSeries.availability?.length
+                    ? previewSeries.availability.map((row) => row.label)
+                    : previewSeries.kpiTiles?.length
+                      ? previewSeries.kpiTiles.map((tile) => tile.status)
+                      : previewSeries.markTips?.map((tip) => tip.category) ?? [];
+    return Array.from(
+      new Set(candidates.map((candidate) => String(candidate).trim()).filter(Boolean)),
+    );
+  }, [previewSeries]);
+
   const colorDataRange = useMemo(
     () => numericExtent(mappedMeasureColumn(resolvedConfig)),
     [resolvedConfig],
@@ -3436,11 +3462,7 @@ export default function EditComponentModal({
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <ColorPaletteProvider
         dataRange={colorDataRange}
-        categoryLabels={
-          previewSeries.groups?.length
-            ? previewSeries.groups.map((group) => group.name)
-            : previewSeries.labels
-        }
+        categoryLabels={paletteCategoryLabels}
       >
       <div className="modal">
         {/* Header */}

@@ -520,7 +520,12 @@ export function resolveColorMode(
   if (mode.style === "Single") return withOpacity(mode.color, mode.opacity);
   if (mode.style === "Per Category") {
     const colors = mode.colors.length ? mode.colors : DEFAULT_COLOR_MODE.colors;
-    const directColor = category ? mode.categoryColors[category] : undefined;
+    const directColor = category
+      ? mode.categoryColors[category] ??
+        Object.entries(mode.categoryColors).find(
+          ([label]) => label.toLowerCase() === category.toLowerCase(),
+        )?.[1]
+      : undefined;
     const colorIndex = categoryIndex % colors.length;
     return withOpacity(
       directColor ?? colors[colorIndex] ?? mode.color,
