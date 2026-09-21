@@ -346,32 +346,43 @@ function hslToHex({ h, s, l }: HslColor) {
   return rgbToHex((r + m) * 255, (g + m) * 255, (b + m) * 255);
 }
 
-export function DirectColorPicker({
+function CustomColorSelector({
   value,
-  onChange,
-  opacity = 100,
-  onOpacityChange,
+  recentColor,
+  position,
+  popoverRef,
+  onCancel,
+  onApply,
 }: {
   value: string;
-  onChange: (color: string) => void;
-  opacity?: number;
-  onOpacityChange?: (opacity: number) => void;
+  recentColor: string;
+  position: { top: number; left: number };
+  popoverRef?: Ref<HTMLElement>;
+  onCancel: () => void;
+  onApply: (color: string) => void;
 }) {
   const normalizedValue = validHex(value) ?? DEFAULT_COLOR_MODE.color;
-  const normalizedOpacity = clamp(Number(opacity) || 0, 0, 100);
-  const [hexDraft, setHexDraft] = useState(normalizedValue);
-  const [opacityDraft, setOpacityDraft] = useState(String(normalizedOpacity));
-  const [pickerDraft, setPickerDraft] = useState(normalizedValue);
-  const [recentColor, setRecentColor] = useState("#8f5065");
+  const [draft, setDraft] = useState(normalizedValue);
   const [format, setFormat] = useState<ColorFormat>("RGB");
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLElement>(null);
-
-  const [r, g, b] = hexToRgb(pickerDraft);
+  const [r, g, b] = hexToRgb(draft);
   const hsv = rgbToHsvColor(r, g, b);
   const hsl = rgbToHslColor(r, g, b);
+
+  const updateRgb = (channel: 0 | 1 | 2, raw: string) => {
+    const next: [number, number, number] = [r, g, b];
+    next[channel] = clamp(Number(raw) || 0, 0, 255);
+    setDraft(rgbToHex(...next));
+  };
+
+  const updateHsl = (channel: "h" | "s" | "l", raw: string) => {
+    const next = { ...hsl };
+    next[channel] =
+      channel === "h"
+        ? clamp(Number(raw) || 0, 0, 360)
+        : clamp(Number(raw) || 0, 0, 100) / 100;
+    setDraft(hslToHex(next));
+  };
+
   const channels: Array<{
     label: string;
     value: number;
@@ -389,10 +400,157 @@ export function DirectColorPicker({
           { label: "L", value: Math.round(hsl.l * 100), update: (raw) => updateHsl("l", raw) },
         ];
 
+  const setSvFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDraft(
+      hsvToHex({
+        h: hsv.h,
+        s: clamp((event.clientX - rect.left) / rect.width, 0, 1),
+        v: clamp(1 - (event.clientY - rect.top) / rect.height, 0, 1),
+      }),
+    );
+  };
+
+  return (
+    <section
+      ref={popoverRef}
+      className="cp-direct-picker-popover"
+      role="dialog"
+      aria-label="Choose custom color"
+      style={{ top: position.top, left: position.left }}
+    >
+      <div
+        className="cp-direct-picker__sv"
+        style={{ backgroundColor: `hsl(${hsv.h} 100% 50%)` }}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setSvFromPointer(event);
+        }}
+        onPointerMove={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            setSvFromPointer(event);
+          }
+        }}
+      >
+        <span
+          className="cp-direct-picker__marker"
+          style={{
+            left: `${hsv.s * 100}%`,
+            top: `${(1 - hsv.v) * 100}%`,
+          }}
+        />
+      </div>
+
+      <input
+        className="cp-direct-picker__hue"
+        type="range"
+        min={0}
+        max={359}
+        value={Math.round(hsv.h)}
+        aria-label="Hue"
+        onChange={(event) =>
+          setDraft(hsvToHex({ ...hsv, h: Number(event.target.value) }))
+        }
+      />
+
+      <div className="cp-direct-picker__format-head">
+        <span
+          className="cp-direct-picker__preview"
+          style={{ background: draft }}
+          aria-hidden="true"
+        />
+        <div className="cp-direct-picker__formats" role="tablist" aria-label="Color format">
+          {(["HEX", "RGB", "HSL"] as ColorFormat[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              role="tab"
+              aria-selected={format === item}
+              className={format === item ? "is-active" : ""}
+              onClick={() => setFormat(item)}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {format === "HEX" ? (
+        <label className="cp-direct-picker__single-value">
+          <span>HEX</span>
+          <input
+            value={draft.toUpperCase()}
+            onChange={(event) => {
+              const parsed = validHex(event.target.value);
+              if (parsed) setDraft(parsed);
+            }}
+          />
+        </label>
+      ) : (
+        <div className="cp-direct-picker__channels">
+          {channels.map((channel) => (
+            <label key={channel.label}>
+              <span>{channel.label}</span>
+              <input
+                type="number"
+                value={channel.value}
+                onChange={(event) => channel.update(event.target.value)}
+              />
+            </label>
+          ))}
+        </div>
+      )}
+
+      <div className="cp-direct-picker__recent">
+        <span className="cp-label">Recent</span>
+        <button
+          type="button"
+          aria-label={`Use recent color ${recentColor}`}
+          style={{ background: recentColor }}
+          onClick={() => setDraft(recentColor)}
+        />
+      </div>
+
+      <footer>
+        <button type="button" className="pg-btn pg-btn--secondary" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="pg-btn pg-btn--primary"
+          onClick={() => onApply(draft)}
+        >
+          Apply
+        </button>
+      </footer>
+    </section>
+  );
+}
+
+export function DirectColorPicker({
+  value,
+  onChange,
+  opacity = 100,
+  onOpacityChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+  opacity?: number;
+  onOpacityChange?: (opacity: number) => void;
+}) {
+  const normalizedValue = validHex(value) ?? DEFAULT_COLOR_MODE.color;
+  const normalizedOpacity = clamp(Number(opacity) || 0, 0, 100);
+  const [hexDraft, setHexDraft] = useState(normalizedValue);
+  const [opacityDraft, setOpacityDraft] = useState(String(normalizedOpacity));
+  const [recentColor, setRecentColor] = useState("#8f5065");
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     setHexDraft(normalizedValue);
-    if (!open) setPickerDraft(normalizedValue);
-  }, [normalizedValue, open]);
+  }, [normalizedValue]);
 
   useEffect(() => {
     setOpacityDraft(String(normalizedOpacity));
@@ -421,12 +579,10 @@ export function DirectColorPicker({
     const close = (event: MouseEvent) => {
       const target = event.target as Node;
       if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
-      setPickerDraft(normalizedValue);
       setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      setPickerDraft(normalizedValue);
       setOpen(false);
     };
     const onLayout = () => syncPosition();
@@ -440,33 +596,7 @@ export function DirectColorPicker({
       window.removeEventListener("resize", onLayout);
       window.removeEventListener("scroll", onLayout, true);
     };
-  }, [open, normalizedValue, syncPosition]);
-
-  const setSvFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setPickerDraft(
-      hsvToHex({
-        h: hsv.h,
-        s: clamp((event.clientX - rect.left) / rect.width, 0, 1),
-        v: clamp(1 - (event.clientY - rect.top) / rect.height, 0, 1),
-      }),
-    );
-  };
-
-  const updateRgb = (channel: 0 | 1 | 2, raw: string) => {
-    const channels: [number, number, number] = [r, g, b];
-    channels[channel] = clamp(Number(raw) || 0, 0, 255);
-    setPickerDraft(rgbToHex(...channels));
-  };
-
-  const updateHsl = (channel: "h" | "s" | "l", raw: string) => {
-    const next = { ...hsl };
-    next[channel] =
-      channel === "h"
-        ? clamp(Number(raw) || 0, 0, 360)
-        : clamp(Number(raw) || 0, 0, 100) / 100;
-    setPickerDraft(hslToHex(next));
-  };
+  }, [open, syncPosition]);
 
   return (
     <>
@@ -496,7 +626,6 @@ export function DirectColorPicker({
                 setOpen(false);
                 return;
               }
-              setPickerDraft(normalizedValue);
               syncPosition();
               setOpen(true);
             }}
@@ -551,131 +680,18 @@ export function DirectColorPicker({
       </div>
       {open &&
         createPortal(
-          <section
-            ref={popoverRef}
-            className="cp-direct-picker-popover"
-            role="dialog"
-            aria-label="Choose color"
-            style={{ top: position.top, left: position.left }}
-          >
-            <div
-              className="cp-direct-picker__sv"
-              style={{ backgroundColor: `hsl(${hsv.h} 100% 50%)` }}
-              onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                setSvFromPointer(event);
-              }}
-              onPointerMove={(event) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  setSvFromPointer(event);
-                }
-              }}
-            >
-              <span
-                className="cp-direct-picker__marker"
-                style={{
-                  left: `${hsv.s * 100}%`,
-                  top: `${(1 - hsv.v) * 100}%`,
-                }}
-              />
-            </div>
-
-            <input
-              className="cp-direct-picker__hue"
-              type="range"
-              min={0}
-              max={359}
-              value={Math.round(hsv.h)}
-              aria-label="Hue"
-              onChange={(event) =>
-                setPickerDraft(
-                  hsvToHex({ ...hsv, h: Number(event.target.value) }),
-                )
-              }
-            />
-
-            <div className="cp-direct-picker__format-head">
-              <span
-                className="cp-direct-picker__preview"
-                style={{ background: pickerDraft }}
-                aria-hidden="true"
-              />
-              <div className="cp-direct-picker__formats" role="tablist" aria-label="Color format">
-                {(["HEX", "RGB", "HSL"] as ColorFormat[]).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    role="tab"
-                    aria-selected={format === item}
-                    className={format === item ? "is-active" : ""}
-                    onClick={() => setFormat(item)}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {format === "HEX" ? (
-              <label className="cp-direct-picker__single-value">
-                <span>HEX</span>
-                <input
-                  value={pickerDraft.toUpperCase()}
-                  onChange={(event) => {
-                    const parsed = validHex(event.target.value);
-                    if (parsed) setPickerDraft(parsed);
-                  }}
-                />
-              </label>
-            ) : (
-              <div className="cp-direct-picker__channels">
-                {channels.map((channel) => (
-                  <label key={channel.label}>
-                    <span>{channel.label}</span>
-                    <input
-                      type="number"
-                      value={channel.value}
-                      onChange={(event) => channel.update(event.target.value)}
-                    />
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <div className="cp-direct-picker__recent">
-              <span className="cp-label">Recent</span>
-              <button
-                type="button"
-                aria-label={`Use recent color ${recentColor}`}
-                style={{ background: recentColor }}
-                onClick={() => setPickerDraft(recentColor)}
-              />
-            </div>
-
-            <footer>
-              <button
-                type="button"
-                className="pg-btn pg-btn--secondary"
-                onClick={() => {
-                  setPickerDraft(normalizedValue);
-                  setOpen(false);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="pg-btn pg-btn--primary"
-                onClick={() => {
-                  setRecentColor(normalizedValue);
-                  onChange(pickerDraft);
-                  setOpen(false);
-                }}
-              >
-                Apply
-              </button>
-            </footer>
-          </section>,
+          <CustomColorSelector
+            value={normalizedValue}
+            recentColor={recentColor}
+            position={position}
+            popoverRef={popoverRef}
+            onCancel={() => setOpen(false)}
+            onApply={(nextColor) => {
+              setRecentColor(normalizedValue);
+              onChange(nextColor);
+              setOpen(false);
+            }}
+          />,
           document.body,
         )}
     </>
@@ -920,8 +936,12 @@ function StopRow({
   const [opacityDraft, setOpacityDraft] = useState(String(stop.opacity));
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [customPickerOpen, setCustomPickerOpen] = useState(false);
+  const [customPickerPos, setCustomPickerPos] = useState({ top: 0, left: 0 });
+  const [recentColor, setRecentColor] = useState("#8f5065");
   const swatchRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const customPickerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setHexDraft(committedHex);
@@ -948,6 +968,24 @@ function StopRow({
     setMenuPos({ top, left });
   }, []);
 
+  const syncCustomPickerPosition = useCallback(() => {
+    const el = swatchRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const width = 240;
+    const estimatedHeight = 430;
+    const gap = 8;
+    const left = clamp(rect.right - width, gap, window.innerWidth - width - gap);
+    const below = rect.bottom + gap;
+    setCustomPickerPos({
+      left,
+      top:
+        below + estimatedHeight <= window.innerHeight - gap
+          ? below
+          : Math.max(gap, rect.top - estimatedHeight - gap),
+    });
+  }, []);
+
   useEffect(() => {
     if (!menuOpen) return;
     syncMenuPosition();
@@ -972,6 +1010,34 @@ function StopRow({
       window.removeEventListener("scroll", onLayout, true);
     };
   }, [menuOpen, syncMenuPosition]);
+
+  useEffect(() => {
+    if (!customPickerOpen) return;
+    const close = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        swatchRef.current?.contains(target) ||
+        customPickerRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setCustomPickerOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCustomPickerOpen(false);
+    };
+    const onLayout = () => syncCustomPickerPosition();
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onLayout);
+    window.addEventListener("scroll", onLayout, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onLayout);
+      window.removeEventListener("scroll", onLayout, true);
+    };
+  }, [customPickerOpen, syncCustomPickerPosition]);
 
   const pickColor = (next: string) => {
     onChange({ ...stop, color: next });
@@ -1019,11 +1085,15 @@ function StopRow({
           <button
             ref={swatchRef}
             type="button"
-            className={"cp-swatch" + (menuOpen ? " is-open" : "")}
+            className={"cp-swatch" + (menuOpen || customPickerOpen ? " is-open" : "")}
             aria-label={`Choose color ${committedHex}`}
-            aria-expanded={menuOpen}
+            aria-expanded={menuOpen || customPickerOpen}
             aria-haspopup="listbox"
             onClick={() => {
+              if (customPickerOpen) {
+                setCustomPickerOpen(false);
+                return;
+              }
               if (menuOpen) {
                 setMenuOpen(false);
                 return;
@@ -1048,14 +1118,19 @@ function StopRow({
                   <div className="cp-swatch-menu__grid">
                     {colors.map((c, i) => {
                       const selected = sameHex(c, stop.color);
+                      const usedElsewhere = i === 2 && !selected;
                       return (
                         <button
                           key={`${c}-${i}`}
                           type="button"
                           role="option"
                           aria-selected={selected}
-                          aria-label={toHex(c).toUpperCase()}
-                          className={"cp-swatch-menu__dot" + (selected ? " is-selected" : "")}
+                          aria-label={`${toHex(c).toUpperCase()}${usedElsewhere ? ", used in mapping" : ""}`}
+                          className={
+                            "cp-swatch-menu__dot" +
+                            (selected ? " is-selected" : "") +
+                            (usedElsewhere ? " is-used" : "")
+                          }
                           style={{
                             background: c,
                             ["--cp-selected-swatch-color" as string]: c,
@@ -1065,8 +1140,38 @@ function StopRow({
                       );
                     })}
                   </div>
+                  <div className="cp-swatch-menu__custom-row">
+                    <button
+                      type="button"
+                      className="cp-swatch-menu__custom"
+                      onClick={() => {
+                        syncCustomPickerPosition();
+                        setMenuOpen(false);
+                        setCustomPickerOpen(true);
+                      }}
+                    >
+                      <PlusIcon width={16} height={16} aria-hidden="true" />
+                      <span>Add Custom Color</span>
+                    </button>
+                  </div>
                 </div>
               </div>,
+              document.body,
+            )}
+          {customPickerOpen &&
+            createPortal(
+              <CustomColorSelector
+                value={stop.color}
+                recentColor={recentColor}
+                position={customPickerPos}
+                popoverRef={customPickerRef}
+                onCancel={() => setCustomPickerOpen(false)}
+                onApply={(nextColor) => {
+                  setRecentColor(stop.color);
+                  onChange({ ...stop, color: nextColor });
+                  setCustomPickerOpen(false);
+                }}
+              />,
               document.body,
             )}
         </div>

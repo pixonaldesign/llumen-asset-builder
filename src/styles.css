@@ -6345,6 +6345,50 @@ button {
   border-radius: var(--radius-full);
   background: var(--cp-selected-swatch-color);
 }
+.cp-swatch-menu__dot.is-used {
+  position: relative;
+}
+.cp-swatch-menu__dot.is-used::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--white);
+  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  transform: translateY(1px);
+  pointer-events: none;
+}
+.cp-swatch-menu__custom-row {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--lc-border-default);
+}
+.cp-swatch-menu__custom {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: var(--lc-control-height);
+  padding: 0 var(--space-md);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+.cp-swatch-menu__custom:hover {
+  background: var(--lc-bg-neutral-subtle-hover);
+}
+.cp-swatch-menu__custom:focus-visible {
+  outline: none;
+  box-shadow: var(--lc-shadow-control-focus);
+}
 .cp-stop .cp-divider {
   flex: 0 0 auto;
   width: 1px;
