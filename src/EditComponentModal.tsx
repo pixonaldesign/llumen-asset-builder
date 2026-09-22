@@ -60,6 +60,7 @@ import ColorPalette, {
   CategoryColorMap,
   ColorPaletteProvider,
   PaletteSelector,
+  type PaletteCardinalityEdgeCase,
 } from "./ColorPalette";
 import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
@@ -73,6 +74,7 @@ import {
   DEFAULT_REPEATABLE,
   DEFAULT_ZOOM_SCALING,
   asColorMode,
+  fitPaletteToCount,
   asGradient,
   asRepeatable,
   asStringArray,
@@ -81,6 +83,7 @@ import {
   type GradientStop,
   type RepeatableRow,
 } from "./previewTheme";
+import type { PreviewSeries } from "./componentPreviewProfiles";
 import DataSourceStep, { type DataSourceSummary } from "./DataSourceStep";
 import FiltersStep from "./FiltersStep";
 import DeepDiveStep from "./DeepDiveStep";
@@ -224,6 +227,102 @@ const SAMPLE_COLUMNS = allColumnNames();
 /* config keys & defaults ------------------------------------------------ */
 type Config = Record<string, unknown>;
 const keyOf = (o: Opt) => `${o.group}::${o.name}`;
+
+function withPaletteCardinalityEdgeCase(
+  series: PreviewSeries,
+  edgeCase: PaletteCardinalityEdgeCase,
+): PreviewSeries {
+  if (!edgeCase) return series;
+  const count = edgeCase === "more-values" ? 10 : 3;
+  const sourceLabels = series.labels?.length
+    ? series.labels
+    : Array.from({ length: count }, (_, index) => `Category ${index + 1}`);
+  const sourceValues = series.values?.length ? series.values : [62, 48, 76, 34, 68];
+  const labels = Array.from(
+    { length: count },
+    (_, index) => sourceLabels[index] ?? `Category ${index + 1}`,
+  );
+  const values = Array.from(
+    { length: count },
+    (_, index) =>
+      sourceValues[index % sourceValues.length] +
+      (index >= sourceValues.length ? ((index * 7) % 19) - 9 : 0),
+  );
+  const next: PreviewSeries = {
+    ...series,
+    labels,
+    values,
+    colorCategories: labels,
+  };
+
+  if (series.groups?.length) {
+    next.groups = Array.from({ length: count }, (_, index) => {
+      const source = series.groups![index % series.groups!.length];
+      return {
+        ...source,
+        name:
+          index < series.groups!.length
+            ? source.name
+            : `Series ${index + 1}`,
+        values: [...source.values],
+      };
+    });
+  }
+  if (series.mapPoints?.length) {
+    next.mapPoints = Array.from({ length: count }, (_, index) => {
+      const source = series.mapPoints![index % series.mapPoints!.length];
+      const label = labels[index];
+      return {
+        ...source,
+        id: `edge-${index}`,
+        label,
+        category: label,
+        value: values[index],
+        x: 14 + (index % 5) * 18,
+        y: 24 + Math.floor(index / 5) * 42,
+      };
+    });
+  }
+  if (series.scatterPoints?.length) {
+    next.scatterPoints = Array.from({ length: count }, (_, index) => ({
+      ...series.scatterPoints![index % series.scatterPoints!.length],
+      x: index + 1,
+      y: values[index],
+      category: labels[index],
+    }));
+  }
+  if (series.polar?.length) {
+    next.polar = Array.from({ length: count }, (_, index) => ({
+      ...series.polar![index % series.polar!.length],
+      direction: labels[index],
+      colorCategory: labels[index],
+    }));
+  }
+  if (series.ranges?.length) {
+    next.ranges = Array.from({ length: count }, (_, index) => {
+      const source = series.ranges![index % series.ranges!.length];
+      return { ...source, label: labels[index] };
+    });
+  }
+  if (series.availability?.length) {
+    next.availability = Array.from({ length: count }, (_, index) => {
+      const source = series.availability![index % series.availability!.length];
+      return { ...source, label: labels[index] };
+    });
+  }
+  if (series.kpiTiles?.length) {
+    next.kpiTiles = Array.from({ length: count }, (_, index) => {
+      const source = series.kpiTiles![index % series.kpiTiles!.length];
+      return {
+        ...source,
+        label: labels[index],
+        status: labels[index],
+        value: String(values[index]),
+      };
+    });
+  }
+  return next;
+}
 
 /** Former Area styling fields now live under Colors; keep old keys readable. */
 const LEGACY_SETTING_KEYS: Record<string, string> = {
@@ -3105,6 +3204,10 @@ export default function EditComponentModal({
   );
   const [query, setQuery] = useState("");
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
+  const [devMenuOpen, setDevMenuOpen] = useState(false);
+  const [paletteEdgeCase, setPaletteEdgeCase] =
+    useState<PaletteCardinalityEdgeCase>(null);
+  const devMenuRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("asset");
   const [dataPreviewMode, setDataPreviewMode] = useState<DataPreviewMode>("results");
@@ -3201,6 +3304,24 @@ export default function EditComponentModal({
     };
   }, []);
 
+  useEffect(() => {
+    if (!devMenuOpen) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (devMenuRef.current?.contains(target)) return;
+      setDevMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDevMenuOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [devMenuOpen]);
+
   const getVal = (o: Opt) => {
     const currentKey = keyOf(o);
     const legacyKey = LEGACY_SETTING_KEYS[currentKey];
@@ -3214,9 +3335,48 @@ export default function EditComponentModal({
 
   const cfg = (group: string, name: string, fallback: unknown) => {
     const field = visualFields.find((o) => o.group === group && o.name === name);
-    if (field) return getVal(field);
-    const v = config[`${group}::${name}`];
-    return v === undefined ? fallback : v;
+    const configured = field
+      ? getVal(field)
+      : config[`${group}::${name}`] ?? fallback;
+    if (
+      paletteEdgeCase &&
+      name === "Palette" &&
+      (group === "Colors" || group === "Color")
+    ) {
+      const mode = asColorMode(configured);
+      const visualValueCount =
+        paletteEdgeCase === "more-values" ? 10 : 3;
+      const paletteColorCount =
+        paletteEdgeCase === "more-values" ? 3 : 10;
+      const colors = fitPaletteToCount(mode.colors, paletteColorCount);
+      const orderedStops = [...mode.stops].sort(
+        (first, second) => first.value - second.value,
+      );
+      const stopMin = orderedStops[0]?.value ?? 0;
+      const stopMax =
+        orderedStops[orderedStops.length - 1]?.value ?? 100;
+      const stops =
+        mode.style === "Gradient" || mode.style === "Steps"
+          ? colors.map((color, index) => ({
+              value:
+                stopMin +
+                (index / Math.max(colors.length - 1, 1)) *
+                  (stopMax - stopMin),
+              color,
+              opacity: mode.opacity,
+            }))
+          : mode.stops;
+      return {
+        ...mode,
+        colors,
+        stops,
+        categoryLabels: Array.from(
+          { length: visualValueCount },
+          (_, index) => `Category ${index + 1}`,
+        ),
+      };
+    }
+    return configured;
   };
 
   const getValByKey = (group: string, name: string) => {
@@ -3255,13 +3415,16 @@ export default function EditComponentModal({
 
   const previewSeries = useMemo(
     () =>
-      derivePreviewSeries({
-        visualId: displayVisualId,
-        chartId: activeChart,
-        config: resolvedConfig,
-        title: generalInfo.name,
-        insight: generalInfo.insight || generalInfo.description,
-      }),
+      withPaletteCardinalityEdgeCase(
+        derivePreviewSeries({
+          visualId: displayVisualId,
+          chartId: activeChart,
+          config: resolvedConfig,
+          title: generalInfo.name,
+          insight: generalInfo.insight || generalInfo.description,
+        }),
+        paletteEdgeCase,
+      ),
     [
       displayVisualId,
       activeChart,
@@ -3269,6 +3432,7 @@ export default function EditComponentModal({
       generalInfo.name,
       generalInfo.description,
       generalInfo.insight,
+      paletteEdgeCase,
     ],
   );
 
@@ -3463,6 +3627,7 @@ export default function EditComponentModal({
       <ColorPaletteProvider
         dataRange={colorDataRange}
         categoryLabels={paletteCategoryLabels}
+        edgeCase={paletteEdgeCase}
       >
       <div className="modal">
         {/* Header */}
@@ -3476,13 +3641,93 @@ export default function EditComponentModal({
             )}
           </div>
           <div className="modal__header-actions">
-            <button
-              type="button"
-              className={"modal__dev-hint" + (advancedSettingsOpen ? " is-on" : "")}
-              onClick={() => setAdvancedSettingsOpen((open) => !open)}
-            >
-              For Dev only: <kbd>Cmd</kbd>+<kbd>Ctrl</kbd>+<kbd>O</kbd> toggles advanced settings
-            </button>
+            <div className="modal__dev-menu-wrap" ref={devMenuRef}>
+              <button
+                type="button"
+                className={
+                  "modal__dev-hint" +
+                  (advancedSettingsOpen ? " is-on" : "") +
+                  (devMenuOpen ? " is-open" : "")
+                }
+                aria-haspopup="menu"
+                aria-expanded={devMenuOpen}
+                onClick={() => setDevMenuOpen((open) => !open)}
+              >
+                <span>For Dev only</span>
+                <ChevronDownIcon width={16} height={16} aria-hidden="true" />
+              </button>
+              {devMenuOpen && (
+                <div className="modal__dev-menu cp-picker-menu" role="menu">
+                  <div className="dropdown-menu__inner">
+                    <span className="modal__dev-menu-label">Developer options</span>
+                    <button
+                      type="button"
+                      className="modal__dev-menu-option"
+                      role="menuitemcheckbox"
+                      aria-checked={advancedSettingsOpen}
+                      onClick={() => setAdvancedSettingsOpen((open) => !open)}
+                    >
+                      <span className="modal__dev-menu-copy">
+                        <strong>Advanced settings</strong>
+                        <small>
+                          Show advanced visual controls
+                          <kbd>Cmd + Ctrl + O</kbd>
+                        </small>
+                      </span>
+                      <span
+                        className={"ia-mini-switch" + (advancedSettingsOpen ? " on" : "")}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <span className="modal__dev-menu-separator" />
+                    <span className="modal__dev-menu-label">Palette edge cases</span>
+                    {[
+                      {
+                        id: "more-values" as const,
+                        title: "More values than colors",
+                        description: "10 visual values · 3 palette colors",
+                      },
+                      {
+                        id: "fewer-values" as const,
+                        title: "Fewer values than colors",
+                        description: "3 visual values · 10 palette colors",
+                      },
+                    ].map((option) => {
+                      const active = paletteEdgeCase === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={
+                            "modal__dev-menu-option" +
+                            (active ? " is-active" : "")
+                          }
+                          role="menuitemradio"
+                          aria-checked={active}
+                          onClick={() =>
+                            setPaletteEdgeCase((current) =>
+                              current === option.id ? null : option.id,
+                            )
+                          }
+                        >
+                          <span className="modal__dev-menu-copy">
+                            <strong>{option.title}</strong>
+                            <small>{option.description}</small>
+                          </span>
+                          <span
+                            className={
+                              "modal__dev-menu-radio" +
+                              (active ? " is-on" : "")
+                            }
+                            aria-hidden="true"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
             <button className="icon-btn" aria-label="Close" onClick={onClose}>
               <CloseIcon width={18} height={18} />
             </button>

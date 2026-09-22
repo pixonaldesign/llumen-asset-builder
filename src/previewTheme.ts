@@ -492,6 +492,20 @@ export function withOpacity(hex: string, opacityPct: number): string {
   return `rgba(${r}, ${g}, ${b}, ${op.toFixed(3)})`;
 }
 
+export function fitPaletteToCount(colors: string[], count: number): string[] {
+  const source = colors.length ? colors : DEFAULT_COLOR_MODE.colors;
+  const targetCount = Math.max(1, Math.round(count));
+  if (targetCount === source.length) return [...source];
+  if (targetCount === 1) return [source[Math.floor((source.length - 1) / 2)]];
+  const stops = source.map((color, index) => ({
+    color,
+    at: (index / Math.max(source.length - 1, 1)) * 100,
+  }));
+  return Array.from({ length: targetCount }, (_, index) =>
+    rampFromStops(stops, index / Math.max(targetCount - 1, 1)),
+  );
+}
+
 export function resolveColorMode(
   mode: ColorModeConfig,
   t: number,
@@ -519,7 +533,11 @@ export function resolveColorMode(
   if (mode.style === "Gradient" && mode.gradientReverse) u = 1 - u;
   if (mode.style === "Single") return withOpacity(mode.color, mode.opacity);
   if (mode.style === "Per Category") {
-    const colors = mode.colors.length ? mode.colors : DEFAULT_COLOR_MODE.colors;
+    const sourceColors = mode.colors.length ? mode.colors : DEFAULT_COLOR_MODE.colors;
+    const colors =
+      categoryCount && categoryCount > 0
+        ? fitPaletteToCount(sourceColors, categoryCount)
+        : sourceColors;
     const directColor = category
       ? mode.categoryColors[category] ??
         Object.entries(mode.categoryColors).find(

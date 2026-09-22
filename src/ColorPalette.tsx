@@ -24,6 +24,7 @@ import {
 import {
   DEFAULT_COLOR_MODE,
   asColorMode,
+  fitPaletteToCount,
   hexToRgb,
   rgbToHex,
   type ColorModeConfig,
@@ -60,6 +61,9 @@ const PRESETS: PalettePreset[] = [
   { name: "Festival Purple Four-Step Categories", type: "Categorical", colors: ["#8b5cf6", "#ec4899", "#a3e635", "#eab308"] },
   { name: "Crimson to Deep Ocean Diverging Palette", type: "Diverging", colors: ["#9f1d1d", "#c62828", "#df3f3f", "#ef5350", "#f7a0a0", "#f3f4f6", "#cce4fb", "#9dcef7", "#68b1ee", "#42a5f5", "#1565c0"] },
   { name: "Royal Purple to Coastal Teal Diverging Palette", type: "Diverging", colors: ["#6b21a8", "#9333c9", "#c084fc", "#f3e8ff", "#99f6e4", "#2dd4bf", "#0f766e"] },
+  { name: "Flipside Purple to Verdant Green Diverging Palette", type: "Diverging", colors: ["#8e00a8", "#bd00d3", "#ed75e7", "#f7f7f7", "#8bdc84", "#2dbb25", "#18851f"] },
+  { name: "Adverse Crimson to Coastal Blue Diverging Palette", type: "Diverging", colors: ["#c91414", "#e42c2c", "#ff8585", "#f7f7f7", "#72d9f7", "#1ab8e9", "#147cb3"] },
+  { name: "Contrast Indigo to Golden Lime Diverging Palette", type: "Diverging", colors: ["#002cd4", "#245eeb", "#7b79f2", "#f7f7f7", "#e5e676", "#c9ca2d", "#9c9d1c"] },
 ];
 
 const toHex = (c: string) => (c.startsWith("#") ? c : "#2b61f5");
@@ -90,24 +94,34 @@ const PaletteContext = createContext<{
 
 const DataRangeContext = createContext<DataRange | null>(null);
 const PaletteCategoriesContext = createContext<string[]>([]);
+export type PaletteCardinalityEdgeCase =
+  | "more-values"
+  | "fewer-values"
+  | null;
+const PaletteEdgeCaseContext =
+  createContext<PaletteCardinalityEdgeCase>(null);
 
 export function ColorPaletteProvider({
   children,
   dataRange,
   categoryLabels = [],
+  edgeCase = null,
 }: {
   children: ReactNode;
   dataRange?: DataRange | null;
   categoryLabels?: string[];
+  edgeCase?: PaletteCardinalityEdgeCase;
 }) {
   const [selection, setSelection] = useState<PaletteSelection>(DEFAULT_SELECTION);
   const value = useMemo(() => ({ selection, setSelection }), [selection]);
   return (
     <PaletteContext.Provider value={value}>
       <DataRangeContext.Provider value={dataRange ?? null}>
-        <PaletteCategoriesContext.Provider value={categoryLabels}>
-          {children}
-        </PaletteCategoriesContext.Provider>
+        <PaletteEdgeCaseContext.Provider value={edgeCase}>
+          <PaletteCategoriesContext.Provider value={categoryLabels}>
+            {children}
+          </PaletteCategoriesContext.Provider>
+        </PaletteEdgeCaseContext.Provider>
       </DataRangeContext.Provider>
     </PaletteContext.Provider>
   );
@@ -1483,6 +1497,7 @@ export default function ColorPalette({
   const isFull = !isSimple && !isSwatch && !isStepsOnly;
   const dataRange = useContext(DataRangeContext);
   const previewCategoryLabels = useContext(PaletteCategoriesContext);
+  const paletteEdgeCase = useContext(PaletteEdgeCaseContext);
   const [local, setLocal] = useState<ColorModeConfig>(() => asColorMode(value ?? { ...DEFAULT_COLOR_MODE, color }));
   const config = value ?? local;
   const commit = (patch: Partial<ColorModeConfig>) => {
@@ -1508,12 +1523,18 @@ export default function ColorPalette({
   );
 
   const [ctxSelection] = usePaletteSelection();
-  const paletteColors =
+  const configuredPaletteColors =
     (isStepsOnly ? ctxSelection.colors : config.colors).length
       ? isStepsOnly
         ? ctxSelection.colors
         : config.colors
       : DEFAULT_COLOR_MODE.colors;
+  const paletteColors = paletteEdgeCase
+    ? fitPaletteToCount(
+        configuredPaletteColors,
+        paletteEdgeCase === "more-values" ? 3 : 10,
+      )
+    : configuredPaletteColors;
   const categoryLabels = previewCategoryLabels.length
     ? Array.from(new Set(previewCategoryLabels.filter(Boolean)))
     : Array.from({ length: 6 }, (_, i) => `Category ${i + 1}`);
