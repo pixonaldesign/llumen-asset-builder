@@ -422,9 +422,9 @@ export type ColorModeConfig = {
 };
 
 export const DEFAULT_COLOR_MODE: ColorModeConfig = {
-  paletteName: "Blue to White",
+  paletteName: "Blue",
   paletteFamily: "Sequential",
-  colors: ["#f4f7ff", "#c8dcfc", "#96bdf8", "#6a9ef3", "#457fe8", "#2b61f5"],
+  colors: ["#f7f9ff", "#d8e6fd", "#a8c9fa", "#6a9ef3", "#4f86ea", "#356eea", "#2b61f5"],
   style: "Single",
   color: "#2b61f5",
   opacity: 100,
@@ -506,6 +506,28 @@ export function fitPaletteToCount(colors: string[], count: number): string[] {
   );
 }
 
+export function expandPaletteToCount(
+  colors: string[],
+  count: number,
+  family: PaletteFamily,
+): string[] {
+  const source = colors.length ? colors : DEFAULT_COLOR_MODE.colors;
+  const targetCount = Math.max(1, Math.round(count));
+  if (source.length >= targetCount) return [...source];
+  if (family !== "Categorical") return fitPaletteToCount(source, targetCount);
+
+  const expanded = [...source];
+  while (expanded.length < targetCount) {
+    const generatedIndex = expanded.length - source.length;
+    const sourceIndex = generatedIndex % source.length;
+    const cycle = Math.floor(generatedIndex / source.length);
+    const mixToward = cycle % 2 === 0 ? "#ffffff" : "#0b1220";
+    const amount = Math.min(0.42, 0.16 + Math.floor(cycle / 2) * 0.1);
+    expanded.push(mixHex(source[sourceIndex], mixToward, amount));
+  }
+  return expanded;
+}
+
 export function resolveColorMode(
   mode: ColorModeConfig,
   t: number,
@@ -536,7 +558,11 @@ export function resolveColorMode(
     const sourceColors = mode.colors.length ? mode.colors : DEFAULT_COLOR_MODE.colors;
     const colors =
       categoryCount && categoryCount > 0
-        ? fitPaletteToCount(sourceColors, categoryCount)
+        ? expandPaletteToCount(
+            sourceColors,
+            categoryCount,
+            mode.paletteFamily,
+          )
         : sourceColors;
     const directColor = category
       ? mode.categoryColors[category] ??

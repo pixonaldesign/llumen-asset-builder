@@ -74,7 +74,7 @@ import {
   DEFAULT_REPEATABLE,
   DEFAULT_ZOOM_SCALING,
   asColorMode,
-  fitPaletteToCount,
+  expandPaletteToCount,
   asGradient,
   asRepeatable,
   asStringArray,
@@ -3349,9 +3349,11 @@ export default function EditComponentModal({
       const mode = asColorMode(configured);
       const visualValueCount =
         paletteEdgeCase === "more-values" ? 10 : 3;
-      const paletteColorCount =
-        paletteEdgeCase === "more-values" ? 3 : 10;
-      const colors = fitPaletteToCount(mode.colors, paletteColorCount);
+      const colors = expandPaletteToCount(
+        mode.colors,
+        visualValueCount,
+        mode.paletteFamily,
+      );
       const orderedStops = [...mode.stops].sort(
         (first, second) => first.value - second.value,
       );
@@ -3688,12 +3690,12 @@ export default function EditComponentModal({
                       {
                         id: "more-values" as const,
                         title: "More values than colors",
-                        description: "10 visual values · 3 palette colors",
+                        description: "10 visual values · expand palette as needed",
                       },
                       {
                         id: "fewer-values" as const,
                         title: "Fewer values than colors",
-                        description: "3 visual values · 10 palette colors",
+                        description: "3 visual values · preserve extra colors",
                       },
                     ].map((option) => {
                       const active = paletteEdgeCase === option.id;

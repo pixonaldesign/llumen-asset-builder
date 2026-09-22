@@ -24,7 +24,7 @@ import {
 import {
   DEFAULT_COLOR_MODE,
   asColorMode,
-  fitPaletteToCount,
+  expandPaletteToCount,
   hexToRgb,
   rgbToHex,
   type ColorModeConfig,
@@ -51,11 +51,11 @@ interface PalettePreset {
 }
 
 const PRESETS: PalettePreset[] = [
-  { name: "Blue to White", type: "Sequential", colors: ["#f7f9ff", "#edf3ff", "#e3edfe", "#d8e6fd", "#c8dcfc", "#b8d3fb", "#a8c9fa", "#96bdf8", "#86b2f7", "#76a7f5", "#6a9ef3", "#6095f0", "#578eed", "#4f86ea", "#457fe8", "#3d76e8", "#356eea", "#3068ef", "#2d64f2", "#2b61f5"] },
-  { name: "Purple to White", type: "Sequential", colors: ["#f6f2ff", "#b899f5", "#5a2fc7"] },
-  { name: "Teal to White", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#7de0d0", "#45cdb9", "#23b899", "#159a7d"] },
-  { name: "Red to White", type: "Sequential", colors: ["#fff7f7", "#fff0f0", "#ffe7e7", "#ffdddd", "#ffd5d5", "#ffc9c9", "#ffbbbb", "#ffadad", "#ff9f9f", "#ff9292", "#f98282", "#f57575", "#f56b6b", "#ef6060", "#eb5555", "#e64a4a", "#e03e3e", "#d93636", "#d13333", "#c62828"] },
-  { name: "Gold to White", type: "Sequential", colors: ["#fffbeb", "#fef3c7", "#fde68a", "#fbbf24", "#f59e0b"] },
+  { name: "Blue", type: "Sequential", colors: ["#f7f9ff", "#d8e6fd", "#a8c9fa", "#6a9ef3", "#4f86ea", "#356eea", "#2b61f5"] },
+  { name: "Purple", type: "Sequential", colors: ["#f6f2ff", "#e9ddff", "#d6c2fb", "#b899f5", "#9673e8", "#764fd8", "#5a2fc7"] },
+  { name: "Teal", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#45cdb9", "#23b899", "#159a7d"] },
+  { name: "Red", type: "Sequential", colors: ["#fff7f7", "#ffe7e7", "#ffd5d5", "#ffbbbb", "#ff9292", "#f56b6b", "#c62828"] },
+  { name: "Gold", type: "Sequential", colors: ["#fffbeb", "#fef7d6", "#fef3c7", "#fde68a", "#fcd34d", "#fbbf24", "#f59e0b"] },
   { name: "Blue and Violet", type: "Categorical", colors: ["#5b8df0", "#7c5cff"] },
   { name: "Red, Amber and Green", type: "Categorical", colors: ["#e85c5c", "#e8b84d", "#3db89a"] },
   { name: "Purple, Pink, Lime and Gold", type: "Categorical", colors: ["#8b5cf6", "#ec4899", "#a3e635", "#eab308"] },
@@ -1549,9 +1549,10 @@ export default function ColorPalette({
         : config.colors
       : DEFAULT_COLOR_MODE.colors;
   const paletteColors = paletteEdgeCase
-    ? fitPaletteToCount(
+    ? expandPaletteToCount(
         configuredPaletteColors,
-        paletteEdgeCase === "more-values" ? 3 : 10,
+        paletteEdgeCase === "more-values" ? 10 : 3,
+        isStepsOnly ? ctxSelection.type : config.paletteFamily,
       )
     : configuredPaletteColors;
   const categoryLabels = previewCategoryLabels.length
