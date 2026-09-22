@@ -3334,6 +3334,9 @@ export default function EditComponentModal({
   const setVal = (o: Opt, v: unknown) => setConfig((c) => ({ ...c, [keyOf(o)]: v }));
 
   const cfg = (group: string, name: string, fallback: unknown) => {
+    if (group === "__dev" && name === "Palette edge case") {
+      return paletteEdgeCase ?? fallback;
+    }
     const field = visualFields.find((o) => o.group === group && o.name === name);
     const configured = field
       ? getVal(field)

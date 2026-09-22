@@ -422,7 +422,7 @@ export type ColorModeConfig = {
 };
 
 export const DEFAULT_COLOR_MODE: ColorModeConfig = {
-  paletteName: "Blue",
+  paletteName: "Blue to White",
   paletteFamily: "Sequential",
   colors: ["#f4f7ff", "#c8dcfc", "#96bdf8", "#6a9ef3", "#457fe8", "#2b61f5"],
   style: "Single",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 type ColumnProfile = {
   name: string;
@@ -9,7 +9,15 @@ type ColumnProfile = {
   values: number[];
 };
 
-const GRANULARITY_OPTIONS = ["Seconds", "Minutes", "Hours", "Days", "Weeks", "Years"] as const;
+const GRANULARITY_OPTIONS = [
+  "Seconds",
+  "Minutes",
+  "Hours",
+  "Days",
+  "Weeks",
+  "Months",
+  "Years",
+] as const;
 type Granularity = (typeof GRANULARITY_OPTIONS)[number];
 
 const GRANULARITY_TIMELINES: Record<
@@ -38,6 +46,11 @@ const GRANULARITY_TIMELINES: Record<
   },
   Weeks: {
     segments: [42, 1, 30, 2, 25],
+    start: "Jan 2019",
+    end: "Nov 2025",
+  },
+  Months: {
+    segments: [34, 1, 26, 2, 37],
     start: "Jan 2019",
     end: "Nov 2025",
   },
@@ -218,27 +231,7 @@ export default function DataSourceDataProfile() {
     "coordinates",
   );
   const [granularity, setGranularity] = useState<Granularity>("Years");
-  const [granularityOpen, setGranularityOpen] = useState(false);
-  const granularityRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!granularityOpen) return;
-    const closeMenu = (event: PointerEvent) => {
-      if (!granularityRef.current?.contains(event.target as Node)) {
-        setGranularityOpen(false);
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setGranularityOpen(false);
-    };
-    window.addEventListener("pointerdown", closeMenu);
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      window.removeEventListener("pointerdown", closeMenu);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [granularityOpen]);
-
+  const granularityIndex = GRANULARITY_OPTIONS.indexOf(granularity);
   const timeline = GRANULARITY_TIMELINES[granularity];
 
   return (
@@ -324,48 +317,54 @@ export default function DataSourceDataProfile() {
                 Last calibrated
               </button>
             </div>
-            <div className="data-profile-granularity" ref={granularityRef}>
+            <div className="data-profile-granularity">
               <span>Granularity</span>
-              <button
-                type="button"
-                aria-label={`Granularity: ${granularity}`}
-                aria-haspopup="listbox"
-                aria-expanded={granularityOpen}
-                onClick={() => setGranularityOpen((open) => !open)}
-              >
-                {granularity}
-                <svg viewBox="0 0 16 16" aria-hidden="true">
-                  <path d="m4 6 4 4 4-4" />
-                </svg>
-              </button>
-              {granularityOpen && (
+              <div className="ia-slider data-profile-granularity__control">
+                <output className="data-profile-granularity__value">
+                  {granularity}
+                </output>
                 <div
-                  className="cp-picker-menu data-profile-granularity__menu"
-                  role="listbox"
-                  aria-label="Granularity"
+                  className="ia-slider-track"
+                  style={{
+                    ["--ia-slider-t" as string]:
+                      granularityIndex / (GRANULARITY_OPTIONS.length - 1),
+                  }}
                 >
-                  <div className="dropdown-menu__inner">
-                    {GRANULARITY_OPTIONS.map((option) => (
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={granularity === option}
-                        className={
-                          "pg-surface-dropdown__item" +
-                          (granularity === option ? " is-selected" : "")
-                        }
+                  <div className="ia-slider-dots" aria-hidden="true">
+                    {GRANULARITY_OPTIONS.map((option, index) => (
+                      <span
                         key={option}
-                        onClick={() => {
-                          setGranularity(option);
-                          setGranularityOpen(false);
+                        className={
+                          "ia-slider-dot" +
+                          (index <= granularityIndex ? " is-covered" : "")
+                        }
+                        style={{
+                          ["--ia-slider-t" as string]:
+                            index / (GRANULARITY_OPTIONS.length - 1),
                         }}
-                      >
-                        {option}
-                      </button>
+                      />
                     ))}
                   </div>
+                  <div className="ia-slider-fill">
+                    <span className="ia-slider-thumb" aria-hidden="true" />
+                  </div>
+                  <input
+                    type="range"
+                    className="ia-range"
+                    min={0}
+                    max={GRANULARITY_OPTIONS.length - 1}
+                    step={1}
+                    value={granularityIndex}
+                    aria-label="Granularity"
+                    aria-valuetext={granularity}
+                    onChange={(event) =>
+                      setGranularity(
+                        GRANULARITY_OPTIONS[Number(event.target.value)],
+                      )
+                    }
+                  />
                 </div>
-              )}
+              </div>
             </div>
           </div>
           <div

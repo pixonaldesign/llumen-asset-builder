@@ -3851,8 +3851,7 @@ button {
   gap: var(--spacing-xs);
 }
 
-.data-profile-field-tabs button,
-.data-profile-granularity > button {
+.data-profile-field-tabs button {
   min-height: 28px;
   padding: var(--spacing-xs) var(--spacing-md);
   border: 1px solid var(--lc-border-control);
@@ -3864,8 +3863,7 @@ button {
   transition: border-color 0.14s, background 0.14s, color 0.14s;
 }
 
-.data-profile-field-tabs button:hover,
-.data-profile-granularity > button:hover {
+.data-profile-field-tabs button:hover {
   border-color: var(--lc-border-control-hover);
   color: var(--lc-text-primary);
 }
@@ -3877,7 +3875,6 @@ button {
 }
 
 .data-profile-granularity {
-  position: relative;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
@@ -3886,38 +3883,42 @@ button {
 .data-profile-granularity > span {
   color: var(--lc-text-tertiary);
   font: var(--lc-font-caption);
+  font-family: var(--lc-font-mono);
+  letter-spacing: 0.4px;
   text-transform: uppercase;
 }
 
-.data-profile-granularity > button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  color: var(--lc-text-primary);
+.data-profile-granularity__control {
+  position: relative;
+  justify-content: flex-end;
+  width: min(280px, 32vw);
+  gap: var(--spacing-xs);
+  margin-left: 0;
+  padding-left: var(--spacing-sm);
 }
 
-.data-profile-granularity svg {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.5;
-}
-
-.data-profile-granularity__menu {
+.data-profile-granularity__control::before {
+  content: "";
   position: absolute;
-  top: calc(100% + var(--spacing-xs));
-  right: 0;
-  z-index: 20;
-  min-width: 116px;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 16px;
+  transform: translateY(-50%);
+  background: var(--lc-border-default);
 }
 
-.data-profile-granularity__menu .pg-surface-dropdown__item {
-  min-height: 30px;
-  padding: var(--spacing-xs) var(--spacing-md);
+.data-profile-granularity__control .ia-slider-track {
+  flex: 0 0 min(212px, 24vw);
+  width: min(212px, 24vw);
+}
+
+.data-profile-granularity__value {
+  flex: 0 0 auto;
+  min-width: 0;
+  color: var(--lc-text-primary);
   font: var(--lc-font-small);
+  text-align: left;
 }
 
 .data-profile-timeline {
@@ -6463,7 +6464,7 @@ button {
   inset: 0;
   display: grid;
   place-items: center;
-  color: var(--white);
+  color: var(--cp-used-check-color, var(--white));
   font-size: 16px;
   font-weight: var(--font-weight-semibold);
   line-height: 1;

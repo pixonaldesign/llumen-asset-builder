@@ -359,21 +359,25 @@ function AxisChrome({
       : ` ${unit}`
     : "";
   const compactXAxis = W < 220;
+  const endpointXAxis =
+    str(cfg("__dev", "Palette edge case", ""), "") === "more-values";
   const maxVisibleXTicks = compactXAxis
     ? Math.max(2, Math.floor(box.width / 52))
     : labels.length;
-  const visibleXTickIndices = new Set(
-    Array.from(
-      { length: Math.min(labels.length, maxVisibleXTicks) },
-      (_, index) =>
-        maxVisibleXTicks <= 1
-          ? 0
-          : Math.round(
-              (index * Math.max(labels.length - 1, 0)) /
-                Math.max(maxVisibleXTicks - 1, 1),
-            ),
-    ),
-  );
+  const visibleXTickIndices = endpointXAxis
+    ? new Set([0, Math.max(labels.length - 1, 0)])
+    : new Set(
+        Array.from(
+          { length: Math.min(labels.length, maxVisibleXTicks) },
+          (_, index) =>
+            maxVisibleXTicks <= 1
+              ? 0
+              : Math.round(
+                  (index * Math.max(labels.length - 1, 0)) /
+                    Math.max(maxVisibleXTicks - 1, 1),
+                ),
+        ),
+      );
   return (
     <g>
       {showGrid &&
@@ -398,7 +402,9 @@ function AxisChrome({
         })}
       {box.showTickLabels &&
         labels.map((lab, i) => {
-          if (compactXAxis && !visibleXTickIndices.has(i)) return null;
+          if ((compactXAxis || endpointXAxis) && !visibleXTickIndices.has(i)) {
+            return null;
+          }
           const columnX =
             box.left +
             ((i + 0.5) / Math.max(labels.length, 1)) * box.width;

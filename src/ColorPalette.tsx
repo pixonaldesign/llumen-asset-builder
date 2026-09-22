@@ -51,25 +51,32 @@ interface PalettePreset {
 }
 
 const PRESETS: PalettePreset[] = [
-  { name: "Azure Horizon Sequential Palette", type: "Sequential", colors: ["#f7f9ff", "#edf3ff", "#e3edfe", "#d8e6fd", "#c8dcfc", "#b8d3fb", "#a8c9fa", "#96bdf8", "#86b2f7", "#76a7f5", "#6a9ef3", "#6095f0", "#578eed", "#4f86ea", "#457fe8", "#3d76e8", "#356eea", "#3068ef", "#2d64f2", "#2b61f5"] },
-  { name: "Royal Purple Sequential Palette", type: "Sequential", colors: ["#f6f2ff", "#b899f5", "#5a2fc7"] },
-  { name: "Coastal Teal Sequential Palette", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#7de0d0", "#45cdb9", "#23b899", "#159a7d"] },
-  { name: "Crimson Spectrum Extended Sequential Palette for High-Density Data", type: "Sequential", colors: ["#fff7f7", "#fff0f0", "#ffe7e7", "#ffdddd", "#ffd5d5", "#ffc9c9", "#ffbbbb", "#ffadad", "#ff9f9f", "#ff9292", "#f98282", "#f57575", "#f56b6b", "#ef6060", "#eb5555", "#e64a4a", "#e03e3e", "#d93636", "#d13333", "#c62828"] },
-  { name: "Golden Sunrise Sequential Palette", type: "Sequential", colors: ["#fffbeb", "#fef3c7", "#fde68a", "#fbbf24", "#f59e0b"] },
-  { name: "Ocean and Violet Two-Step Categories", type: "Categorical", colors: ["#5b8df0", "#7c5cff"] },
-  { name: "Traffic Light Three-Step Categories", type: "Categorical", colors: ["#e85c5c", "#e8b84d", "#3db89a"] },
-  { name: "Festival Purple Four-Step Categories", type: "Categorical", colors: ["#8b5cf6", "#ec4899", "#a3e635", "#eab308"] },
-  { name: "Crimson to Deep Ocean Diverging Palette", type: "Diverging", colors: ["#9f1d1d", "#c62828", "#df3f3f", "#ef5350", "#f7a0a0", "#f3f4f6", "#cce4fb", "#9dcef7", "#68b1ee", "#42a5f5", "#1565c0"] },
-  { name: "Royal Purple to Coastal Teal Diverging Palette", type: "Diverging", colors: ["#6b21a8", "#9333c9", "#c084fc", "#f3e8ff", "#99f6e4", "#2dd4bf", "#0f766e"] },
-  { name: "Flipside Purple to Verdant Green Diverging Palette", type: "Diverging", colors: ["#8e00a8", "#bd00d3", "#ed75e7", "#f7f7f7", "#8bdc84", "#2dbb25", "#18851f"] },
-  { name: "Adverse Crimson to Coastal Blue Diverging Palette", type: "Diverging", colors: ["#c91414", "#e42c2c", "#ff8585", "#f7f7f7", "#72d9f7", "#1ab8e9", "#147cb3"] },
-  { name: "Contrast Indigo to Golden Lime Diverging Palette", type: "Diverging", colors: ["#002cd4", "#245eeb", "#7b79f2", "#f7f7f7", "#e5e676", "#c9ca2d", "#9c9d1c"] },
+  { name: "Blue to White", type: "Sequential", colors: ["#f7f9ff", "#edf3ff", "#e3edfe", "#d8e6fd", "#c8dcfc", "#b8d3fb", "#a8c9fa", "#96bdf8", "#86b2f7", "#76a7f5", "#6a9ef3", "#6095f0", "#578eed", "#4f86ea", "#457fe8", "#3d76e8", "#356eea", "#3068ef", "#2d64f2", "#2b61f5"] },
+  { name: "Purple to White", type: "Sequential", colors: ["#f6f2ff", "#b899f5", "#5a2fc7"] },
+  { name: "Teal to White", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#7de0d0", "#45cdb9", "#23b899", "#159a7d"] },
+  { name: "Red to White", type: "Sequential", colors: ["#fff7f7", "#fff0f0", "#ffe7e7", "#ffdddd", "#ffd5d5", "#ffc9c9", "#ffbbbb", "#ffadad", "#ff9f9f", "#ff9292", "#f98282", "#f57575", "#f56b6b", "#ef6060", "#eb5555", "#e64a4a", "#e03e3e", "#d93636", "#d13333", "#c62828"] },
+  { name: "Gold to White", type: "Sequential", colors: ["#fffbeb", "#fef3c7", "#fde68a", "#fbbf24", "#f59e0b"] },
+  { name: "Blue and Violet", type: "Categorical", colors: ["#5b8df0", "#7c5cff"] },
+  { name: "Red, Amber and Green", type: "Categorical", colors: ["#e85c5c", "#e8b84d", "#3db89a"] },
+  { name: "Purple, Pink, Lime and Gold", type: "Categorical", colors: ["#8b5cf6", "#ec4899", "#a3e635", "#eab308"] },
+  { name: "Red to Blue", type: "Diverging", colors: ["#9f1d1d", "#c62828", "#df3f3f", "#ef5350", "#f7a0a0", "#f3f4f6", "#cce4fb", "#9dcef7", "#68b1ee", "#42a5f5", "#1565c0"] },
+  { name: "Purple to Teal", type: "Diverging", colors: ["#6b21a8", "#9333c9", "#c084fc", "#f3e8ff", "#99f6e4", "#2dd4bf", "#0f766e"] },
+  { name: "Purple to Green", type: "Diverging", colors: ["#8e00a8", "#bd00d3", "#ed75e7", "#f7f7f7", "#8bdc84", "#2dbb25", "#18851f"] },
+  { name: "Red to Cyan", type: "Diverging", colors: ["#c91414", "#e42c2c", "#ff8585", "#f7f7f7", "#72d9f7", "#1ab8e9", "#147cb3"] },
+  { name: "Indigo to Lime", type: "Diverging", colors: ["#002cd4", "#245eeb", "#7b79f2", "#f7f7f7", "#e5e676", "#c9ca2d", "#9c9d1c"] },
 ];
 
 const toHex = (c: string) => (c.startsWith("#") ? c : "#2b61f5");
 
 function sameHex(a: string, b: string) {
   return toHex(a).toLowerCase() === toHex(b).toLowerCase();
+}
+
+function swatchCheckColor(color: string) {
+  const [red, green, blue] = hexToRgb(toHex(color));
+  const luminance =
+    (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+  return luminance > 0.62 ? "#111318" : "#ffffff";
 }
 
 type PaletteSelection = {
@@ -929,6 +936,7 @@ export function PaletteSelector({
 function StopRow({
   stop,
   colors,
+  usedColors = [],
   showValue,
   showLabel,
   showRemove,
@@ -938,6 +946,7 @@ function StopRow({
 }: {
   stop: Stop;
   colors: string[];
+  usedColors?: string[];
   showValue: boolean;
   showLabel?: boolean;
   showRemove?: boolean;
@@ -1132,7 +1141,9 @@ function StopRow({
                   <div className="cp-swatch-menu__grid">
                     {colors.map((c, i) => {
                       const selected = sameHex(c, stop.color);
-                      const usedElsewhere = i === 2 && !selected;
+                      const usedElsewhere =
+                        !selected &&
+                        usedColors.some((usedColor) => sameHex(c, usedColor));
                       return (
                         <button
                           key={`${c}-${i}`}
@@ -1148,6 +1159,8 @@ function StopRow({
                           style={{
                             background: c,
                             ["--cp-selected-swatch-color" as string]: c,
+                            ["--cp-used-check-color" as string]:
+                              swatchCheckColor(c),
                           }}
                           onClick={() => pickColor(c)}
                         />
@@ -1379,6 +1392,9 @@ function DataRangeEditor({
             key={s.id}
             stop={s}
             colors={colors}
+            usedColors={sorted
+              .filter((other) => other.id !== s.id)
+              .map((other) => other.color)}
             showValue
             showRemove={removable}
             removable={removable}
@@ -1444,6 +1460,9 @@ export function CategoryColorMap({
               label: row.label,
             }}
             colors={colors}
+            usedColors={rows
+              .filter((_, rowIndex) => rowIndex !== i)
+              .map((other) => other.color)}
             showValue={false}
             showLabel
             showRemove
@@ -1773,23 +1792,43 @@ export default function ColorPalette({
                   <span className="cp-category-color__label" title={label}>
                     {label}
                   </span>
-                  <DirectColorPicker
-                    value={categoryColor}
-                    opacity={config.categoryOpacities[index] ?? config.opacity}
-                    onChange={(nextColor) =>
+                  <StopRow
+                    stop={{
+                      id: index,
+                      value: index,
+                      color: categoryColor,
+                      opacity:
+                        config.categoryOpacities[index] ?? config.opacity,
+                    }}
+                    colors={paletteColors}
+                    usedColors={categoryLabels.flatMap(
+                      (otherLabel, otherIndex) =>
+                        otherIndex === index
+                          ? []
+                          : [
+                              config.categoryColors[otherLabel] ??
+                                paletteColors[
+                                  otherIndex %
+                                    Math.max(paletteColors.length, 1)
+                                ] ??
+                                config.color,
+                            ],
+                    )}
+                    showValue={false}
+                    removable={false}
+                    onChange={(nextStop) => {
+                      const categoryOpacities = [...config.categoryOpacities];
+                      categoryOpacities[index] = nextStop.opacity;
                       commit({
                         categoryLabels,
                         categoryColors: {
                           ...config.categoryColors,
-                          [label]: nextColor,
+                          [label]: nextStop.color,
                         },
-                      })
-                    }
-                    onOpacityChange={(nextOpacity) => {
-                      const categoryOpacities = [...config.categoryOpacities];
-                      categoryOpacities[index] = nextOpacity;
-                      commit({ categoryLabels, categoryOpacities });
+                        categoryOpacities,
+                      });
                     }}
+                    onRemove={() => {}}
                   />
                 </div>
               );
