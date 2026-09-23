@@ -35,6 +35,7 @@ import {
 } from "./previewTheme";
 
 type PaletteType = "Sequential" | "Categorical" | "Diverging";
+type SequentialMode = "Shades" | "Opacity";
 
 interface Stop {
   id: number;
@@ -48,23 +49,61 @@ interface PalettePreset {
   name: string;
   type: PaletteType;
   colors: string[];
+  sequentialMode?: SequentialMode;
 }
 
+const OPACITY_LEVELS = ["ff", "d9", "b3", "8c", "66", "40", "1a"];
+const opacityPalette = (baseColor: string) =>
+  OPACITY_LEVELS.map((alpha, index) =>
+    index === 0 ? baseColor : `${baseColor}${alpha}`,
+  );
+
+const LLUX_CATEGORICAL = [
+  "#6a9ef0",
+  "#cac5f6",
+  "#26ada0",
+  "#7ad488",
+  "#fceed6",
+  "#f38666",
+  "#cac5f6",
+  "#ed7986",
+  "#534d8f",
+  "#a8ded9",
+];
+
 const PRESETS: PalettePreset[] = [
-  { name: "Blue", type: "Sequential", colors: ["#f7f9ff", "#d8e6fd", "#a8c9fa", "#6a9ef3", "#4f86ea", "#356eea", "#2b61f5"] },
-  { name: "Purple", type: "Sequential", colors: ["#f6f2ff", "#e9ddff", "#d6c2fb", "#b899f5", "#9673e8", "#764fd8", "#5a2fc7"] },
-  { name: "Teal", type: "Sequential", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#45cdb9", "#23b899", "#159a7d"] },
-  { name: "Red", type: "Sequential", colors: ["#fff7f7", "#ffe7e7", "#ffd5d5", "#ffbbbb", "#ff9292", "#f56b6b", "#c62828"] },
-  { name: "Gold", type: "Sequential", colors: ["#fffbeb", "#fef7d6", "#fef3c7", "#fde68a", "#fcd34d", "#fbbf24", "#f59e0b"] },
-  { name: "Blue and Violet", type: "Categorical", colors: ["#5b8df0", "#7c5cff"] },
-  { name: "Red, Amber and Green", type: "Categorical", colors: ["#e85c5c", "#e8b84d", "#3db89a"] },
-  { name: "Purple, Pink, Lime and Gold", type: "Categorical", colors: ["#8b5cf6", "#ec4899", "#a3e635", "#eab308"] },
+  { name: "Blue", type: "Sequential", sequentialMode: "Shades", colors: ["#f7f9ff", "#d8e6fd", "#a8c9fa", "#6a9ef3", "#4f86ea", "#356eea", "#2b61f5"] },
+  { name: "Purple", type: "Sequential", sequentialMode: "Shades", colors: ["#f6f2ff", "#e9ddff", "#d6c2fb", "#b899f5", "#9673e8", "#764fd8", "#5a2fc7"] },
+  { name: "Teal", type: "Sequential", sequentialMode: "Shades", colors: ["#eefcfa", "#d5f8f2", "#b8f0e6", "#94e8dc", "#45cdb9", "#23b899", "#159a7d"] },
+  { name: "Red", type: "Sequential", sequentialMode: "Shades", colors: ["#fff7f7", "#ffe7e7", "#ffd5d5", "#ffbbbb", "#ff9292", "#f56b6b", "#c62828"] },
+  { name: "Gold", type: "Sequential", sequentialMode: "Shades", colors: ["#fffbeb", "#fef7d6", "#fef3c7", "#fde68a", "#fcd34d", "#fbbf24", "#f59e0b"] },
+  // Every categorical palette, including its last-to-first wrap, is validated
+  // at ΔE2000 >= 20.2 and WCAG contrast >= 1.51.
+  { name: "Llux", type: "Categorical", colors: LLUX_CATEGORICAL },
+  { name: "Llux Deep", type: "Categorical", colors: ["#557ec0", "#4a438b", "#329d93", "#24502a", "#90651d", "#f9c3b3", "#405f90", "#f19ba4", "#8b81ee", "#3ec4b8"] },
+  { name: "Llux Ember", type: "Categorical", colors: ["#823864", "#f06840", "#aa4073", "#f6bcc3", "#6f67be", "#604313", "#47a155", "#25766e", "#ecd09f", "#7b6fe8"] },
+  { name: "Llux Earth", type: "Categorical", colors: ["#cac5f6", "#47a155", "#38345f", "#90651d", "#572642", "#25766e", "#ed7986", "#a66e0d", "#a6c5f6", "#aa4073"] },
+  { name: "Llux Spectrum", type: "Categorical", colors: ["#47a155", "#f6bcc3", "#c08626", "#0f4540", "#7b6fe8", "#65d0c6", "#ae4b85", "#c3d8f9", "#dd73a6", "#533706"] },
   { name: "Red to Blue", type: "Diverging", colors: ["#9f1d1d", "#c62828", "#df3f3f", "#ef5350", "#f7a0a0", "#f3f4f6", "#cce4fb", "#9dcef7", "#68b1ee", "#42a5f5", "#1565c0"] },
   { name: "Purple to Teal", type: "Diverging", colors: ["#6b21a8", "#9333c9", "#c084fc", "#f3e8ff", "#99f6e4", "#2dd4bf", "#0f766e"] },
   { name: "Purple to Green", type: "Diverging", colors: ["#8e00a8", "#bd00d3", "#ed75e7", "#f7f7f7", "#8bdc84", "#2dbb25", "#18851f"] },
   { name: "Red to Cyan", type: "Diverging", colors: ["#c91414", "#e42c2c", "#ff8585", "#f7f7f7", "#72d9f7", "#1ab8e9", "#147cb3"] },
   { name: "Indigo to Lime", type: "Diverging", colors: ["#002cd4", "#245eeb", "#7b79f2", "#f7f7f7", "#e5e676", "#c9ca2d", "#9c9d1c"] },
 ];
+
+const OPACITY_PRESETS: PalettePreset[] = [
+  { name: "Blue", type: "Sequential", sequentialMode: "Opacity", colors: opacityPalette("#2b61f5") },
+  { name: "Purple", type: "Sequential", sequentialMode: "Opacity", colors: opacityPalette("#5a2fc7") },
+  { name: "Teal", type: "Sequential", sequentialMode: "Opacity", colors: opacityPalette("#159a7d") },
+  { name: "Red", type: "Sequential", sequentialMode: "Opacity", colors: opacityPalette("#c62828") },
+  { name: "Gold", type: "Sequential", sequentialMode: "Opacity", colors: opacityPalette("#f59e0b") },
+];
+
+function sequentialModeForColors(colors: string[]): SequentialMode {
+  return colors.some((color) => /^#[0-9a-f]{8}$/i.test(color))
+    ? "Opacity"
+    : "Shades";
+}
 
 const toHex = (c: string) => (c.startsWith("#") ? c : "#2b61f5");
 
@@ -719,11 +758,10 @@ export function DirectColorPicker({
   );
 }
 
-function PaletteSwatches({ colors, limit }: { colors: string[]; limit?: number }) {
-  const visibleColors = typeof limit === "number" ? colors.slice(0, limit) : colors;
+function PaletteSwatches({ colors }: { colors: string[] }) {
   return (
     <span className="cp-picker-dots">
-      {visibleColors.map((c, index) => (
+      {colors.map((c, index) => (
         <span key={`${c}-${index}`} className="cp-picker-dot" style={{ background: c }} />
       ))}
     </span>
@@ -733,10 +771,13 @@ function PaletteSwatches({ colors, limit }: { colors: string[]; limit?: number }
 function PalettePickerMenu({
   open,
   tab,
+  sequentialMode,
   search,
   selectedName,
   selectedType,
+  selectedSequentialMode,
   onTab,
+  onSequentialMode,
   onSearch,
   onSelect,
   menuRef,
@@ -744,10 +785,13 @@ function PalettePickerMenu({
 }: {
   open: boolean;
   tab: PaletteType;
+  sequentialMode: SequentialMode;
   search: string;
   selectedName: string;
   selectedType: PaletteType;
+  selectedSequentialMode: SequentialMode;
   onTab: (t: PaletteType) => void;
+  onSequentialMode: (mode: SequentialMode) => void;
   onSearch: (q: string) => void;
   onSelect: (preset: PalettePreset) => void;
   menuRef?: Ref<HTMLDivElement>;
@@ -756,7 +800,15 @@ function PalettePickerMenu({
   if (!open) return null;
 
   const q = search.trim().toLowerCase();
-  const list = PRESETS.filter((p) => p.type === tab && (!q || p.name.toLowerCase().includes(q)));
+  const sourcePresets =
+    tab === "Sequential" && sequentialMode === "Opacity"
+      ? OPACITY_PRESETS
+      : PRESETS;
+  const list = sourcePresets.filter(
+    (preset) =>
+      preset.type === tab &&
+      (!q || preset.name.toLowerCase().includes(q)),
+  );
 
   return (
     <div
@@ -781,6 +833,24 @@ function PalettePickerMenu({
 
         <div className="cp-picker-section-rule" />
 
+        {tab === "Sequential" && (
+          <div className="cp-picker-tabs cp-picker-tabs--sequential-mode">
+            {(["Shades", "Opacity"] as SequentialMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={
+                  "cp-picker-tab" +
+                  (sequentialMode === mode ? " is-active" : "")
+                }
+                onClick={() => onSequentialMode(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="cp-picker-search">
           <input
             type="search"
@@ -804,8 +874,11 @@ function PalettePickerMenu({
 
         <div className="cp-picker-list">
           {list.map((preset) => {
-            const selected = preset.name === selectedName && preset.type === selectedType;
-            const hasOverflow = preset.colors.length > 10;
+            const selected =
+              preset.name === selectedName &&
+              preset.type === selectedType &&
+              (preset.type !== "Sequential" ||
+                sequentialMode === selectedSequentialMode);
             return (
               <div
                 key={preset.name}
@@ -824,12 +897,7 @@ function PalettePickerMenu({
                 <span className="cp-picker-row-name">{preset.name}</span>
                 <span className="cp-palette-picker-row__end">
                   <span className="cp-palette-picker-row__palette">
-                    <PaletteSwatches colors={preset.colors} limit={7} />
-                    {hasOverflow && (
-                      <span className="cp-palette-overflow-badge" aria-hidden="true">
-                        10+
-                      </span>
-                    )}
+                    <PaletteSwatches colors={preset.colors} />
                   </span>
                 </span>
               </div>
@@ -853,6 +921,9 @@ export function PaletteSelector({
   const selection = value ?? ctxSelection;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<PaletteType>(selection.type);
+  const selectedSequentialMode = sequentialModeForColors(selection.colors);
+  const [pickerSequentialMode, setPickerSequentialMode] =
+    useState<SequentialMode>(selectedSequentialMode);
   const [pickerSearch, setPickerSearch] = useState("");
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -898,6 +969,7 @@ export function PaletteSelector({
             return;
           }
           setPickerTab(selection.type);
+          setPickerSequentialMode(selectedSequentialMode);
           syncMenuPosition();
           setPickerOpen(true);
         }}
@@ -913,10 +985,13 @@ export function PaletteSelector({
           <PalettePickerMenu
             open={pickerOpen}
             tab={pickerTab}
+            sequentialMode={pickerSequentialMode}
             search={pickerSearch}
             selectedName={selection.name}
             selectedType={selection.type}
+            selectedSequentialMode={selectedSequentialMode}
             onTab={setPickerTab}
+            onSequentialMode={setPickerSequentialMode}
             onSearch={setPickerSearch}
             onSelect={(preset) => {
               applyPreset(preset);
@@ -1601,12 +1676,15 @@ export default function ColorPalette({
     const s = stepStops(preset.colors, min, max);
     setGStops(g);
     setSStops(s);
-    const last = preset.colors[preset.colors.length - 1] ?? config.color;
+    const representativeColor =
+      preset.sequentialMode === "Opacity"
+        ? preset.colors[0]
+        : preset.colors[preset.colors.length - 1] ?? config.color;
     commit({
       paletteName: preset.name,
       paletteFamily: preset.type as PaletteFamily,
       colors: preset.colors,
-      color: last,
+      color: representativeColor,
       categoryLabels: style === "Per Category" ? categoryLabels : config.categoryLabels,
       stops: persistable(style === "Steps" ? s : g),
     });

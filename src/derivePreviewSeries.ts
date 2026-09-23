@@ -6,7 +6,7 @@ import {
   type MockDataset,
   type MockRow,
 } from "./mockDataset";
-import { asColorMode, asRepeatable, asStringArray, formatBySpec, formatCompactNumber, matchThreshold, parseMinMax, withOpacity } from "./previewTheme";
+import { asColorMode, asRepeatable, asStringArray, formatCompactNumber, formatNumberByNotation, matchThreshold, parseMinMax, withOpacity } from "./previewTheme";
 
 type Config = Record<string, unknown>;
 
@@ -18,6 +18,18 @@ function cfgStr(config: Config, group: string, name: string): string {
 function cfgBool(config: Config, group: string, name: string): boolean | undefined {
   const v = config[`${group}::${name}`];
   return typeof v === "boolean" ? v : undefined;
+}
+
+function formatConfiguredNumber(
+  config: Config,
+  value: number,
+  spec = "",
+): string {
+  return formatNumberByNotation(
+    value,
+    cfgStr(config, "Mapping", "Number notation") || "Compact (5.7M)",
+    spec,
+  );
 }
 
 function cell(row: MockRow, col: string): string | number | boolean | undefined {
@@ -179,7 +191,7 @@ function buildBadge(config: Config, rows: MockRow[], statusCol: string, value: n
   else if (source.includes("Template")) {
     text = (template || "{status} · {value}")
       .replace(/\{status\}/g, strCell(rows[0] ?? {}, column || statusCol))
-      .replace(/\{value\}/g, formatBySpec(value, ""))
+      .replace(/\{value\}/g, formatConfiguredNumber(config, value))
       .replace(/\{(\w+)\}/g, (_m: string, col: string) => strCell(rows[0] ?? {}, col));
   }
   const colorField = cfgStr(config, "Status badge", "Color Source") || measureColumn(config, "value");
@@ -224,8 +236,11 @@ function buildStoryKpi(config: Config, rows: MockRow[]): PreviewSeries["storyKpi
   }
   if (!calc || calc.toLowerCase().startsWith("hidden")) return undefined;
   const nums = rows.map((r) => numCell(r, field));
+  const notation = cfgStr(config, "Mapping", "Number notation");
   return {
-    value: formatCompactNumber(calcFromNums(nums, calc)),
+    value: notation && !notation.startsWith("Automatic")
+      ? formatConfiguredNumber(config, calcFromNums(nums, calc))
+      : formatCompactNumber(calcFromNums(nums, calc)),
     unit: strCell(rows[0] ?? {}, unitField),
   };
 }
@@ -305,7 +320,7 @@ export function derivePreviewSeries({
     const cmpCol = mapped(config, "Comparison value", "predicted");
     const cmp = numCell(rows[0] ?? {}, cmpCol);
     const format = cfgStr(config, "KPI card", "Value format");
-    out.kpiPrimary = formatBySpec(primary, format);
+    out.kpiPrimary = formatConfiguredNumber(config, primary, format);
     out.kpiUnit =
       unit && cfgBool(config, "KPI card", "Show unit") !== false
         ? unit.startsWith("%") || format.toLowerCase().includes("percent")
@@ -327,7 +342,13 @@ export function derivePreviewSeries({
     out.kpiTiles = groups.map((g) => ({
       label: g.label,
       secondary: strCell(g.rows[0] ?? {}, secondaryCol),
-      value: formatBySpec(aggregate(g.rows.map((r) => numCell(r, valueCol)), agg.startsWith("None") ? "Average" : agg), ""),
+      value: formatConfiguredNumber(
+        config,
+        aggregate(
+          g.rows.map((r) => numCell(r, valueCol)),
+          agg.startsWith("None") ? "Average" : agg,
+        ),
+      ),
       status: strCell(g.rows[0] ?? {}, statusCol),
     }));
     return out;
@@ -374,7 +395,7 @@ export function derivePreviewSeries({
     const scaled = ((value - min) / (max - min || 1)) * 100;
     out.gaugeValue = Math.max(0, Math.min(100, scaled));
     out.values = [value];
-    out.kpiPrimary = formatBySpec(value, "");
+    out.kpiPrimary = formatConfiguredNumber(config, value);
     out.kpiUnit = unit === "%" ? "%" : unit;
     out.markTips = [markTipFromRow(rows[0] ?? {}, "Value", value)];
     return out;

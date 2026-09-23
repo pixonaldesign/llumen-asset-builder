@@ -344,6 +344,20 @@ const FIELDS: FieldDef[] = [
     values: ["None (raw value)", "Sum", "Average", "Min", "Max", "Count"],
     defaultValue: "None (raw value)",
   }),
+  f(
+    "Number notation",
+    "dropdown",
+    "Mapping",
+    ALL_CHARTS_KPIS.concat(ALL_MAP_LAYERS),
+    {
+      desc: "How numerical values are displayed throughout the visual asset.",
+      values: [
+        "Compact (5.7M)",
+        "Full number (5,700,000)",
+      ],
+      defaultValue: "Compact (5.7M)",
+    },
+  ),
   f("Y-axis values (ML only)", "segmented", "Mapping", ["All Charts & KPIs"], {
     desc: "For ML-prediction sources: Predicted only / Actual only / Actual vs predicted.",
     values: ["Predicted only", "Actual only", "Actual vs predicted"],

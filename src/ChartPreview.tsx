@@ -16,7 +16,7 @@ import {
   asRecord,
   asRepeatable,
   asStringArray,
-  formatBySpec,
+  formatNumberByNotation,
   listHas,
   parseMinMax,
   resolveColorMode,
@@ -47,22 +47,36 @@ const FS_CAPTION = 11;
 
 const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
 const str = (v: unknown, d: string) => (typeof v === "string" && v ? v : d);
+const formatVisualNumber = (cfg: Cfg, value: number, spec = "") =>
+  formatNumberByNotation(
+    value,
+    str(
+      cfg("Mapping", "Number notation", "Compact (5.7M)"),
+      "Compact (5.7M)",
+    ),
+    spec,
+  );
 
 const TOOLTIP_FIELDS = ["value", "category", "timestamp", "unit", "status"] as const;
 
-function tipValue(tip: MarkTip, field: string, numberFormat: string): string {
+function tipValue(
+  cfg: Cfg,
+  tip: MarkTip,
+  field: string,
+  numberFormat: string,
+): string {
   if (field === "value") {
     if (tip.total != null && Number.isFinite(tip.total)) {
-      return `${formatBySpec(tip.value, numberFormat)} / ${formatBySpec(tip.total, numberFormat)}`;
+      return `${formatVisualNumber(cfg, tip.value, numberFormat)} / ${formatVisualNumber(cfg, tip.total, numberFormat)}`;
     }
-    return formatBySpec(tip.value, numberFormat);
+    return formatVisualNumber(cfg, tip.value, numberFormat);
   }
   if (field === "category") return tip.category || tip.label;
   if (field === "timestamp") return tip.timestamp;
   if (field === "unit") return tip.unit;
   if (field === "status") return tip.status;
   if (field === "label" || field === "x") return tip.label;
-  if (field === "y") return formatBySpec(tip.value, numberFormat);
+  if (field === "y") return formatVisualNumber(cfg, tip.value, numberFormat);
   return "";
 }
 
@@ -85,12 +99,14 @@ function markTooltip(cfg: Cfg, tip: MarkTip | undefined, fallbackLabel = "", fal
   const fields = selected.length ? selected : ["value", "category"];
 
   if (rawFormat.includes("{")) {
-    return rawFormat.replace(/\{(\w+)\}/g, (_m, key: string) => tipValue(data, key, numberFormat));
+    return rawFormat.replace(/\{(\w+)\}/g, (_m, key: string) =>
+      tipValue(cfg, data, key, numberFormat),
+    );
   }
 
   return fields
     .map((field) => {
-      const v = tipValue(data, field, numberFormat);
+      const v = tipValue(cfg, data, field, numberFormat);
       if (!v) return "";
       return `${columnLabel(field)}: ${v}`;
     })
@@ -118,7 +134,7 @@ function mapTooltip(cfg: Cfg, tip: MarkTip | undefined) {
         field === "name"
           ? tip.label
           : field === "value"
-            ? formatBySpec(tip.value, numberFormat)
+            ? formatVisualNumber(cfg, tip.value, numberFormat)
             : field === "type"
               ? tip.category
               : tip.status;
@@ -395,7 +411,7 @@ function AxisChrome({
           const y = box.bottom - ((t - min) / (max - min || 1)) * box.height;
           return (
             <text key={`l${i}`} x={box.left - 6} y={y + 4} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="end">
-              {formatBySpec(t, format)}
+              {formatVisualNumber(cfg, t, format)}
               {yTickUnit}
             </text>
           );
@@ -470,7 +486,9 @@ function Legend({
   const swatchAndLabel = (it: (typeof items)[number], x: number, y: number, anchor: "start" | "end") => {
     const bits = [
       showLabels ? it.label : "",
-      showValues && it.value != null ? formatBySpec(it.value, "") : "",
+      showValues && it.value != null
+        ? formatVisualNumber(cfg, it.value)
+        : "",
       showPct && it.value != null ? `${Math.round((it.value / total) * 100)}%` : "",
     ].filter(Boolean);
     const swatchX = anchor === "end" ? x - 8 : x;
@@ -581,7 +599,7 @@ function Annotation({ cfg, series, box, max, min = 0 }: { cfg: Cfg; series?: Pre
       <line x1={box.left} y1={y} x2={box.right} y2={y} stroke="rgba(255,255,255,.4)" strokeDasharray="4 3" />
       {caption && (
         <text x={box.left + 4} y={y - 5} fill={INK} fontSize={FS_CAPTION} fontWeight="500">
-          {label} {formatBySpec(yVal, "")}
+          {label} {formatVisualNumber(cfg, yVal)}
           {unit}
         </text>
       )}
@@ -671,8 +689,8 @@ function Bars({ cfg, minimal, compact, series, decorate, hover, setHover, onMark
     showLabels ? (
       <text x={x + bw / 2} y={y - 4} fill={INK_STRONG} fontSize="10" textAnchor="middle">
         {hasTotals && total != null
-          ? `${formatBySpec(value, axisFmt)} / ${formatBySpec(total, axisFmt)}`
-          : formatBySpec(value, axisFmt)}
+          ? `${formatVisualNumber(cfg, value, axisFmt)} / ${formatVisualNumber(cfg, total, axisFmt)}`
+          : formatVisualNumber(cfg, value, axisFmt)}
       </text>
     ) : null;
 
@@ -888,7 +906,11 @@ function PieDonut({ cfg, chartId, minimal, compact, series, decorate, setHover, 
         const color = colorMode(cfg, i, d, max, colorCategory, data.length, axisAlong(i, data.length, d, 0, max));
         const [lx, ly] = polar(cx, cy, (rO + rI) / 2 + 2, (a0 + a1) / 2);
         const sliceLabel =
-          fmt === "Value" ? formatBySpec(d, "") : fmt === "Both" ? `${formatBySpec(d, "")} (${Math.round((d / total) * 100)}%)` : `${Math.round((d / total) * 100)}%`;
+          fmt === "Value"
+            ? formatVisualNumber(cfg, d)
+            : fmt === "Both"
+              ? `${formatVisualNumber(cfg, d)} (${Math.round((d / total) * 100)}%)`
+              : `${Math.round((d / total) * 100)}%`;
         return (
           <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}>
             <path d={wedge(cx, cy, rO, rI, a0, a1)} fill={color} />
@@ -1241,7 +1263,7 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
         const w = Math.max(2, pct * plotW);
         const label =
           hasMappedTotal || kpiMode === "Value of total"
-            ? `${formatBySpec(v, "")} / ${formatBySpec(cap, "")}`
+            ? `${formatVisualNumber(cfg, v)} / ${formatVisualNumber(cfg, cap)}`
             : `${Math.round(pct * 100)}%`;
         return (
           <g key={i} {...markHover({ setHover, onMarkEnter, onMarkLeave }, paired[i]?.i ?? i)}>
@@ -1266,7 +1288,15 @@ function HBars({ cfg, chartId, minimal, compact, series, setHover, onMarkEnter, 
             {isScore && showMarker && <circle cx={P + labelW + w} cy={y + bh / 2} r={5} fill="#fff" stroke={color} strokeWidth="2" />}
             {showLabels && (
               <text x={P + labelW + plotW - 4} y={y + bh / 2 + 4} fill={INK_STRONG} fontSize={FS_TICK} fontWeight="500" textAnchor="end">
-                {cartesian ? formatBySpec(v, "") : `${!cartesian ? labels[i] + "  " : ""}${chartId === "progress" || isScore || hasMappedTotal ? label : formatBySpec(v, "")}`}
+                {cartesian
+                  ? formatVisualNumber(cfg, v)
+                  : `${!cartesian ? labels[i] + "  " : ""}${
+                      chartId === "progress" ||
+                      isScore ||
+                      hasMappedTotal
+                        ? label
+                        : formatVisualNumber(cfg, v)
+                    }`}
               </text>
             )}
           </g>

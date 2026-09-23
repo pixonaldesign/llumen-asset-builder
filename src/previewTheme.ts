@@ -37,11 +37,27 @@ export function rgbToHex(r: number, g: number, b: number): string {
   return `#${c(r)}${c(g)}${c(b)}`;
 }
 
+function hexAlpha(hex: string): number {
+  const normalized = hex.replace("#", "").trim();
+  return normalized.length === 8
+    ? parseInt(normalized.slice(6, 8), 16) / 255
+    : 1;
+}
+
 export function mixHex(a: string, b: string, t: number): string {
   const [ar, ag, ab] = hexToRgb(a);
   const [br, bg, bb] = hexToRgb(b);
   const u = Math.max(0, Math.min(1, t));
-  return rgbToHex(ar + (br - ar) * u, ag + (bg - ag) * u, ab + (bb - ab) * u);
+  const mixed = rgbToHex(
+    ar + (br - ar) * u,
+    ag + (bg - ag) * u,
+    ab + (bb - ab) * u,
+  );
+  const alpha = hexAlpha(a) + (hexAlpha(b) - hexAlpha(a)) * u;
+  if (alpha >= 0.995) return mixed;
+  return `${mixed}${Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, "0")}`;
 }
 
 export function sequentialRamp(base: string, steps: number): string[] {
@@ -394,6 +410,38 @@ export function formatBySpec(n: number, spec: string): string {
   return String(Math.round(n * 10) / 10);
 }
 
+export function formatNumberByNotation(
+  n: number,
+  notation: string,
+  spec = "",
+): string {
+  if (!Number.isFinite(n)) return "—";
+  const mode = notation.trim().toLowerCase();
+  if (mode.startsWith("compact")) {
+    const compact = formatCompactNumber(n);
+    if (spec.toLowerCase().includes("currency") || spec.includes("$")) {
+      return `$${compact}`;
+    }
+    if (spec.toLowerCase().includes("percent") || spec.includes("%")) {
+      return `${compact}%`;
+    }
+    if (spec.toLowerCase().includes("duration")) return `${compact}m`;
+    return compact;
+  }
+  if (mode.startsWith("full")) {
+    const full = n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    if (spec.toLowerCase().includes("currency") || spec.includes("$")) {
+      return `$${full}`;
+    }
+    if (spec.toLowerCase().includes("percent") || spec.includes("%")) {
+      return `${full}%`;
+    }
+    if (spec.toLowerCase().includes("duration")) return `${full}m`;
+    return full;
+  }
+  return formatBySpec(n, spec);
+}
+
 export function listHas(v: unknown, label: string): boolean {
   return asStringArray(v).some((x) => x.toLowerCase() === label.toLowerCase());
 }
@@ -486,7 +534,8 @@ export function asColorMode(v: unknown): ColorModeConfig {
 }
 
 export function withOpacity(hex: string, opacityPct: number): string {
-  const op = Math.max(0, Math.min(1, opacityPct / 100));
+  const op =
+    hexAlpha(hex) * Math.max(0, Math.min(1, opacityPct / 100));
   if (op >= 0.995) return hex;
   const [r, g, b] = hexToRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${op.toFixed(3)})`;
