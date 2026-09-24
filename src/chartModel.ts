@@ -53,6 +53,7 @@ export const charts: Record<string, Chart> = {
   polar: { name: "Polar / Wind rose", preview: "donut" },
   range: { name: "Range", preview: "bar" },
   availability: { name: "Availability", preview: "bar" },
+  sankey: { name: "Sankey", preview: "sankey" },
   kpi: { name: "KPI Card", preview: "kpi" },
   kpiGrid: { name: "KPI Grid", preview: "table" },
   table: { name: "Data Table", preview: "table" },

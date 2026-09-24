@@ -27,6 +27,7 @@ export type NotionVisualType =
   | "Polar"
   | "Range"
   | "Availability"
+  | "Sankey"
   | "KPI Card"
   | "KPI Grid"
   | "Data Table"
@@ -53,6 +54,7 @@ export const NOTION_TYPE_BY_VISUAL_ID: Record<string, NotionVisualType> = {
   "polar-wind-rose": "Polar",
   range: "Range",
   availability: "Availability",
+  "sankey-chart": "Sankey",
   "kpi-card": "KPI Card",
   "kpi-grid": "KPI Grid",
   "legacy-kpi": "KPI Card",
@@ -80,6 +82,7 @@ const ALL_CHARTS_KPIS: NotionVisualType[] = [
   "Polar",
   "Range",
   "Availability",
+  "Sankey",
   "KPI Card",
   "KPI Grid",
 ];
@@ -106,6 +109,7 @@ const STORY_KPI: NotionVisualType[] = [
   "Pie/Donut",
   "Score Indicator",
   "Range",
+  "Sankey",
 ];
 const COLOR_MODE: NotionVisualType[] = [
   "Vertical Bar",
@@ -118,6 +122,7 @@ const COLOR_MODE: NotionVisualType[] = [
   "Gauge",
   "Polar",
   "Availability",
+  "Sankey",
 ];
 const LEGEND: NotionVisualType[] = [
   "Vertical Bar",
@@ -128,6 +133,7 @@ const LEGEND: NotionVisualType[] = [
   "Pie/Donut",
   "Range",
   "Availability",
+  "Sankey",
 ];
 const BADGE: NotionVisualType[] = [
   "Vertical Bar",
@@ -142,6 +148,7 @@ const BADGE: NotionVisualType[] = [
   "Polar",
   "Range",
   "Availability",
+  "Sankey",
   "KPI Card",
 ];
 const TOOLTIPS: NotionVisualType[] = [
@@ -155,6 +162,7 @@ const TOOLTIPS: NotionVisualType[] = [
   "Score Indicator",
   "Polar",
   "Range",
+  "Sankey",
 ];
 const BARS: NotionVisualType[] = ["Vertical Bar", "Horizontal Bar"];
 const LINE_AREA: NotionVisualType[] = ["Line", "Area"];
@@ -169,6 +177,7 @@ export const SUBCATEGORY_ORDER = [
   "Layout & visibility",
   "Legend",
   "Status badge",
+  "Sankey",
   "Bar",
   "Line",
   "Scatter",
@@ -263,6 +272,9 @@ const FIELDS: FieldDef[] = [
   f("Value", "field", "Mapping", ["Pie/Donut", "Gauge", "Availability", "KPI Card", "KPI Grid"], {
     required: true,
   }),
+  f("Source", "field", "Mapping", ["Sankey"], { required: true }),
+  f("Target", "field", "Mapping", ["Sankey"], { required: true }),
+  f("Value", "field", "Mapping", ["Sankey"], { required: true }),
   f("Unit", "field", "Mapping", ["Gauge", "KPI Card", "KPI Grid"]),
   f("Status", "field", "Mapping", ["Gauge", "KPI Grid"]),
   f("Min field", "field", "Mapping", ["Gauge"], {
@@ -358,7 +370,7 @@ const FIELDS: FieldDef[] = [
       defaultValue: "Compact (5.7M)",
     },
   ),
-  f("Y-axis values (ML only)", "segmented", "Mapping", ["All Charts & KPIs"], {
+  f("Y-axis values (ML only)", "segmented", "Mapping", ALL_CHARTS_KPIS.filter((type) => type !== "Sankey"), {
     desc: "For ML-prediction sources: Predicted only / Actual only / Actual vs predicted.",
     values: ["Predicted only", "Actual only", "Actual vs predicted"],
   }),
@@ -459,6 +471,21 @@ const FIELDS: FieldDef[] = [
     desc: "Constant badge text used when Text source is Manual text.",
     visibleWhen: { group: "Status badge", name: "Text source", is: "Manual text" },
   }),
+
+  /* ---- Sankey ---- */
+  f("Node width", "slider", "Sankey", ["Sankey"], {
+    desc: "6–30 px. Default 14.",
+  }),
+  f("Node gap", "slider", "Sankey", ["Sankey"], {
+    desc: "4–32 px. Default 12.",
+  }),
+  f("Link opacity", "slider", "Sankey", ["Sankey"], {
+    desc: "10–100%. Default 55.",
+  }),
+  f("Link curvature", "slider", "Sankey", ["Sankey"], {
+    desc: "0–100%. Default 55.",
+  }),
+  f("Show node labels", "toggle", "Sankey", ["Sankey"]),
 
   /* ---- Bar ---- */
   f("Show values on bars", "toggle", "Bar", BARS, { def: false }),
@@ -1380,6 +1407,7 @@ export function subCategoriesForVisual(visualId: string): string[] {
 export const SETTINGS_NAV_CORE = [
   "Mapping",
   "KPI Display",
+  "Sankey",
   "Bar",
   "Line",
   "Scatter",

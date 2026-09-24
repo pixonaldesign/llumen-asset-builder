@@ -30,6 +30,7 @@ const CHART_PICKER_ICON_IDS = new Set([
   "polar-wind-rose",
   "range",
   "availability",
+  "sankey-chart",
   "kpi-card",
   "kpi-grid",
   "table",

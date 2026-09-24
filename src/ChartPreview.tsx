@@ -1387,6 +1387,154 @@ function Availability({ cfg, series }: RenderProps) {
   );
 }
 
+function Sankey({ cfg, minimal, compact, series, decorate, hover, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const metrics = usePlot();
+  const box = plotBox(cfg, !!decorate, 0, 0, metrics);
+  const fallback = {
+    nodes: [
+      { id: "source:A", label: "A", value: 62, category: "Source" },
+      { id: "source:B", label: "B", value: 38, category: "Source" },
+      { id: "target:C", label: "C", value: 45, category: "Target" },
+      { id: "target:D", label: "D", value: 55, category: "Target" },
+    ],
+    links: [
+      { source: "source:A", target: "target:C", value: 36 },
+      { source: "source:A", target: "target:D", value: 26 },
+      { source: "source:B", target: "target:C", value: 9 },
+      { source: "source:B", target: "target:D", value: 29 },
+    ],
+  };
+  const graph = series?.sankey?.nodes.length ? series.sankey : fallback;
+  const dataMaxLink = Math.max(...graph.links.map((link) => link.value), 1);
+  const nodeWidth = sliderMapped(cfg("Sankey", "Node width", 33), 6, 30, 14);
+  const nodeGap = sliderMapped(cfg("Sankey", "Node gap", 29), 4, 32, 12);
+  const linkOpacity = sliderMapped(cfg("Sankey", "Link opacity", 50), 0.1, 1, 0.55);
+  const curvature = sliderMapped(cfg("Sankey", "Link curvature", 55), 0, 1, 0.55);
+  const showLabels =
+    !minimal &&
+    !compact &&
+    bool(cfg("Sankey", "Show node labels", true), true);
+  const showValues =
+    !minimal &&
+    !compact &&
+    bool(cfg("Layout & visibility", "Show data labels", false), false);
+  const showNodeText = showLabels || showValues;
+  const labelRoom = showNodeText ? Math.min(58, box.width * 0.21) : 0;
+  const sourceX = box.left + labelRoom;
+  const targetX = box.right - labelRoom - nodeWidth;
+  const sourceIds = new Set(graph.links.map((link) => link.source));
+  const targetIds = new Set(graph.links.map((link) => link.target));
+  const sourceNodes = graph.nodes.filter((node) => sourceIds.has(node.id));
+  const targetNodes = graph.nodes.filter((node) => targetIds.has(node.id));
+
+  type SankeyNode = (typeof graph.nodes)[number];
+  type PositionedNode = SankeyNode & { x: number; y: number; height: number; color: string };
+  const positioned = new Map<string, PositionedNode>();
+  const allMax = Math.max(...graph.nodes.map((node) => node.value), 1);
+
+  const placeColumn = (nodes: SankeyNode[], x: number, colorOffset: number) => {
+    const safeGap = Math.min(nodeGap, Math.max(2, (box.height - nodes.length * 8) / Math.max(nodes.length - 1, 1)));
+    const available = Math.max(8 * nodes.length, box.height - safeGap * Math.max(nodes.length - 1, 0));
+    const total = nodes.reduce((sum, node) => sum + node.value, 0) || 1;
+    const heights = nodes.map((node) => Math.max(8, (node.value / total) * available));
+    const used = heights.reduce((sum, height) => sum + height, 0) + safeGap * Math.max(nodes.length - 1, 0);
+    let y = box.top + Math.max(0, (box.height - used) / 2);
+    nodes.forEach((node, index) => {
+      positioned.set(node.id, {
+        ...node,
+        x,
+        y,
+        height: heights[index],
+        color: colorMode(
+          cfg,
+          colorOffset + index,
+          node.value,
+          allMax,
+          node.label,
+          graph.nodes.length,
+        ),
+      });
+      y += heights[index] + safeGap;
+    });
+  };
+
+  placeColumn(sourceNodes, sourceX, 0);
+  placeColumn(targetNodes, targetX, sourceNodes.length);
+  const bend = Math.max(0, Math.min(1, curvature));
+  const legendItems = sourceNodes.map((node) => ({
+    label: node.label,
+    color: positioned.get(node.id)?.color ?? BRAND,
+    value: node.value,
+  }));
+
+  return (
+    <>
+      {graph.links.map((link, index) => {
+        const source = positioned.get(link.source);
+        const target = positioned.get(link.target);
+        if (!source || !target) return null;
+        const x1 = source.x + nodeWidth;
+        const x2 = target.x;
+        const y1 = source.y + source.height / 2;
+        const y2 = target.y + target.height / 2;
+        const dx = x2 - x1;
+        const c1 = x1 + dx * bend;
+        const c2 = x2 - dx * bend;
+        const path = `M ${x1} ${y1} C ${c1} ${y1}, ${c2} ${y2}, ${x2} ${y2}`;
+        const scaledValue = Math.max(0, Math.min(1, link.value / dataMaxLink));
+        return (
+          <path
+            key={`${link.source}-${link.target}`}
+            d={path}
+            fill="none"
+            stroke={source.color}
+            strokeWidth={2 + scaledValue * Math.min(16, box.height / 5)}
+            strokeOpacity={hover == null || hover === index ? linkOpacity : linkOpacity * 0.22}
+            strokeLinecap="round"
+            {...markHover({ setHover, onMarkEnter, onMarkLeave }, index)}
+          />
+        );
+      })}
+      {[...positioned.values()].map((node) => {
+        const isSource = sourceIds.has(node.id);
+        return (
+          <g key={node.id}>
+            <rect
+              x={node.x}
+              y={node.y}
+              width={nodeWidth}
+              height={node.height}
+              rx={Math.min(3, nodeWidth / 4)}
+              fill={node.color}
+              stroke="rgba(255,255,255,.28)"
+              strokeWidth="0.8"
+            />
+            {showNodeText && (
+              <text
+                x={isSource ? node.x - 5 : node.x + nodeWidth + 5}
+                y={node.y + node.height / 2 + 3}
+                fill={INK}
+                fontSize={FS_TICK}
+                fontWeight="500"
+                textAnchor={isSource ? "end" : "start"}
+              >
+                {showLabels
+                  ? node.label.length > 8
+                    ? `${node.label.slice(0, 7)}…`
+                    : node.label
+                  : ""}
+                {showLabels && showValues ? " · " : ""}
+                {showValues ? formatVisualNumber(cfg, node.value) : ""}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      {decorate && <Legend cfg={cfg} series={series} items={legendItems} box={box} />}
+    </>
+  );
+}
+
 function Kpi({ cfg, minimal, series }: RenderProps) {
   const { W, H, P } = usePlot();
   if (minimal && !series) {
@@ -1650,6 +1798,7 @@ export default function ChartPreview({
       />
     );
   else if (chartId === "availability") body = <Availability {...renderProps} />;
+  else if (chartId === "sankey") body = <Sankey {...renderProps} />;
   else if (chartId === "range") body = <RangeChart {...renderProps} />;
   else if (chartId === "kpiGrid") body = <KpiGrid {...renderProps} />;
   else if (chartId === "polar") body = <PolarRose {...renderProps} />;

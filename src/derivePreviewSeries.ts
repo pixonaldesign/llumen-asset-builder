@@ -401,6 +401,78 @@ export function derivePreviewSeries({
     return out;
   }
 
+  if (chartId === "sankey") {
+    const sourceCol = mapped(config, "Source", "origin");
+    const targetCol = mapped(config, "Target", "destination");
+    const valueCol = mapped(config, "Value", "value");
+    const pairRows = new Map<string, { source: string; target: string; rows: MockRow[] }>();
+
+    rows.forEach((row) => {
+      const source = strCell(row, sourceCol);
+      const target = strCell(row, targetCol);
+      if (!source || !target) return;
+      const key = `${source}\u0000${target}`;
+      const pair = pairRows.get(key);
+      if (pair) pair.rows.push(row);
+      else pairRows.set(key, { source, target, rows: [row] });
+    });
+
+    const links = [...pairRows.values()].map((pair) => ({
+      source: `source:${pair.source}`,
+      target: `target:${pair.target}`,
+      value: Math.max(
+        0,
+        aggregate(
+          pair.rows.map((row) => numCell(row, valueCol)),
+          agg.startsWith("None") ? "Sum" : agg,
+        ),
+      ),
+    })).filter((link) => link.value > 0);
+
+    const sourceTotals = new Map<string, number>();
+    const targetTotals = new Map<string, number>();
+    links.forEach((link) => {
+      sourceTotals.set(link.source, (sourceTotals.get(link.source) ?? 0) + link.value);
+      targetTotals.set(link.target, (targetTotals.get(link.target) ?? 0) + link.value);
+    });
+
+    const nodes = [
+      ...[...sourceTotals].map(([id, value]) => ({
+        id,
+        label: id.slice("source:".length),
+        value,
+        category: "Source",
+      })),
+      ...[...targetTotals].map(([id, value]) => ({
+        id,
+        label: id.slice("target:".length),
+        value,
+        category: "Target",
+      })),
+    ];
+
+    out.sankey = { nodes, links };
+    out.labels = nodes.map((node) => node.label);
+    out.values = nodes.map((node) => node.value);
+    out.legend = `${columnLabel(sourceCol, dataset)} → ${columnLabel(targetCol, dataset)}`;
+    out.markTips = [...pairRows.values()]
+      .map((pair) => {
+        const link = links.find(
+          (candidate) =>
+            candidate.source === `source:${pair.source}` &&
+            candidate.target === `target:${pair.target}`,
+        );
+        if (!link) return null;
+        return {
+          ...markTipFromRow(pair.rows[0] ?? {}, `${pair.source} → ${pair.target}`, link.value),
+          label: `${pair.source} → ${pair.target}`,
+          category: pair.source,
+        };
+      })
+      .filter((tip): tip is MarkTip => tip !== null);
+    return out;
+  }
+
   if (chartId === "scatter" && !isMap) {
     const xCol = mapped(config, "X value", "amount");
     const yScatter = mapped(config, "Y value", "incidents");

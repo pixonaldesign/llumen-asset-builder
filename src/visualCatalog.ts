@@ -104,6 +104,13 @@ export const VISUAL_TYPES: VisualType[] = [
     category: "chart",
   },
   {
+    id: "sankey-chart",
+    label: "Sankey Chart",
+    description: "Show weighted flows between source and target categories.",
+    chartId: "sankey",
+    category: "chart",
+  },
+  {
     id: "kpi-card",
     label: "KPI Card",
     description: "Surface a single key metric with optional trend.",

@@ -58,6 +58,10 @@ export type PreviewSeries = {
     colorCategory?: string;
   }[];
   availability?: { label: string; cells: number[] }[];
+  sankey?: {
+    nodes: { id: string; label: string; value: number; category?: string }[];
+    links: { source: string; target: string; value: number }[];
+  };
 };
 
 export type ComponentPreviewProfile = {
