@@ -79,16 +79,15 @@ const PRESETS: PalettePreset[] = [
   { name: "Gold", type: "Sequential", sequentialMode: "Shades", colors: ["#fffbeb", "#fef7d6", "#fef3c7", "#fde68a", "#fcd34d", "#fbbf24", "#f59e0b"] },
   // Every categorical palette, including its last-to-first wrap, is validated
   // at ΔE2000 >= 20.2 and WCAG contrast >= 1.51.
-  { name: "Llux", type: "Categorical", colors: LLUX_CATEGORICAL },
-  { name: "Llux Deep", type: "Categorical", colors: ["#557ec0", "#4a438b", "#329d93", "#24502a", "#90651d", "#f9c3b3", "#405f90", "#f19ba4", "#8b81ee", "#3ec4b8"] },
-  { name: "Llux Ember", type: "Categorical", colors: ["#823864", "#f06840", "#aa4073", "#f6bcc3", "#6f67be", "#604313", "#47a155", "#25766e", "#ecd09f", "#7b6fe8"] },
-  { name: "Llux Earth", type: "Categorical", colors: ["#cac5f6", "#47a155", "#38345f", "#90651d", "#572642", "#25766e", "#ed7986", "#a66e0d", "#a6c5f6", "#aa4073"] },
-  { name: "Llux Spectrum", type: "Categorical", colors: ["#47a155", "#f6bcc3", "#c08626", "#0f4540", "#7b6fe8", "#65d0c6", "#ae4b85", "#c3d8f9", "#dd73a6", "#533706"] },
-  { name: "Red to Blue", type: "Diverging", colors: ["#9f1d1d", "#c62828", "#df3f3f", "#ef5350", "#f7a0a0", "#f3f4f6", "#cce4fb", "#9dcef7", "#68b1ee", "#42a5f5", "#1565c0"] },
+  { name: "Default", type: "Categorical", colors: LLUX_CATEGORICAL },
+  { name: "Deep", type: "Categorical", colors: ["#557ec0", "#4a438b", "#329d93", "#24502a", "#90651d", "#f9c3b3", "#405f90", "#f19ba4", "#8b81ee", "#3ec4b8"] },
+  { name: "Ember", type: "Categorical", colors: ["#823864", "#f06840", "#aa4073", "#f6bcc3", "#6f67be", "#604313", "#47a155", "#25766e", "#ecd09f", "#7b6fe8"] },
+  { name: "Earth", type: "Categorical", colors: ["#cac5f6", "#47a155", "#38345f", "#90651d", "#572642", "#25766e", "#ed7986", "#a66e0d", "#a6c5f6", "#aa4073"] },
+  { name: "Spectrum", type: "Categorical", colors: ["#47a155", "#f6bcc3", "#c08626", "#0f4540", "#7b6fe8", "#65d0c6", "#ae4b85", "#c3d8f9", "#dd73a6", "#533706"] },
+  { name: "Red to Blue", type: "Diverging", colors: ["#9f1d1d", "#df3f3f", "#f7a0a0", "#f3f4f6", "#cce4fb", "#68b1ee", "#1565c0"] },
   { name: "Purple to Teal", type: "Diverging", colors: ["#6b21a8", "#9333c9", "#c084fc", "#f3e8ff", "#99f6e4", "#2dd4bf", "#0f766e"] },
   { name: "Purple to Green", type: "Diverging", colors: ["#8e00a8", "#bd00d3", "#ed75e7", "#f7f7f7", "#8bdc84", "#2dbb25", "#18851f"] },
-  { name: "Red to Cyan", type: "Diverging", colors: ["#c91414", "#e42c2c", "#ff8585", "#f7f7f7", "#72d9f7", "#1ab8e9", "#147cb3"] },
-  { name: "Indigo to Lime", type: "Diverging", colors: ["#002cd4", "#245eeb", "#7b79f2", "#f7f7f7", "#e5e676", "#c9ca2d", "#9c9d1c"] },
+  { name: "Blue to Lime", type: "Diverging", colors: ["#002cd4", "#245eeb", "#7b79f2", "#f7f7f7", "#e5e676", "#c9ca2d", "#9c9d1c"] },
 ];
 
 const OPACITY_PRESETS: PalettePreset[] = [

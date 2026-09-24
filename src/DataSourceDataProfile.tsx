@@ -336,7 +336,8 @@ export default function DataSourceDataProfile() {
                         key={option}
                         className={
                           "ia-slider-dot" +
-                          (index <= granularityIndex ? " is-covered" : "")
+                          (index <= granularityIndex ? " is-covered" : "") +
+                          (index === granularityIndex ? " is-current" : "")
                         }
                         style={{
                           ["--ia-slider-t" as string]:

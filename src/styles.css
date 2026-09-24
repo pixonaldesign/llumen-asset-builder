@@ -3913,6 +3913,21 @@ button {
   width: min(212px, 24vw);
 }
 
+.data-profile-granularity__control .ia-slider-fill {
+  background: color-mix(in srgb, var(--white) 18%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.data-profile-granularity__control .ia-slider-dot.is-covered {
+  visibility: visible;
+  opacity: 0.7;
+}
+
+.data-profile-granularity__control .ia-slider-dot.is-current {
+  visibility: hidden;
+}
+
 .data-profile-granularity__value {
   flex: 0 0 auto;
   min-width: 0;
