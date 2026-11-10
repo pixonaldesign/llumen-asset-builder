@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "name": "Downtown Dubai",
+  "binary": "/data/flood/downtown-dubai.bin",
+  "cols": 1058,
+  "rows": 724,
+  "cellMeters": 4.0,
+  "bounds": {
+    "west": 55.25,
+    "east": 55.292012,
+    "south": 25.177,
+    "north": 25.2030152
+  },
+  "channels": [
+    "ground",
+    "spill",
+    "building",
+    "codes"
+  ],
+  "datum": "EGM2008",
+  "datums": {
+    "MHHW": 0.6,
+    "MHW": 0.45,
+    "MSL": 0.0,
+    "MLLW": -0.6
+  },
+  "groundPercentiles": {
+    "levels": [
+      0,
+      1,
+      5,
+      25,
+      50,
+      75,
+      95,
+      99,
+      100
+    ],
+    "values": [
+      -9.721,
+      0.555,
+      1.114,
+      1.528,
+      2.084,
+      2.792,
+      5.358,
+      8.909,
+      23.125
+    ]
+  },
+  "buildingMaxMeters": 570.5,
+  "breach": {
+    "lng": 55.27063,
+    "lat": 25.18557
+  },
+  "rain": {
+    "label": "UAE storm, 16 Apr 2024",
+    "source": "ECMWF IFS 9 km via Open-Meteo, scaled to the gauge total",
+    "gauge": "NCM, Dubai International Airport, 24 h on 16 Apr 2024",
+    "gaugeMillimeters": 144.0,
+    "modelMillimeters": 113.0,
+    "scale": 1.274,
+    "start": "2024-04-16T00:00:00+04:00",
+    "frameHours": 1,
+    "timeZone": "Asia/Dubai",
+    "mmPerHour": [
+      0.51,
+      6.88,
+      8.03,
+      1.15,
+      5.86,
+      2.93,
+      1.4,
+      1.27,
+      0.0,
+      0.0,
+      0.25,
+      0.51,
+      4.84,
+      16.57,
+      21.54,
+      3.82,
+      29.44,
+      15.29,
+      6.24,
+      13.89,
+      3.57,
+      0.0
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "slr",
+      "label": "Sea level rise above MHHW",
+      "kind": "levels",
+      "frameHours": 1,
+      "labels": [
+        "MHHW + 0 m",
+        "MHHW + 0.25 m",
+        "MHHW + 0.5 m",
+        "MHHW + 0.75 m",
+        "MHHW + 1 m",
+        "MHHW + 1.25 m",
+        "MHHW + 1.5 m",
+        "MHHW + 1.75 m",
+        "MHHW + 2 m",
+        "MHHW + 2.25 m",
+        "MHHW + 2.5 m",
+        "MHHW + 2.75 m",
+        "MHHW + 3 m"
+      ],
+      "levels": [
+        0.6,
+        0.85,
+        1.1,
+        1.35,
+        1.6,
+        1.85,
+        2.1,
+        2.35,
+        2.6,
+        2.85,
+        3.1,
+        3.35,
+        3.6
+      ]
+    }
+  ]
+}

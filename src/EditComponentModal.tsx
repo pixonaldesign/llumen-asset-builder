@@ -1,5 +1,7 @@
 import {
   Fragment,
+  lazy,
+  Suspense,
   useState,
   useRef,
   useCallback,
@@ -56,6 +58,7 @@ import {
   withConditionalRequired,
 } from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
+import { liveMapScene, type LiveMapScene } from "./liveMapScene";
 import DataSourceQueryPreview from "./DataSourceQueryPreview";
 import DataSourceDataProfile from "./DataSourceDataProfile";
 import ColorPalette, {
@@ -106,6 +109,38 @@ import VisualTypePicker from "./VisualTypePicker";
 import SelectedVisualBar from "./SelectedVisualBar";
 import { visualTypeByChartId, visualTypeById } from "./visualCatalog";
 import type { VisualType } from "./visualCatalog";
+
+const LazyLiveMapStage = lazy(() =>
+  import("./LiveMapStage").then((m) => ({ default: m.LiveMapStage })),
+);
+
+function LiveMapPreview({ scene }: { scene: LiveMapScene }) {
+  return (
+    <Suspense fallback={<div className="live-map-stage live-map-stage--empty">Loading map…</div>}>
+      <LazyLiveMapStage scene={scene} />
+    </Suspense>
+  );
+}
+
+function seededPalette(paletteField: Opt, visualId: string, existing?: unknown) {
+  return {
+    ...asColorMode(existing ?? defaultFor(paletteField, visualId)),
+    style: "Single",
+    sequentialBasis: "Value",
+    gradientAxis: defaultGradientAxisForVisual(visualId),
+  };
+}
+
+/** Settings the user changed; a palette still equal to its selection seed counts as untouched. */
+function liveMapExplicit(config: Record<string, unknown>, visualId: string): Record<string, unknown> {
+  const paletteField = fieldsForVisual(visualId).find(isPaletteField);
+  if (!paletteField) return config;
+  const key = keyOf(paletteField);
+  if (config[key] === undefined) return config;
+  if (JSON.stringify(config[key]) !== JSON.stringify(seededPalette(paletteField, visualId))) return config;
+  const { [key]: _seed, ...rest } = config;
+  return rest;
+}
 
 type VizPhase = "picker" | "settings";
 
@@ -3533,6 +3568,8 @@ export default function EditComponentModal({
     return configured;
   };
 
+  const liveScene = liveMapScene(displayVisualId, cfg, liveMapExplicit(config, displayVisualId));
+
   const getValByKey = (group: string, name: string) => {
     const field = visualFields.find((o) => o.group === group && o.name === name);
     if (!field) return "";
@@ -3699,17 +3736,9 @@ export default function EditComponentModal({
     if (paletteField) {
       setConfig((current) => {
         const paletteKey = keyOf(paletteField);
-        const palette = asColorMode(
-          current[paletteKey] ?? defaultFor(paletteField, visual.id),
-        );
         return {
           ...current,
-          [paletteKey]: {
-            ...palette,
-            style: "Single",
-            sequentialBasis: "Value",
-            gradientAxis: defaultGradientAxisForVisual(visual.id),
-          },
+          [paletteKey]: seededPalette(paletteField, visual.id, current[paletteKey]),
         };
       });
     }
@@ -4253,16 +4282,20 @@ export default function EditComponentModal({
                       </div>
                     </div>
                     <div className="preview__chart-slot">
-                      <div className={"chart-card chart-card--" + size}>
-                        <ChartPreview
-                          type={chart.preview}
-                          chartId={activeChart}
-                          visualId={displayVisualId}
-                          cfg={cfg}
-                          series={previewSeries}
-                          chartTitle={generalInfo.name || undefined}
-                          size={size}
-                        />
+                      <div className={"chart-card chart-card--" + size + (liveScene ? " chart-card--live-map" : "")}>
+                        {liveScene ? (
+                          <LiveMapPreview scene={liveScene} />
+                        ) : (
+                          <ChartPreview
+                            type={chart.preview}
+                            chartId={activeChart}
+                            visualId={displayVisualId}
+                            cfg={cfg}
+                            series={previewSeries}
+                            chartTitle={generalInfo.name || undefined}
+                            size={size}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -4403,7 +4436,9 @@ export default function EditComponentModal({
                           size +
                           (isDeepDiveStep && deepDiveHasTabs
                             ? " chart-card--deep-dive-preview"
-                            : "")
+                            : liveScene
+                              ? " chart-card--live-map"
+                              : "")
                         }
                         role={isDeepDiveStep && deepDiveHasTabs ? "button" : undefined}
                         tabIndex={isDeepDiveStep && deepDiveHasTabs ? 0 : undefined}
@@ -4444,15 +4479,19 @@ export default function EditComponentModal({
                             <Info size={14} weight="regular" aria-hidden="true" />
                           </button>
                         )}
-                        <ChartPreview
-                          type={chart.preview}
-                          chartId={activeChart}
-                          visualId={displayVisualId}
-                          cfg={cfg}
-                          series={previewSeries}
-                          chartTitle={generalInfo.name || undefined}
-                          size={size}
-                        />
+                        {liveScene && !(isDeepDiveStep && deepDiveHasTabs) ? (
+                          <LiveMapPreview scene={liveScene} />
+                        ) : (
+                          <ChartPreview
+                            type={chart.preview}
+                            chartId={activeChart}
+                            visualId={displayVisualId}
+                            cfg={cfg}
+                            series={previewSeries}
+                            chartTitle={generalInfo.name || undefined}
+                            size={size}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

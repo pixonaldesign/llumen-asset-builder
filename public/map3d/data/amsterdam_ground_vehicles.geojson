@@ -1,0 +1,2107 @@
+{
+  "type": "FeatureCollection",
+  "name": "amsterdam_ground_vehicles",
+  "description": "Demo ground-vehicle markers sampled on OpenStreetMap highway centerlines (Amsterdam Centrum) with along-road bearing. \u00a9 OpenStreetMap contributors (ODbL).",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-1",
+      "properties": {
+        "id": "osm-vehicle-1",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 99.3,
+        "speed_kmh": 10.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.913175,
+          52.377313
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-2",
+      "properties": {
+        "id": "osm-vehicle-2",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 98.5,
+        "speed_kmh": 9.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.913724,
+          52.377259
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-3",
+      "properties": {
+        "id": "osm-vehicle-3",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 99.8,
+        "speed_kmh": 10.4,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.914361,
+          52.377197
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-4",
+      "properties": {
+        "id": "osm-vehicle-4",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 99.8,
+        "speed_kmh": 22.4,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.914895,
+          52.377141
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-5",
+      "properties": {
+        "id": "osm-vehicle-5",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 279.9,
+        "speed_kmh": 41.2,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.914648,
+          52.377239
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-6",
+      "properties": {
+        "id": "osm-vehicle-6",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 278.4,
+        "speed_kmh": 37.2,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.914015,
+          52.377297
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-7",
+      "properties": {
+        "id": "osm-vehicle-7",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 278.1,
+        "speed_kmh": 12.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.913325,
+          52.377359
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-8",
+      "properties": {
+        "id": "osm-vehicle-8",
+        "name": "Rhijnspoorplein",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 159.9,
+        "speed_kmh": 27.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.908625,
+          52.359944
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-9",
+      "properties": {
+        "id": "osm-vehicle-9",
+        "name": "Rhijnspoorplein",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 160.6,
+        "speed_kmh": 20.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.908821,
+          52.359605
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-10",
+      "properties": {
+        "id": "osm-vehicle-10",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 158.4,
+        "speed_kmh": 18.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.90575,
+          52.364793
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-11",
+      "properties": {
+        "id": "osm-vehicle-11",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 158.4,
+        "speed_kmh": 23.4,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.90595,
+          52.364484
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-12",
+      "properties": {
+        "id": "osm-vehicle-12",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 161.2,
+        "speed_kmh": 35.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.906133,
+          52.364171
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-13",
+      "properties": {
+        "id": "osm-vehicle-13",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 160.6,
+        "speed_kmh": 16.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.906325,
+          52.363844
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-14",
+      "properties": {
+        "id": "osm-vehicle-14",
+        "name": "Weesperplein",
+        "highway": "primary",
+        "vehicle_type": "police",
+        "bearing": 160.7,
+        "speed_kmh": 32.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.907315,
+          52.362164
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-15",
+      "properties": {
+        "id": "osm-vehicle-15",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 160.0,
+        "speed_kmh": 33.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.906701,
+          52.363218
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-16",
+      "properties": {
+        "id": "osm-vehicle-16",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 160.0,
+        "speed_kmh": 24.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.906943,
+          52.362813
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-17",
+      "properties": {
+        "id": "osm-vehicle-17",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 282.3,
+        "speed_kmh": 37.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.908596,
+          52.377801
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-18",
+      "properties": {
+        "id": "osm-vehicle-18",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 281.9,
+        "speed_kmh": 31.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.907962,
+          52.377884
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-19",
+      "properties": {
+        "id": "osm-vehicle-19",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 275.3,
+        "speed_kmh": 31.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.912408,
+          52.377424
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-20",
+      "properties": {
+        "id": "osm-vehicle-20",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 276.5,
+        "speed_kmh": 41.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.91178,
+          52.377463
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-21",
+      "properties": {
+        "id": "osm-vehicle-21",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "truck",
+        "bearing": 277.0,
+        "speed_kmh": 17.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.911173,
+          52.377506
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-22",
+      "properties": {
+        "id": "osm-vehicle-22",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 276.6,
+        "speed_kmh": 30.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.9105,
+          52.377554
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-23",
+      "properties": {
+        "id": "osm-vehicle-23",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 282.4,
+        "speed_kmh": 23.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.909816,
+          52.377637
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-24",
+      "properties": {
+        "id": "osm-vehicle-24",
+        "name": "Piet Heinkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 282.4,
+        "speed_kmh": 12.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.909217,
+          52.377717
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-25",
+      "properties": {
+        "id": "osm-vehicle-25",
+        "name": "Jonas Dani\u00ebl Meijerplein",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 341.4,
+        "speed_kmh": 37.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904727,
+          52.366698
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-26",
+      "properties": {
+        "id": "osm-vehicle-26",
+        "name": "Jonas Dani\u00ebl Meijerplein",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 341.4,
+        "speed_kmh": 23.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904513,
+          52.367085
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-27",
+      "properties": {
+        "id": "osm-vehicle-27",
+        "name": "Jonas Dani\u00ebl Meijerplein",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 338.9,
+        "speed_kmh": 38.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904335,
+          52.367407
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-28",
+      "properties": {
+        "id": "osm-vehicle-28",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 338.4,
+        "speed_kmh": 38.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.905446,
+          52.365528
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-29",
+      "properties": {
+        "id": "osm-vehicle-29",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 338.4,
+        "speed_kmh": 13.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.905193,
+          52.365918
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-30",
+      "properties": {
+        "id": "osm-vehicle-30",
+        "name": "Weesperstraat",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 340.5,
+        "speed_kmh": 15.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904979,
+          52.366248
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-31",
+      "properties": {
+        "id": "osm-vehicle-31",
+        "name": "Valkenburgerstraat",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 240.5,
+        "speed_kmh": 8.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904891,
+          52.368846
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-32",
+      "properties": {
+        "id": "osm-vehicle-32",
+        "name": "Valkenburgerstraat",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 235.0,
+        "speed_kmh": 20.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904385,
+          52.368631
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-33",
+      "properties": {
+        "id": "osm-vehicle-33",
+        "name": "IJ-tunnel",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 51.7,
+        "speed_kmh": 25.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.909385,
+          52.370442
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-34",
+      "properties": {
+        "id": "osm-vehicle-34",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "truck",
+        "bearing": 307.5,
+        "speed_kmh": 37.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.884193,
+          52.361486
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-35",
+      "properties": {
+        "id": "osm-vehicle-35",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "truck",
+        "bearing": 286.5,
+        "speed_kmh": 21.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.883616,
+          52.361664
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-36",
+      "properties": {
+        "id": "osm-vehicle-36",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 271.4,
+        "speed_kmh": 11.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.883082,
+          52.361699
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-37",
+      "properties": {
+        "id": "osm-vehicle-37",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 90.1,
+        "speed_kmh": 9.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.8826,
+          52.361662
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-38",
+      "properties": {
+        "id": "osm-vehicle-38",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 90.1,
+        "speed_kmh": 13.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.88314,
+          52.361661
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-39",
+      "properties": {
+        "id": "osm-vehicle-39",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 110.5,
+        "speed_kmh": 20.4,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.883674,
+          52.361617
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-40",
+      "properties": {
+        "id": "osm-vehicle-40",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 129.2,
+        "speed_kmh": 37.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.884163,
+          52.361446
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-41",
+      "properties": {
+        "id": "osm-vehicle-41",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 121.0,
+        "speed_kmh": 20.4,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.881423,
+          52.361873
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-42",
+      "properties": {
+        "id": "osm-vehicle-42",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 103.4,
+        "speed_kmh": 36.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.88191,
+          52.361708
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-43",
+      "properties": {
+        "id": "osm-vehicle-43",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 133.9,
+        "speed_kmh": 11.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.879198,
+          52.363453
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-44",
+      "properties": {
+        "id": "osm-vehicle-44",
+        "name": "Stadhouderskade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 140.4,
+        "speed_kmh": 17.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.879611,
+          52.363176
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-45",
+      "properties": {
+        "id": "osm-vehicle-45",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 9.5,
+        "speed_kmh": 26.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878674,
+          52.364936
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-46",
+      "properties": {
+        "id": "osm-vehicle-46",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "police",
+        "bearing": 348.7,
+        "speed_kmh": 31.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878649,
+          52.365276
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-47",
+      "properties": {
+        "id": "osm-vehicle-47",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 157.0,
+        "speed_kmh": 13.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878492,
+          52.365589
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-48",
+      "properties": {
+        "id": "osm-vehicle-48",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 318.1,
+        "speed_kmh": 34.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878104,
+          52.365942
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-49",
+      "properties": {
+        "id": "osm-vehicle-49",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 138.9,
+        "speed_kmh": 35.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.877658,
+          52.366209
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-50",
+      "properties": {
+        "id": "osm-vehicle-50",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "truck",
+        "bearing": 193.5,
+        "speed_kmh": 35.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.87511,
+          52.374447
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-51",
+      "properties": {
+        "id": "osm-vehicle-51",
+        "name": "Westerdoksdijk",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 192.2,
+        "speed_kmh": 15.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.893092,
+          52.384798
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-52",
+      "properties": {
+        "id": "osm-vehicle-52",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "police",
+        "bearing": 319.4,
+        "speed_kmh": 24.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.896083,
+          52.38177
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-53",
+      "properties": {
+        "id": "osm-vehicle-53",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 319.4,
+        "speed_kmh": 35.2,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.895714,
+          52.382033
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-54",
+      "properties": {
+        "id": "osm-vehicle-54",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 319.4,
+        "speed_kmh": 30.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.895344,
+          52.382296
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-55",
+      "properties": {
+        "id": "osm-vehicle-55",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 317.0,
+        "speed_kmh": 34.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.894917,
+          52.382589
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-56",
+      "properties": {
+        "id": "osm-vehicle-56",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 91.3,
+        "speed_kmh": 21.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.89354,
+          52.382826
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-57",
+      "properties": {
+        "id": "osm-vehicle-57",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 100.3,
+        "speed_kmh": 40.2,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.894153,
+          52.382821
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-58",
+      "properties": {
+        "id": "osm-vehicle-58",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 131.0,
+        "speed_kmh": 13.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.894651,
+          52.382676
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-59",
+      "properties": {
+        "id": "osm-vehicle-59",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 137.9,
+        "speed_kmh": 13.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.895095,
+          52.382369
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-60",
+      "properties": {
+        "id": "osm-vehicle-60",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 137.9,
+        "speed_kmh": 35.4,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.895491,
+          52.382102
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-61",
+      "properties": {
+        "id": "osm-vehicle-61",
+        "name": "De Ruijterkade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 284.5,
+        "speed_kmh": 30.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.894189,
+          52.382886
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-62",
+      "properties": {
+        "id": "osm-vehicle-62",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 229.2,
+        "speed_kmh": 30.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.879354,
+          52.382277
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-63",
+      "properties": {
+        "id": "osm-vehicle-63",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 55.5,
+        "speed_kmh": 22.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.879871,
+          52.382495
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-64",
+      "properties": {
+        "id": "osm-vehicle-64",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 201.5,
+        "speed_kmh": 16.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.880497,
+          52.383045
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-65",
+      "properties": {
+        "id": "osm-vehicle-65",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 201.5,
+        "speed_kmh": 38.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.880746,
+          52.383431
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-66",
+      "properties": {
+        "id": "osm-vehicle-66",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 201.5,
+        "speed_kmh": 27.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.880955,
+          52.383755
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-67",
+      "properties": {
+        "id": "osm-vehicle-67",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 21.5,
+        "speed_kmh": 39.2,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.881166,
+          52.384083
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-68",
+      "properties": {
+        "id": "osm-vehicle-68",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 24.8,
+        "speed_kmh": 23.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.87735,
+          52.377967
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-69",
+      "properties": {
+        "id": "osm-vehicle-69",
+        "name": "S100",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 249.3,
+        "speed_kmh": 32.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.905733,
+          52.359145
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-70",
+      "properties": {
+        "id": "osm-vehicle-70",
+        "name": "S100",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 248.6,
+        "speed_kmh": 19.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.905239,
+          52.359028
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-71",
+      "properties": {
+        "id": "osm-vehicle-71",
+        "name": "S100",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 248.6,
+        "speed_kmh": 26.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904614,
+          52.358878
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-72",
+      "properties": {
+        "id": "osm-vehicle-72",
+        "name": "S100",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 74.5,
+        "speed_kmh": 34.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904595,
+          52.358848
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-73",
+      "properties": {
+        "id": "osm-vehicle-73",
+        "name": "S100",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 74.5,
+        "speed_kmh": 27.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.905124,
+          52.358937
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-74",
+      "properties": {
+        "id": "osm-vehicle-74",
+        "name": "S100",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 74.5,
+        "speed_kmh": 39.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.90573,
+          52.35904
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-75",
+      "properties": {
+        "id": "osm-vehicle-75",
+        "name": "Jonas Dani\u00ebl Meijerplein",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 152.0,
+        "speed_kmh": 31.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.904143,
+          52.367438
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-76",
+      "properties": {
+        "id": "osm-vehicle-76",
+        "name": "Jonas Dani\u00ebl Meijerplein",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 160.4,
+        "speed_kmh": 26.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.90437,
+          52.367072
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-77",
+      "properties": {
+        "id": "osm-vehicle-77",
+        "name": "Rhijnspoorplein",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 339.3,
+        "speed_kmh": 37.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.908277,
+          52.360808
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-78",
+      "properties": {
+        "id": "osm-vehicle-78",
+        "name": "Rhijnspoorplein",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 339.5,
+        "speed_kmh": 40.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.908461,
+          52.360508
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-79",
+      "properties": {
+        "id": "osm-vehicle-79",
+        "name": "Mauritskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 67.9,
+        "speed_kmh": 23.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.908448,
+          52.360095
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-80",
+      "properties": {
+        "id": "osm-vehicle-80",
+        "name": "Mauritskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 256.2,
+        "speed_kmh": 30.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.908736,
+          52.360281
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-81",
+      "properties": {
+        "id": "osm-vehicle-81",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 20.1,
+        "speed_kmh": 40.4,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.877761,
+          52.37861
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-82",
+      "properties": {
+        "id": "osm-vehicle-82",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "hatchback-sports",
+        "bearing": 22.2,
+        "speed_kmh": 24.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878008,
+          52.379005
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-83",
+      "properties": {
+        "id": "osm-vehicle-83",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 22.2,
+        "speed_kmh": 36.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.87822,
+          52.379322
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-84",
+      "properties": {
+        "id": "osm-vehicle-84",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 22.2,
+        "speed_kmh": 22.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.87847,
+          52.379695
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-85",
+      "properties": {
+        "id": "osm-vehicle-85",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 20.8,
+        "speed_kmh": 19.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878711,
+          52.380064
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-86",
+      "properties": {
+        "id": "osm-vehicle-86",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 20.8,
+        "speed_kmh": 18.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878909,
+          52.380382
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-87",
+      "properties": {
+        "id": "osm-vehicle-87",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 17.9,
+        "speed_kmh": 8.7,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.879146,
+          52.380778
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-88",
+      "properties": {
+        "id": "osm-vehicle-88",
+        "name": "Mauritskade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 229.4,
+        "speed_kmh": 10.2,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.90787,
+          52.360002
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-89",
+      "properties": {
+        "id": "osm-vehicle-89",
+        "name": "Mauritskade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 229.4,
+        "speed_kmh": 34.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.907408,
+          52.35976
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-90",
+      "properties": {
+        "id": "osm-vehicle-90",
+        "name": "Mauritskade",
+        "highway": "primary",
+        "vehicle_type": "garbage-truck",
+        "bearing": 229.4,
+        "speed_kmh": 11.6,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.907003,
+          52.359547
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-91",
+      "properties": {
+        "id": "osm-vehicle-91",
+        "name": "Mauritskade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 240.5,
+        "speed_kmh": 9.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.906523,
+          52.35934
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-92",
+      "properties": {
+        "id": "osm-vehicle-92",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 177.2,
+        "speed_kmh": 31.8,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.879091,
+          52.381295
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-93",
+      "properties": {
+        "id": "osm-vehicle-93",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 186.2,
+        "speed_kmh": 10.0,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.879063,
+          52.380941
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-94",
+      "properties": {
+        "id": "osm-vehicle-94",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "delivery",
+        "bearing": 201.2,
+        "speed_kmh": 22.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878889,
+          52.380619
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-95",
+      "properties": {
+        "id": "osm-vehicle-95",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 201.2,
+        "speed_kmh": 39.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.87867,
+          52.380273
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-96",
+      "properties": {
+        "id": "osm-vehicle-96",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "van",
+        "bearing": 202.5,
+        "speed_kmh": 35.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878415,
+          52.379878
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-97",
+      "properties": {
+        "id": "osm-vehicle-97",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 202.5,
+        "speed_kmh": 37.1,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.878156,
+          52.379496
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-98",
+      "properties": {
+        "id": "osm-vehicle-98",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 202.5,
+        "speed_kmh": 37.3,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.877935,
+          52.379169
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-99",
+      "properties": {
+        "id": "osm-vehicle-99",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "suv-luxury",
+        "bearing": 196.3,
+        "speed_kmh": 19.5,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.877727,
+          52.378852
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-vehicle-100",
+      "properties": {
+        "id": "osm-vehicle-100",
+        "name": "Nassaukade",
+        "highway": "primary",
+        "vehicle_type": "sedan",
+        "bearing": 153.0,
+        "speed_kmh": 25.9,
+        "city": "Amsterdam",
+        "source_way": null
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          4.877179,
+          52.366612
+        ]
+      }
+    }
+  ]
+}

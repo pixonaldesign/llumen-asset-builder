@@ -768,7 +768,7 @@ const FIELDS: FieldDef[] = [
     visibleWhen: { group: "Marker Shape", name: "Marker type", is: "2D" },
   }),
   f("3D shape", "dropdown", "Marker Shape", ["Points"], {
-    values: ["Sphere", "Cube", "Cone"],
+    values: ["Sphere", "Cube", "Cone", "Vehicle model"],
     visibleWhen: { group: "Marker Shape", name: "Marker type", is: "3D" },
   }),
   f("Empty filled shape (no icon)", "toggle", "Marker Shape", ["Points"], { def: false }),
@@ -863,7 +863,7 @@ const FIELDS: FieldDef[] = [
   f("Placement", "segmented", "Heatmap Style", ["Heatmap"], {
     desc: "Flow scatters and drifts particles inside each cell. Locked sits them on a lattice.",
     values: ["Flow", "Locked"],
-    defaultValue: "Flow",
+    defaultValue: "Locked",
     visibleWhen: HEATMAP_PARTICLES,
   }),
   f("Particle size (m)", "slider", "Heatmap Style", ["Heatmap"], {
@@ -871,16 +871,16 @@ const FIELDS: FieldDef[] = [
     visibleWhen: HEATMAP_PARTICLES,
   }),
   f("Size from intensity", "slider", "Heatmap Style", ["Heatmap"], {
-    desc: "0–1. Default 0.65.",
+    desc: "0–1. Default 1.",
     visibleWhen: HEATMAP_PARTICLES,
   }),
   f("Particles per cell", "slider", "Heatmap Style", ["Heatmap"], {
-    desc: "1–8. Default 4.",
+    desc: "1–8. Default 8.",
     advanced: true,
     visibleWhen: HEATMAP_PARTICLES,
   }),
   f("Max particle size (px)", "slider", "Heatmap Style", ["Heatmap"], {
-    desc: "4–64 px. Default 28.",
+    desc: "4–64 px. Default 5.",
     advanced: true,
     visibleWhen: HEATMAP_PARTICLES,
   }),
@@ -896,7 +896,7 @@ const FIELDS: FieldDef[] = [
     advanced: true,
     visibleWhen: [HEATMAP_PARTICLES, { group: "Heatmap Style", name: "Placement", is: "Flow" }],
   }),
-  f("Opacity", "slider", "Heatmap Style", ["Heatmap"], { desc: "0.05–1. Default 0.72." }),
+  f("Opacity", "slider", "Heatmap Style", ["Heatmap"], { desc: "0.05–1. Default 0.92." }),
   f("Fill", "dropdown", "Heatmap Style", ["Heatmap"], {
     desc: "Solid wash, or a repeating stroke pattern.",
     values: ["Solid", "Diagonal", "Plus", "X", "Circle", "Dot"],
@@ -911,7 +911,7 @@ const FIELDS: FieldDef[] = [
     ],
   }),
   f("Pattern spacing (px)", "slider", "Heatmap Style", ["Heatmap"], {
-    desc: "3–28 px, step 0.5. Default 8.",
+    desc: "3–28 px, step 0.5. Default 14.5.",
     advanced: true,
     visibleWhen: [
       { group: "Heatmap Style", name: "Fill", isNot: "Solid" },
@@ -919,7 +919,7 @@ const FIELDS: FieldDef[] = [
     ],
   }),
   f("Max thickness (px)", "slider", "Heatmap Style", ["Heatmap"], {
-    desc: "0.4–12 px, step 0.1. Default 3.",
+    desc: "0.4–12 px, step 0.1. Default 4.3.",
     advanced: true,
     visibleWhen: [
       { group: "Heatmap Style", name: "Fill", isNot: "Solid" },
@@ -931,7 +931,7 @@ const FIELDS: FieldDef[] = [
     advanced: true,
   }),
   f("Blur (cells)", "slider", "Heatmap Style", ["Heatmap"], {
-    desc: "0–4, step 0.05. Default 1.5.",
+    desc: "0–4, step 0.05. Default 1.25.",
     advanced: true,
     visibleWhen: { group: "Heatmap Style", name: "Mode", is: ["Soft", "Particles"] },
   }),
@@ -940,16 +940,16 @@ const FIELDS: FieldDef[] = [
     def: false,
   }),
   f("Max height (visual m)", "slider", "3D height", ["Heatmap"], {
-    desc: "1000–80000 m, step 500. Default 25000.",
+    desc: "1000–80000 m, step 500. Default 20000.",
     visibleWhen: HEIGHT_ON,
   }),
   f("Height exponent", "slider", "3D height", ["Heatmap"], {
-    desc: "0.2–2. Default 0.65.",
+    desc: "0.2–2. Default 2.",
     advanced: true,
     visibleWhen: [HEIGHT_ON, { group: "Heatmap Style", name: "Mode", is: "Particles" }],
   }),
   f("Turbulence", "slider", "3D height", ["Heatmap"], {
-    desc: "0–1. Default 0.22.",
+    desc: "0–1. Default 0.",
     advanced: true,
     visibleWhen: [HEIGHT_ON, { group: "Heatmap Style", name: "Mode", is: "Particles" }],
   }),
@@ -962,7 +962,7 @@ const FIELDS: FieldDef[] = [
     desc: "Fade low values so the basemap shows through. Sets each stop's opacity; edit a stop to override it.",
   }),
   f("Fade strength", "slider", "Color", ["Heatmap", "Pillars"], {
-    desc: "0–1. Default 0.85.",
+    desc: "0–1. Default 1.",
     advanced: true,
     visibleWhen: FADE_ON,
   }),
@@ -1143,22 +1143,22 @@ const FIELDS: FieldDef[] = [
     visibleWhen: [SURFACE_SPILL, { group: "Surface Style", name: "Animate sheen", is: "true" }],
   }),
   f("Trail streaks", "slider", "Surface Style", ["Water Surfaces"], {
-    desc: "0–1, step 0.01. Default 0.8.",
+    desc: "0–1, step 0.01. Default 0.74.",
     advanced: true,
     visibleWhen: SURFACE_SPILL,
   }),
   f("Trail strength", "slider", "Surface Style", ["Water Surfaces"], {
-    desc: "0–1, step 0.01. Default 0.85.",
+    desc: "0–1, step 0.01. Default 1.",
     advanced: true,
     visibleWhen: SURFACE_SPILL,
   }),
   f("Residual sheen", "slider", "Surface Style", ["Water Surfaces"], {
-    desc: "0–0.6, step 0.01. Default 0.30.",
+    desc: "0–0.6, step 0.01. Default 0.14.",
     advanced: true,
     visibleWhen: SURFACE_SPILL,
   }),
   f("Pathway opacity", "slider", "Surface Style", ["Water Surfaces"], {
-    desc: "0–1, step 0.01. Default 0.45.",
+    desc: "0–1, step 0.01. Default 0.37.",
     advanced: true,
     visibleWhen: [SURFACE_SPILL, { group: "Surface Style", name: "Show pathway", is: "true" }],
   }),

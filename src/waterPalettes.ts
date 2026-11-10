@@ -5,13 +5,13 @@ export const WATER_PLUME_PALETTE: ColorModeConfig = {
   ...DEFAULT_COLOR_MODE,
   paletteName: "Plume",
   paletteFamily: "Sequential",
-  colors: ["#ff5e62", "#ffb3b5"],
+  colors: ["#b7e22a", "#e2f4a0"],
   style: "Single",
-  color: "#ff5e62",
+  color: "#b7e22a",
   opacity: 100,
   stops: [
-    { value: 0, color: "#ff5e62", opacity: 100 },
-    { value: 100, color: "#ffb3b5", opacity: 100 },
+    { value: 0, color: "#b7e22a", opacity: 100 },
+    { value: 100, color: "#e2f4a0", opacity: 100 },
   ],
 };
 

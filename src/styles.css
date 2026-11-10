@@ -4345,6 +4345,44 @@ button {
   width: 380px;
   height: 384px;
 }
+.chart-card--live-map {
+  padding: 0;
+  overflow: hidden;
+}
+.live-map-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: #0b0d12;
+}
+.live-map-stage > .live-map-stage__map {
+  position: absolute;
+  inset: 0;
+}
+.live-map-stage__map .mapboxgl-ctrl-bottom-right {
+  transform: scale(0.8);
+  transform-origin: bottom right;
+}
+.live-map-stage__status,
+.live-map-stage--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  color: var(--lc-text-secondary, #a3a9b8);
+  font-size: 12px;
+  text-align: center;
+}
+.live-map-stage__status {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.live-map-stage__status--error {
+  color: #ff8a8a;
+}
 
 /* ---------- Footer (full modal width) ---------- */
 .settings__footer {
