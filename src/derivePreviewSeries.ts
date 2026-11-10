@@ -583,6 +583,9 @@ export function derivePreviewSeries({
       mapped(config, "Name") ||
       "district";
     const valCol =
+      mapped(config, "Inflow rate") ||
+      mapped(config, "Water level") ||
+      mapped(config, "Rain rate") ||
       mapped(config, "Value") ||
       mapped(config, "Intensity Value Field") ||
       cfgStr(config, "Color", "Data Field") ||

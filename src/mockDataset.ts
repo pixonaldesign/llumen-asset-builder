@@ -94,6 +94,10 @@ function buildRows(): MockRow[] {
         particle_id: `spill-${(di % 3) + 1}`,
         thickness: Number((0.4 + incidents * 0.12).toFixed(2)),
         bearing: (di * 60 + mi * 20) % 360,
+        water_level: Number((0.4 + mi * 0.55 + (place.region === "Coastal" ? 0.3 : 0)).toFixed(2)),
+        rain_rate: [12, 48, 85, 30][mi],
+        inflow_rate: Math.round(120 + incidents * 45 + mi * 60),
+        source_id: `gauge-${(di % 3) + 1}`,
       });
     });
   });
@@ -132,6 +136,10 @@ export const MOCK_DATASET: MockDataset = {
     { name: "particle_id", label: "Particle", type: "string" },
     { name: "thickness", label: "Thickness", type: "number" },
     { name: "bearing", label: "Bearing", type: "number" },
+    { name: "water_level", label: "Water level (m)", type: "number" },
+    { name: "rain_rate", label: "Rain rate (mm/h)", type: "number" },
+    { name: "inflow_rate", label: "Inflow rate (m³/s)", type: "number" },
+    { name: "source_id", label: "Source", type: "string" },
   ],
   rows: buildRows(),
 };
@@ -186,6 +194,9 @@ const NUMERIC_FIELDS = new Set([
   "Speed",
   "Color by",
   "Thickness",
+  "Water level",
+  "Rain rate",
+  "Inflow rate",
   "KPI value field",
   "KPI min value field",
   "KPI max value field",
@@ -210,6 +221,7 @@ const CATEGORY_FIELDS = new Set([
   "Type",
   "KPI unit field",
   "Color by category field",
+  "Source ID",
 ]);
 
 const FLEXIBLE_SCALAR_FIELDS = new Set([

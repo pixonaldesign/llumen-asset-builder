@@ -53,6 +53,7 @@ import {
   isTabVisible,
   settingsNavSections,
   subCategoriesForVisual,
+  withConditionalRequired,
 } from "./visualSettingsCatalog";
 import ChartPreview from "./ChartPreview";
 import DataSourceQueryPreview from "./DataSourceQueryPreview";
@@ -221,16 +222,17 @@ function isOptSatisfied(o: Opt, getVal: (o: Opt) => unknown): boolean {
   return isValueFilled(o, getVal(o));
 }
 
-function sectionHasErrors(fields: Opt[], getVal: (o: Opt) => unknown): boolean {
+/** `allFields` resolves visibleWhen conditions that point at another tab. */
+function sectionHasErrors(fields: Opt[], getVal: (o: Opt) => unknown, allFields: Opt[] = fields): boolean {
   const getValByKey = (group: string, name: string) => {
-    const dependency = fields.find((field) => field.group === group && field.name === name);
+    const dependency = allFields.find((field) => field.group === group && field.name === name);
     return dependency ? getVal(dependency) : "";
   };
-  return fields.some(
-    (o) =>
-      isFieldVisible(o, getValByKey) &&
-      o.level === "required" &&
-      !isOptSatisfied(o, getVal),
+  const visible = fields.filter((o) => isFieldVisible(o, getValByKey));
+  if (visible.some((o) => o.level === "required" && !isOptSatisfied(o, getVal))) return true;
+  const oneOfGroups = new Set(visible.flatMap((o) => (o.requiredOneOf ? [o.requiredOneOf] : [])));
+  return [...oneOfGroups].some(
+    (group) => !visible.some((o) => o.requiredOneOf === group && isValueFilled(o, getVal(o))),
   );
 }
 
@@ -592,7 +594,7 @@ function Switch({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 }
 
 function Segmented({ values, value, onChange }: { values: string[]; value: string; onChange: (v: string) => void }) {
-  const vals = (values.length ? values : ["One", "Two", "Three"]).slice(0, 3);
+  const vals = (values.length ? values : ["One", "Two", "Three"]).slice(0, 4);
   const cur = vals.includes(value) ? value : vals[0];
   return (
     <div className="ia-segmented">
@@ -1530,6 +1532,12 @@ function FieldBlock({
             <span>required</span>
           </div>
         )}
+        {o.level !== "required" && o.requiredOneOf && (
+          <div className="ia-pill ia-pill--required">
+            <RequiredIcon width={12} height={12} />
+            <span>one required</span>
+          </div>
+        )}
       </div>
       <Control o={o} getVal={getVal} setVal={setVal} />
     </div>
@@ -1842,7 +1850,7 @@ function fieldClusterNodes(
       );
       if (!visibleReveals.length) continue;
       nodes.push(
-        <div className="ia-standalone-reveal" key={cluster.reveals[0]?.key ?? i}>
+        <div className="ia-standalone-reveal" key={`${cluster.reveals[0]?.key ?? ""}:${i}`}>
           {visibleReveals.map((group) => (
             <RevealPanel key={group.key} open>
               {renderFieldRows(pairAxes(group.fields), getVal, setVal)}
@@ -3312,17 +3320,17 @@ export default function EditComponentModal({
   const displayVisual = selectedVisual ?? visualTypeByChartId(activeChart);
   const displayVisualId = displayVisual?.id ?? "vertical-bar";
 
-  const visualFields = useMemo(() => fieldsForVisual(displayVisualId), [displayVisualId]);
+  const baseVisualFields = useMemo(() => fieldsForVisual(displayVisualId), [displayVisualId]);
   const subCategories = useMemo(() => subCategoriesForVisual(displayVisualId), [displayVisualId]);
   useEffect(() => {
-    const fieldKeys = visualFields.filter((field) => field.type === "field").map(keyOf);
+    const fieldKeys = baseVisualFields.filter((field) => field.type === "field").map(keyOf);
     setConfig((current) => {
       if (!fieldKeys.some((key) => key in current)) return current;
       const next = { ...current };
       fieldKeys.forEach((key) => delete next[key]);
       return next;
     });
-  }, [visualFields]);
+  }, [baseVisualFields]);
 
   useEffect(() => {
     const mapped =
@@ -3406,6 +3414,14 @@ export default function EditComponentModal({
     return v;
   };
   const setVal = (o: Opt, v: unknown) => setConfig((c) => ({ ...c, [keyOf(o)]: v }));
+  const visualFields = useMemo(
+    () =>
+      withConditionalRequired(baseVisualFields, (group, name) => {
+        const field = baseVisualFields.find((o) => o.group === group && o.name === name);
+        return field ? getVal(field) : "";
+      }),
+    [baseVisualFields, config],
+  );
 
   const cfg = (group: string, name: string, fallback: unknown) => {
     if (group === "__dev" && name === "Palette edge case") {
@@ -3613,7 +3629,7 @@ export default function EditComponentModal({
       onClose?.();
       return;
     }
-    if (isVizStep && vizPhase === "settings" && sectionHasErrors(mappingFields, getVal)) {
+    if (isVizStep && vizPhase === "settings" && sectionHasErrors(mappingFields, getVal, visualFields)) {
       return;
     }
     goNext();
@@ -3666,7 +3682,7 @@ export default function EditComponentModal({
   const isPreviewVizOnly = isDeepDiveStep || isAccessStep || isGeneralInfoStep;
   const isVizPicker = isVizStep && vizPhase === "picker";
   const isVizSettings = isVizStep && vizPhase === "settings";
-  const mappingIncomplete = sectionHasErrors(mappingFields, getVal);
+  const mappingIncomplete = sectionHasErrors(mappingFields, getVal, visualFields);
   const hasCompletedVisual =
     vizPhase === "settings" && Boolean(selectedVisualId) && !mappingIncomplete;
   const generalInfoIncomplete =
@@ -4072,7 +4088,7 @@ export default function EditComponentModal({
                             const selected = activeSubCategory === label;
                             const catFields = visualFields.filter((o) => o.group === label);
                             const hasRequiredFields = catFields.some((o) => o.level === "required");
-                            const hasErrors = sectionHasErrors(catFields, getVal);
+                            const hasErrors = sectionHasErrors(catFields, getVal, visualFields);
                             const TabIcon = getSettingsTabIcon(label);
                             const featureOn = isFeatureTabOn(label, getValByKey, catFields);
                             return (

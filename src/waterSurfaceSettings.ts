@@ -1,8 +1,8 @@
 /**
  * Water Surfaces settings: the asset builder fields resolved to real values,
- * and their translation to the Map 3D water-gradient and oil-spill configs
- * and the staging water-current options. The field-to-key mapping lives here
- * so the preview and the export agree.
+ * and their translation to the Map 3D water-gradient, oil-spill and flood
+ * configs and the staging water-current options. The field-to-key mapping
+ * lives here so the preview and the export agree.
  */
 
 import type { Opt } from "./chartModel";
@@ -17,12 +17,14 @@ import { WATER_CURRENT_PALETTE, WATER_PLUME_PALETTE, WATER_SPILL_PALETTE } from 
 
 type Cfg = (group: string, name: string, fallback: unknown) => unknown;
 
-export type WaterSurfaceMode = "Plume" | "Spill" | "Current";
+export type WaterSurfaceMode = "Plume" | "Spill" | "Current" | "Flood";
+
+export type FloodBuildings = "Baked + Mapbox" | "Mapbox tiles" | "Baked footprints";
 
 export type WaterSurfaceSettings = {
   mode: WaterSurfaceMode;
-  /** Always on. Water Surfaces never draw on land. */
-  clipToWater: true;
+  /** On for every mode but Flood, which spreads over land. */
+  clipToWater: boolean;
   opacity: number;
   plume: {
     radiusMeters: number;
@@ -52,6 +54,13 @@ export type WaterSurfaceSettings = {
     particleDensity: number;
     resetRate: number;
     particleSize: number;
+  };
+  flood: {
+    showFlowLines: boolean;
+    showHarbor: boolean;
+    buildings: FloodBuildings;
+    terrain: boolean;
+    terrainExaggeration: number;
   };
   stems: {
     show: boolean;
@@ -147,11 +156,12 @@ export function waterSurfaceSettings(cfg: Cfg): WaterSurfaceSettings {
         : palette;
   return {
     mode,
-    clipToWater: true,
+    clipToWater: mode !== "Flood",
     opacity: sliderForMode(cfg, "Surface Style", "Opacity", mode, {
       Plume: 1,
       Spill: 1,
       Current: 0.3,
+      Flood: 1,
     }),
     plume: {
       radiusMeters: slider(cfg, "Surface Style", "Radius"),
@@ -182,30 +192,40 @@ export function waterSurfaceSettings(cfg: Cfg): WaterSurfaceSettings {
       resetRate: slider(cfg, "Surface Style", "Reset rate"),
       particleSize: slider(cfg, "Surface Style", "Particle size"),
     },
+    flood: {
+      showFlowLines: toggle(cfg, "Surface Style", "Show flow lines"),
+      showHarbor: toggle(cfg, "Surface Style", "Show harbor water"),
+      buildings: (text(cfg, "Surface Style", "Buildings") || "Baked + Mapbox") as FloodBuildings,
+      terrain: toggle(cfg, "Surface Style", "3D terrain"),
+      terrainExaggeration: slider(cfg, "Surface Style", "Terrain exaggeration"),
+    },
     stems: {
-      show: mode !== "Current" && toggle(cfg, "Stems", "Show stems"),
+      show: mode !== "Current" && mode !== "Flood" && toggle(cfg, "Stems", "Show stems"),
       minHeightMeters: slider(cfg, "Stems", "Min height"),
       maxHeightMeters: sliderForMode(cfg, "Stems", "Max height", mode, {
         Plume: 42000,
         Spill: 24000,
         Current: 42000,
+        Flood: 42000,
       }),
       widthPixels: slider(cfg, "Stems", "Width"),
       fadeStartZoom: sliderForMode(cfg, "Stems", "Fade start zoom", mode, {
         Plume: 9,
         Spill: 7,
         Current: 9,
+        Flood: 9,
       }),
       fadeEndZoom: sliderForMode(cfg, "Stems", "Hidden by zoom", mode, {
         Plume: 12.5,
         Spill: 9.5,
         Current: 12.5,
+        Flood: 12.5,
       }),
       color: stemChoice === "Custom" ? customStem : mode === "Spill" ? "#ff2b2b" : resolvedPalette.color,
     },
     palette: resolvedPalette,
     colorBy: text(cfg, "Color", "Color by"),
-    fade: mode === "Spill" ? null : valueFade(cfg),
+    fade: mode === "Spill" || mode === "Flood" ? null : valueFade(cfg),
     clipOutliers: toggle(cfg, "Color", "Clip outliers"),
   };
 }
@@ -271,6 +291,107 @@ export type WaterCurrentOptions = {
   waterCurrentColorDataField: string;
   clipToWater: true;
 };
+
+/**
+ * Columns that drive the Map 3D flood sim, one reading per row. Unmapped
+ * drivers are empty. Each row's time places it in the time series playback.
+ */
+export type FloodForcingMapping = {
+  timeField: string;
+  /** Gauge, rain station or inflow point of each row. */
+  locationField: string;
+  /** Groups rows from the same source. */
+  sourceIdField: string;
+  /** Meters above MHHW at the gauge. */
+  waterLevelField: string;
+  /** mm/h at the rain gauge. */
+  rainRateField: string;
+  /** m³/s entering at the row's location. */
+  inflowRateField: string;
+};
+
+/**
+ * Map 3D `flood` keys. The look is not configurable in the builder, so the
+ * water, heatmap and flow line styling stays at the Map 3D defaults.
+ */
+export type MapFloodConfig = {
+  view: "both";
+  scenario: "sim";
+  palette: "flood";
+  heatmapOpacity: number;
+  maxDepthMeters: number;
+  depthBands: false;
+  bandStepMeters: number;
+  buildingSource: "auto" | "mapbox" | "baked";
+  surfaceFadeStartZoom: number;
+  surfaceFadeEndZoom: number;
+  surfaceOpacity: number;
+  shallowColor: string;
+  deepColor: string;
+  absorption: number;
+  edgeSmoothing: number;
+  shallowFadeMeters: number;
+  waveStrength: number;
+  waveSpeed: number;
+  showHarbor: boolean;
+  terrain: boolean;
+  terrainExaggeration: number;
+  simSubsteps: number;
+  flowLines: boolean;
+  flowLineDensity: number;
+  flowLineSeconds: number;
+  flowLineOpacity: number;
+  flowLineColor: string;
+  forcing: FloodForcingMapping;
+};
+
+const FLOOD_BUILDING_SOURCE: Record<FloodBuildings, MapFloodConfig["buildingSource"]> = {
+  "Baked + Mapbox": "auto",
+  "Mapbox tiles": "mapbox",
+  "Baked footprints": "baked",
+};
+
+export function floodConfigFromSettings(cfg: Cfg): MapFloodConfig {
+  const s = waterSurfaceSettings(cfg);
+  const mapped = (name: string) => text(cfg, "Mapping", name);
+  return {
+    view: "both",
+    scenario: "sim",
+    palette: "flood",
+    heatmapOpacity: 0.8 * s.opacity,
+    maxDepthMeters: 3,
+    depthBands: false,
+    bandStepMeters: 0.5,
+    buildingSource: FLOOD_BUILDING_SOURCE[s.flood.buildings] ?? "auto",
+    surfaceFadeStartZoom: 13.2,
+    surfaceFadeEndZoom: 14.6,
+    surfaceOpacity: s.opacity,
+    shallowColor: "#00d9ff",
+    deepColor: "#051c2f",
+    absorption: 1.29,
+    edgeSmoothing: 1,
+    shallowFadeMeters: 0.05,
+    waveStrength: 0.43,
+    waveSpeed: 1.8,
+    showHarbor: s.flood.showHarbor,
+    terrain: s.flood.terrain,
+    terrainExaggeration: s.flood.terrainExaggeration,
+    simSubsteps: 16,
+    flowLines: s.flood.showFlowLines,
+    flowLineDensity: 0.25,
+    flowLineSeconds: 3.5,
+    flowLineOpacity: 1,
+    flowLineColor: "#88d8eade",
+    forcing: {
+      timeField: mapped("Time field"),
+      locationField: mapped("Coordinates"),
+      sourceIdField: mapped("Source ID"),
+      waterLevelField: mapped("Water level"),
+      rainRateField: mapped("Rain rate"),
+      inflowRateField: mapped("Inflow rate"),
+    },
+  };
+}
 
 export function waterGradientConfigFromSettings(cfg: Cfg): MapWaterGradientConfig {
   const s = waterSurfaceSettings(cfg);

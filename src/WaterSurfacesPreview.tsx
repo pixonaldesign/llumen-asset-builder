@@ -33,6 +33,31 @@ function waterPath(w: number, h: number): string {
   ].join(" ");
 }
 
+/** Map 3D `flood` depth palette, shallow to deep. */
+const FLOOD_DEPTH = ["#bfe9f2", "#3fb2d8", "#1f5fae", "#1b1f6b"];
+const FLOOD_FLOW_LINE = "#88d8ea";
+
+function floodDepthColor(t: number): string {
+  const i = Math.min(FLOOD_DEPTH.length - 1, Math.max(0, Math.round(t * (FLOOD_DEPTH.length - 1))));
+  return FLOOD_DEPTH[i];
+}
+
+/** City blocks on a street grid. Flood water shows in the streets between them. */
+function cityBlocks(w: number, h: number): { x: number; y: number; w: number; h: number }[] {
+  const cols = 6;
+  const rows = 4;
+  const street = 10;
+  const bw = (w - street * (cols + 1)) / cols;
+  const bh = (h - street * (rows + 1)) / rows;
+  const blocks: { x: number; y: number; w: number; h: number }[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      blocks.push({ x: street + c * (bw + street), y: street + r * (bh + street), w: bw, h: bh });
+    }
+  }
+  return blocks;
+}
+
 function xy(p: MapPoint, w: number, h: number, pad: number) {
   return { x: pad + p.x * (w - 2 * pad), y: pad + p.y * (h - 2 * pad) };
 }
@@ -48,6 +73,51 @@ export default function WaterSurfacesPreview({ cfg, points, width, height, pad, 
   const maskId = "water-surface-mask";
   const bay = waterPath(width, height);
   const placed = points.map((p) => ({ p, ...xy(p, width, height, pad) }));
+
+  if (s.mode === "Flood") {
+    const blocks = cityBlocks(width, height);
+    return (
+      <g>
+        <defs>
+          {FLOOD_DEPTH.map((color, i) => (
+            <radialGradient key={color} id={`flood-depth-${i}`}>
+              <stop offset="0" stopColor={color} stopOpacity={0.95} />
+              <stop offset="0.6" stopColor={FLOOD_DEPTH[Math.max(0, i - 1)]} stopOpacity={0.7} />
+              <stop offset="1" stopColor={FLOOD_DEPTH[0]} stopOpacity={0} />
+            </radialGradient>
+          ))}
+        </defs>
+        <rect width={width} height={height} fill="#2a2f3a" />
+        <g opacity={s.opacity}>
+          {placed.map(({ p, x, y }, i) => {
+            const t = p.value / max;
+            const index = FLOOD_DEPTH.indexOf(floodDepthColor(t));
+            const r = 34 + t * 46;
+            return <ellipse key={p.id} cx={x} cy={y} rx={r} ry={r * 0.8} fill={`url(#flood-depth-${index})`} {...hit(i)} />;
+          })}
+        </g>
+        {blocks.map((b, i) => (
+          <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={2} fill="#14161c" />
+        ))}
+        {s.flood.showFlowLines &&
+          placed.flatMap(({ p, x, y }) =>
+            [-1, 0, 1].map((k) => (
+              <path
+                key={`${p.id}-${k}`}
+                className="water-current"
+                d={`M ${x - 22} ${y + k * 9} Q ${x} ${y + k * 9 - 5} ${x + 24} ${y + k * 9 + 2}`}
+                fill="none"
+                stroke={FLOOD_FLOW_LINE}
+                strokeWidth={1}
+                strokeLinecap="round"
+                opacity={0.85 * s.opacity}
+                style={{ animationDuration: "2.2s", animationDelay: `${(k + 1) * 0.3}s` }}
+              />
+            )),
+          )}
+      </g>
+    );
+  }
 
   let marks: React.ReactNode = null;
   if (s.mode === "Plume") {

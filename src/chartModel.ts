@@ -45,6 +45,10 @@ export interface Opt {
   defaultValue?: unknown;
   editableValue?: boolean;
   visibleWhen?: VisibleWhen;
+  /** Required only while these conditions match. */
+  requiredWhen?: VisibleWhen;
+  /** At least one visible field sharing this key must be filled. */
+  requiredOneOf?: string;
 }
 
 export interface Chart {

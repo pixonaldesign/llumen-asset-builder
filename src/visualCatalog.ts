@@ -198,7 +198,7 @@ export const VISUAL_TYPES: VisualType[] = [
   {
     id: "water-surfaces",
     label: "Water Surfaces",
-    description: "Liquids on water: discharge plumes, oil spills, and currents.",
+    description: "Liquids on water: discharge plumes, oil spills, currents, and floods.",
     chartId: "area",
     category: "map-layer",
   },

@@ -231,6 +231,8 @@ type FieldDef = {
   defaultValue?: unknown;
   editableValue?: boolean;
   visibleWhen?: VisibleWhen;
+  requiredWhen?: VisibleWhen;
+  requiredOneOf?: string;
 };
 
 const f = (
@@ -251,8 +253,10 @@ const VALUE_COLOR = { group: "Color", name: "Color Source", is: "Value" };
 const SURFACE_PLUME = { group: "Surface Style", name: "Mode", is: "Plume" as const };
 const SURFACE_SPILL = { group: "Surface Style", name: "Mode", is: "Spill" as const };
 const SURFACE_CURRENT = { group: "Surface Style", name: "Mode", is: "Current" as const };
-const SURFACE_TIMED = { group: "Surface Style", name: "Mode", is: ["Spill", "Current"] as string[] };
-
+const SURFACE_FLOOD = { group: "Surface Style", name: "Mode", is: "Flood" as const };
+const SURFACE_NOT_FLOOD = { group: "Surface Style", name: "Mode", isNot: "Flood" as const };
+const SURFACE_TINTED = { group: "Surface Style", name: "Mode", isNot: ["Spill", "Flood"] as string[] };
+const SURFACE_TIMED = { group: "Surface Style", name: "Mode", is: ["Spill", "Current", "Flood"] as string[] };
 const FIELDS: FieldDef[] = [
   /* ---- Mapping (shared + per type) ---- */
   f("X axis", "field", "Mapping", ["Vertical Bar", "Line", "Area", "Range"], {
@@ -393,7 +397,7 @@ const FIELDS: FieldDef[] = [
   f("Geometry", "field", "Mapping", ["Areas"], { required: true }),
   f("Name", "field", "Mapping", ["Areas"]),
   f("Type", "field", "Mapping", ["Areas"]),
-  f("Coordinates", "field", "Mapping", ["Heatmap", "Wind", "Water Surfaces"], { required: true }),
+  f("Coordinates", "field", "Mapping", ["Heatmap", "Wind"], { required: true }),
   f("Intensity Value Field", "field", "Mapping", ["Heatmap"]),
   f("Time field", "field", "Mapping", ["Heatmap"], {
     desc: "Optional timestamp column. Mapping it turns on Animation.",
@@ -1005,13 +1009,37 @@ const FIELDS: FieldDef[] = [
   }),
 
   /* ---- Water Surfaces ---- */
+  f("Coordinates", "field", "Mapping", ["Water Surfaces"], {
+    desc: "Where each row is. In Flood, the gauge, rain station or inflow point the reading comes from.",
+    required: true,
+  }),
   f("Value", "field", "Mapping", ["Water Surfaces"], {
     desc: "Discharge or size. Drives stem height, and radius when Radius from value is on.",
     visibleWhen: SURFACE_PLUME,
   }),
   f("Time field", "field", "Mapping", ["Water Surfaces"], {
-    desc: "Timestamp column. The time series component plays Spill and Current back.",
+    desc: "Timestamp column. The time series component plays Spill, Current and Flood back.",
     visibleWhen: SURFACE_TIMED,
+    requiredWhen: SURFACE_FLOOD,
+  }),
+  f("Water level", "field", "Mapping", ["Water Surfaces"], {
+    desc: "Meters above MHHW at a tide or surge gauge. Sets the harbor level near that gauge. Map at least one of water level, rain rate or inflow rate.",
+    visibleWhen: SURFACE_FLOOD,
+    requiredOneOf: "flood-driver",
+  }),
+  f("Rain rate", "field", "Mapping", ["Water Surfaces"], {
+    desc: "Rainfall in mm/h at a rain gauge, spread over the flood area from the nearest gauges. Map at least one of water level, rain rate or inflow rate.",
+    visibleWhen: SURFACE_FLOOD,
+    requiredOneOf: "flood-driver",
+  }),
+  f("Inflow rate", "field", "Mapping", ["Water Surfaces"], {
+    desc: "Water entering at the row's coordinates, in m³/s: a breach, an overflowing drain, a pump. Map at least one of water level, rain rate or inflow rate.",
+    visibleWhen: SURFACE_FLOOD,
+    requiredOneOf: "flood-driver",
+  }),
+  f("Source ID", "field", "Mapping", ["Water Surfaces"], {
+    desc: "Groups rows from the same gauge or inflow point, so each source plays back as its own series.",
+    visibleWhen: SURFACE_FLOOD,
   }),
   f("Particle ID", "field", "Mapping", ["Water Surfaces"], {
     desc: "Groups positions that belong to the same slick particle.",
@@ -1036,8 +1064,8 @@ const FIELDS: FieldDef[] = [
     visibleWhen: SURFACE_CURRENT,
   }),
   f("Mode", "segmented", "Surface Style", ["Water Surfaces"], {
-    desc: "Plume is a discharge source. Spill is an oil slick over time. Current is a flow field.",
-    values: ["Plume", "Spill", "Current"],
+    desc: "Plume is a discharge source. Spill is an oil slick over time. Current is a flow field. Flood simulates water spreading over streets from the mapped water level, rain and inflows.",
+    values: ["Plume", "Spill", "Current", "Flood"],
     defaultValue: "Plume",
   }),
   f("Radius", "slider", "Surface Style", ["Water Surfaces"], {
@@ -1153,6 +1181,35 @@ const FIELDS: FieldDef[] = [
   f("Opacity", "slider", "Surface Style", ["Water Surfaces"], {
     desc: "0.05–1, step 0.01. Default 1. Current starts at 0.30 until this moves.",
   }),
+  f("Show flow lines", "toggle", "Surface Style", ["Water Surfaces"], {
+    desc: "Trails that follow the water as it moves.",
+    def: true,
+    visibleWhen: SURFACE_FLOOD,
+  }),
+  f("Show harbor water", "toggle", "Surface Style", ["Water Surfaces"], {
+    desc: "Draw open water at the harbor level too.",
+    advanced: true,
+    def: true,
+    visibleWhen: SURFACE_FLOOD,
+  }),
+  f("Buildings", "dropdown", "Surface Style", ["Water Surfaces"], {
+    desc: "Footprints that block the water. Mapbox tiles match what the basemap draws.",
+    values: ["Baked + Mapbox", "Mapbox tiles", "Baked footprints"],
+    defaultValue: "Baked + Mapbox",
+    advanced: true,
+    visibleWhen: SURFACE_FLOOD,
+  }),
+  f("3D terrain", "toggle", "Surface Style", ["Water Surfaces"], {
+    desc: "Raise the map on terrain. The water then sits at its absolute level.",
+    advanced: true,
+    def: false,
+    visibleWhen: SURFACE_FLOOD,
+  }),
+  f("Terrain exaggeration", "slider", "Surface Style", ["Water Surfaces"], {
+    desc: "1–3, step 0.1. Default 1.",
+    advanced: true,
+    visibleWhen: [SURFACE_FLOOD, { group: "Surface Style", name: "3D terrain", is: "true" }],
+  }),
   f("Show stems", "toggle", "Stems", ["Water Surfaces"], {
     desc: "A line rising from the plume, or from the slick.",
     def: true,
@@ -1190,33 +1247,34 @@ const FIELDS: FieldDef[] = [
     desc: "Solid, a gradient, or steps. For a spill this is the slick body; the rim keeps the thin-film sheen.",
     values: ["Single", "Gradient", "Steps"],
     defaultValue: WATER_PLUME_PALETTE,
+    visibleWhen: SURFACE_NOT_FLOOD,
   }),
   f("Color by", "field", "Color", ["Water Surfaces"], {
     desc: "Column that drives a gradient or steps. Solid color ignores it.",
-    visibleWhen: { group: "Surface Style", name: "Mode", isNot: "Spill" },
+    visibleWhen: SURFACE_TINTED,
   }),
   f("Opacity from value", "toggle", "Color", ["Water Surfaces"], {
     desc: "Fade low values so the basemap shows through. Sets each stop's opacity; edit a stop to override it.",
-    visibleWhen: { group: "Surface Style", name: "Mode", isNot: "Spill" },
+    visibleWhen: SURFACE_TINTED,
   }),
   f("Fade strength", "slider", "Color", ["Water Surfaces"], {
     desc: "0–1. Default 0.85.",
     advanced: true,
-    visibleWhen: [FADE_ON, { group: "Surface Style", name: "Mode", isNot: "Spill" }],
+    visibleWhen: [FADE_ON, SURFACE_TINTED],
   }),
   f("Fade curve", "slider", "Color", ["Water Surfaces"], {
     desc: "0.2–2. Default 0.8. Below 1 brightens low values sooner.",
     advanced: true,
-    visibleWhen: [FADE_ON, { group: "Surface Style", name: "Mode", isNot: "Spill" }],
+    visibleWhen: [FADE_ON, SURFACE_TINTED],
   }),
   f("Clip outliers", "toggle", "Color", ["Water Surfaces"], {
     desc: "Fit the data range to the 10th–99th percentile instead of min–max.",
     advanced: true,
-    visibleWhen: { group: "Surface Style", name: "Mode", isNot: "Spill" },
+    visibleWhen: SURFACE_TINTED,
   }),
   f("Tooltip content fields", "multi", "Tooltips", ["Water Surfaces"], {
-    desc: "Plume uses name and value. Spill uses time and thickness. Current uses speed and direction.",
-    values: ["name", "value", "time", "thickness", "speed", "direction"],
+    desc: "Plume uses name and value. Spill uses time and thickness. Current uses speed and direction. Flood uses depth and speed.",
+    values: ["name", "value", "time", "thickness", "speed", "direction", "depth"],
     defaultValue: ["name", "value"],
     visibleWhen: { group: "Tooltips", name: "Show tooltips", is: "true" },
   }),
@@ -1687,6 +1745,8 @@ function toOpt(def: FieldDef, notionType: NotionVisualType): Opt {
     defaultValue: def.defaultValue,
     editableValue: def.editableValue,
     visibleWhen: def.visibleWhen,
+    requiredWhen: def.requiredWhen,
+    requiredOneOf: def.requiredOneOf,
   };
 }
 
@@ -1943,7 +2003,8 @@ export type SettingsNavSection = {
 /** Tabs that only apply while another setting has a given value. */
 export const TAB_VISIBLE_WHEN: Partial<Record<string, Partial<Record<NotionVisualType, VisibleWhen>>>> = {
   Animation: { Heatmap: { group: "Mapping", name: "Time field", isNot: "" } },
-  Stems: { "Water Surfaces": { group: "Surface Style", name: "Mode", isNot: "Current" } },
+  Stems: { "Water Surfaces": { group: "Surface Style", name: "Mode", isNot: ["Current", "Flood"] } },
+  Color: { "Water Surfaces": { group: "Surface Style", name: "Mode", isNot: "Flood" } },
 };
 
 export function isTabVisible(
@@ -1997,6 +2058,18 @@ export function isFieldVisible(o: Opt, getValByKey: (group: string, name: string
     }
   }
   return conditionsMatch(o.visibleWhen, getValByKey);
+}
+
+/** Promotes fields whose `requiredWhen` matches the current config to required. */
+export function withConditionalRequired(
+  fields: Opt[],
+  getValByKey: (group: string, name: string) => unknown,
+): Opt[] {
+  return fields.map((o) =>
+    o.requiredWhen && o.level !== "required" && conditionsMatch(o.requiredWhen, getValByKey)
+      ? { ...o, level: "required" }
+      : o,
+  );
 }
 
 function conditionMatches(
