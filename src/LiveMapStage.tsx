@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import { Cursor, Minus, Plus } from "@phosphor-icons/react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { createMapboxThreeLayer, type ThreeLayerApi } from "@/lib/mapboxThreeLayer";
 import { getDatasetMeta } from "@/lib/geo/catalog";
@@ -227,7 +228,6 @@ export function LiveMapStage({ scene }: { scene: LiveMapScene }) {
       projection: "mercator",
       attributionControl: false,
     });
-    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "bottom-right");
     mapRef.current = map;
     const onStyleLoad = () => {
       apiRef.current?.dispose();
@@ -303,6 +303,35 @@ export function LiveMapStage({ scene }: { scene: LiveMapScene }) {
   return (
     <div className="live-map-stage">
       <div ref={containerRef} className="live-map-stage__map" />
+      <div className="live-map-stage__controls" role="group" aria-label="Map controls">
+        <button
+          type="button"
+          className="live-map-stage__control"
+          disabled={!ready}
+          aria-label="Reset map orientation"
+          onClick={() => mapRef.current?.easeTo({ bearing: 0, pitch: 0, duration: 420 })}
+        >
+          <Cursor size={18} weight="regular" aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="live-map-stage__control"
+          disabled={!ready}
+          aria-label="Zoom in"
+          onClick={() => mapRef.current?.zoomIn({ duration: 280 })}
+        >
+          <Plus size={18} weight="regular" aria-hidden />
+        </button>
+        <button
+          type="button"
+          className="live-map-stage__control"
+          disabled={!ready}
+          aria-label="Zoom out"
+          onClick={() => mapRef.current?.zoomOut({ duration: 280 })}
+        >
+          <Minus size={18} weight="regular" aria-hidden />
+        </button>
+      </div>
       {(!ready || !loaded) && !error ? <div className="live-map-stage__status">Loading map…</div> : null}
       {error ? <div className="live-map-stage__status live-map-stage__status--error">{error}</div> : null}
     </div>
