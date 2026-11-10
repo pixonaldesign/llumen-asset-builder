@@ -3803,6 +3803,12 @@ export default function EditComponentModal({
   const displayVisualLabel = displayVisual?.label ?? chart.name;
   const displayVisualCategory = displayVisual?.category ?? "chart";
   const showChartPreview = !isDataSourceStep && !isVizPicker;
+  const liveMapFillsPreview =
+    liveScene !== null &&
+    !(isDeepDiveStep && deepDiveHasTabs) &&
+    (isDataSourceStep
+      ? hasCompletedVisual && previewMode === "asset"
+      : showChartPreview && (previewMode === "asset" || isPreviewVizOnly));
 
   const stepperRef = useRef<HTMLElement>(null);
   const stepRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -4256,7 +4262,12 @@ export default function EditComponentModal({
           </section>
 
           {!isVizPicker && !isDataSourcePicker && (
-          <section className="preview">
+          <section className={"preview" + (liveMapFillsPreview ? " preview--live-map" : "")}>
+            {liveMapFillsPreview && liveScene && (
+              <div className="preview__live-map">
+                <LiveMapPreview scene={liveScene} />
+              </div>
+            )}
             {isDataSourceStep ? (
               <>
                 {hasCompletedVisual && (
@@ -4266,7 +4277,7 @@ export default function EditComponentModal({
                 )}
 
                 {hasCompletedVisual && previewMode === "asset" ? (
-                  <div className="preview__stage preview__stage--viz">
+                  liveMapFillsPreview ? null : <div className="preview__stage preview__stage--viz">
                     <div className="preview__size-toggle">
                       <div className="seg-toggle" role="group" aria-label="Preview size">
                         {(["small", "medium", "large"] as PreviewSize[]).map((s) => (
@@ -4282,20 +4293,16 @@ export default function EditComponentModal({
                       </div>
                     </div>
                     <div className="preview__chart-slot">
-                      <div className={"chart-card chart-card--" + size + (liveScene ? " chart-card--live-map" : "")}>
-                        {liveScene ? (
-                          <LiveMapPreview scene={liveScene} />
-                        ) : (
-                          <ChartPreview
-                            type={chart.preview}
-                            chartId={activeChart}
-                            visualId={displayVisualId}
-                            cfg={cfg}
-                            series={previewSeries}
-                            chartTitle={generalInfo.name || undefined}
-                            size={size}
-                          />
-                        )}
+                      <div className={"chart-card chart-card--" + size}>
+                        <ChartPreview
+                          type={chart.preview}
+                          chartId={activeChart}
+                          visualId={displayVisualId}
+                          cfg={cfg}
+                          series={previewSeries}
+                          chartTitle={generalInfo.name || undefined}
+                          size={size}
+                        />
                       </div>
                     </div>
                   </div>
@@ -4414,7 +4421,7 @@ export default function EditComponentModal({
                 </div>
 
                 {previewMode === "asset" || isPreviewVizOnly ? (
-                  <div className="preview__stage preview__stage--viz">
+                  liveMapFillsPreview ? null : <div className="preview__stage preview__stage--viz">
                     <div className="preview__size-toggle">
                       <div className="seg-toggle" role="group" aria-label="Preview size">
                         {(["small", "medium", "large"] as PreviewSize[]).map((s) => (
@@ -4436,9 +4443,7 @@ export default function EditComponentModal({
                           size +
                           (isDeepDiveStep && deepDiveHasTabs
                             ? " chart-card--deep-dive-preview"
-                            : liveScene
-                              ? " chart-card--live-map"
-                              : "")
+                            : "")
                         }
                         role={isDeepDiveStep && deepDiveHasTabs ? "button" : undefined}
                         tabIndex={isDeepDiveStep && deepDiveHasTabs ? 0 : undefined}
@@ -4479,19 +4484,15 @@ export default function EditComponentModal({
                             <Info size={14} weight="regular" aria-hidden="true" />
                           </button>
                         )}
-                        {liveScene && !(isDeepDiveStep && deepDiveHasTabs) ? (
-                          <LiveMapPreview scene={liveScene} />
-                        ) : (
-                          <ChartPreview
-                            type={chart.preview}
-                            chartId={activeChart}
-                            visualId={displayVisualId}
-                            cfg={cfg}
-                            series={previewSeries}
-                            chartTitle={generalInfo.name || undefined}
-                            size={size}
-                          />
-                        )}
+                        <ChartPreview
+                          type={chart.preview}
+                          chartId={activeChart}
+                          visualId={displayVisualId}
+                          cfg={cfg}
+                          series={previewSeries}
+                          chartTitle={generalInfo.name || undefined}
+                          size={size}
+                        />
                       </div>
                     </div>
                   </div>

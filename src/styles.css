@@ -4345,9 +4345,24 @@ button {
   width: 380px;
   height: 384px;
 }
-.chart-card--live-map {
-  padding: 0;
-  overflow: hidden;
+.preview--live-map {
+  position: relative;
+}
+.preview--live-map > .preview__head {
+  position: relative;
+  z-index: 1;
+}
+.preview__live-map {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.preview__live-map .live-map-stage {
+  border-radius: 0;
+}
+.preview__live-map .live-map-stage__controls {
+  top: 76px;
+  right: var(--space-2xl);
 }
 .live-map-stage {
   position: relative;
