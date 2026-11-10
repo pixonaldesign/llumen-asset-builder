@@ -1138,6 +1138,7 @@ function StopRow({
     embeddedOpacity < 100 && stop.opacity >= 100 ? embeddedOpacity : stop.opacity;
   const [hexDraft, setHexDraft] = useState(committedHex);
   const [opacityDraft, setOpacityDraft] = useState(String(effectiveOpacity));
+  const [valueDraft, setValueDraft] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [customPickerOpen, setCustomPickerOpen] = useState(false);
@@ -1277,10 +1278,16 @@ function StopRow({
           ) : showValue ? (
             <input
               className="cp-stop-value"
-              inputMode="numeric"
+              inputMode="decimal"
               aria-label={`Data value for color ${committedHex}`}
-              value={String(stop.value)}
-              onChange={(e) => onChange({ ...stop, value: Number(e.target.value.replace(/[^\d-]/g, "")) || 0 })}
+              value={valueDraft ?? String(stop.value)}
+              onChange={(e) => {
+                const draft = e.target.value.replace(/[^\d.-]/g, "");
+                setValueDraft(draft);
+                const parsed = parseFloat(draft);
+                if (Number.isFinite(parsed)) onChange({ ...stop, value: parsed });
+              }}
+              onBlur={() => setValueDraft(null)}
             />
           ) : (
             <input
@@ -1962,14 +1969,10 @@ export default function ColorPalette({
 
   return (
     <div className={"cp" + (isSimple || isSwatch ? " cp--simple" : "") + (isSwatch ? " cp--swatch" : "")}>
-      {!isSwatch && (
+      {(isFull || isStepsOnly) && (
         <div className="cp-field">
           {!isStepsOnly && <span className="cp-label">Color palette</span>}
-          {isFull || isStepsOnly ? (
-            <PaletteSelector value={isStepsOnly ? ctxSelection : paletteSelection} onSelectPreset={applyPreset} />
-          ) : (
-            <PaletteSelector />
-          )}
+          <PaletteSelector value={isStepsOnly ? ctxSelection : paletteSelection} onSelectPreset={applyPreset} />
         </div>
       )}
 
@@ -1980,7 +1983,7 @@ export default function ColorPalette({
           showValue={false}
           removable={false}
           onChange={(s) => {
-            setColor(s.color);
+            setColor(colorWithOpacityPercent(s.color, s.opacity));
             commit({ color: s.color, opacity: s.opacity });
           }}
           onRemove={() => {}}
@@ -2025,7 +2028,7 @@ export default function ColorPalette({
           removable={false}
           onChange={(s) => {
             commit({ color: s.color, opacity: s.opacity });
-            if (!onChange) setColor(s.color);
+            if (!onChange) setColor(isSimple ? colorWithOpacityPercent(s.color, s.opacity) : s.color);
           }}
           onRemove={() => {}}
         />

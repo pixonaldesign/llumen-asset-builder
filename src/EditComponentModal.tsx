@@ -61,7 +61,6 @@ import DataSourceDataProfile from "./DataSourceDataProfile";
 import ColorPalette, {
   CategoryColorMap,
   ColorPaletteProvider,
-  PaletteSelector,
   type PaletteCardinalityEdgeCase,
 } from "./ColorPalette";
 import ZoomScalingControl from "./ZoomScalingControl";
@@ -80,6 +79,8 @@ import {
   uniqueValues,
 } from "./mockDataset";
 import {
+  BRAND,
+  PALETTE,
   DEFAULT_COLOR_MODE,
   DEFAULT_GRADIENT,
   DEFAULT_REPEATABLE,
@@ -386,7 +387,7 @@ function parseMargins(v: unknown): MarginsValue {
 function splitMinMax(raw: unknown): { min: string; max: string } {
   const s = String(raw ?? "").trim();
   if (!s) return { min: "", max: "" };
-  const m = s.match(/^(.*)\s*[/,–—-]\s*(.*)$/);
+  const m = s.match(/^(.*?)\s*(?:[/,–—]|\s-\s)\s*(.*)$/);
   if (m) return { min: m[1].trim(), max: m[2].trim() };
   return { min: s, max: "" };
 }
@@ -421,13 +422,10 @@ function defaultMulti(o: Opt): string[] {
 }
 
 function defaultColorList(o: Opt): Record<string, string> {
-  const pal = ["#3FA7A0", "#73adf5", "#c6a7ff", "#ffd58a", "#f0888c", "#7ee0c0"];
+  const pal = PALETTE(BRAND);
   const n = o.name.toLowerCase();
-  const keys = n.includes("status")
-    ? uniqueValues("status")
-    : n.includes("icon")
-      ? uniqueValues("category")
-      : uniqueValues("category");
+  const keys = n.includes("status") ? uniqueValues("status") : uniqueValues("category");
+  if (/\+ other/i.test(o.name)) keys.push("Other");
   return Object.fromEntries(keys.map((k, i) => [k, pal[i % pal.length]]));
 }
 
@@ -444,18 +442,21 @@ function defaultSlider(o: Opt): number {
     const lo = parseFloat(range[1]);
     const hi = parseFloat(range[2]);
     const v = parseFloat(def[1]);
-    if (hi !== lo) return Math.round(((v - lo) / (hi - lo)) * 100);
+    if (hi !== lo) return ((v - lo) / (hi - lo)) * 100;
   }
   if (n.includes("opacity")) return 40;
   return 50;
 }
 
-function isZoomScalingField(o: Opt) {
+function isDataRangeScalingField(o: Opt) {
   return (
-    /zoom scaling/i.test(o.name) ||
-    o.name === "Disc scaling" ||
-    (o.group === "Extrusion" && o.name === "Data range")
+    (o.group === "Extrusion" && o.name === "Data range") ||
+    (o.group === "Marker appearance" && o.name === "Marker size by data")
   );
+}
+
+function isZoomScalingField(o: Opt) {
+  return /zoom scaling|disc scaling/i.test(o.name) || isDataRangeScalingField(o);
 }
 
 function isUntouchedPlumePalette(value: unknown): boolean {
@@ -510,16 +511,26 @@ function defaultFor(o: Opt, visualId?: string): unknown {
             gradientAxis: defaultGradientAxisForVisual(visualId ?? "vertical-bar"),
             stops: DEFAULT_COLOR_MODE.stops.map((s) => ({ ...s })),
           }
-        : "#3FA7A0";
+        : BRAND;
     case "colorList":
       return defaultColorList(o);
     case "colorPair":
-      return { stroke: "#3FA7A0", fill: "#3FA7A0" };
+      return { stroke: BRAND, fill: BRAND };
     case "multi":
       return defaultMulti(o);
     case "repeatable":
       if (isZoomScalingField(o)) return { ...DEFAULT_ZOOM_SCALING, stops: DEFAULT_ZOOM_SCALING.stops.map((s) => ({ ...s })) };
-      if (o.name === "Color thresholds" || o.name.toLowerCase().includes("status")) {
+      if (o.name === "Status → tile accent color") {
+        const statusColors = ["#34d399", "#fbbf24", "#f87171", BRAND];
+        return uniqueValues("status").map((label, i) => ({
+          min: "",
+          max: "",
+          color: statusColors[i % statusColors.length],
+          label,
+          opacity: 100,
+        }));
+      }
+      if (o.name === "Color thresholds") {
         return [
           { min: "", max: "", color: "#f87171", label: "At risk", opacity: 100 },
           { min: "", max: "", color: "#fbbf24", label: "Watch", opacity: 100 },
@@ -540,7 +551,14 @@ function defaultFor(o: Opt, visualId?: string): unknown {
 }
 
 /* slider display value derived from the option's range description */
-function sliderScale(o: Opt): { lo: number; hi: number; ticks: number; step: number; unit: string } {
+function sliderScale(o: Opt): {
+  lo: number;
+  hi: number;
+  ticks: number;
+  step: number;
+  unit: string;
+  hasRange: boolean;
+} {
   const desc = o.desc ?? "";
   const range = desc.match(/(-?\d*\.?\d+)\s*[–—-]\s*(-?\d*\.?\d+)/);
   const stepMatch = desc.match(/step\s+(-?\d*\.?\d+)/i);
@@ -557,7 +575,26 @@ function sliderScale(o: Opt): { lo: number; hi: number; ticks: number; step: num
   /* 0–1 ranges are continuous (opacity/ratio), not a 2-stop toggle. */
   if (!step && Number.isInteger(lo) && Number.isInteger(hi) && span > 1 && span <= 12) step = 1;
   const ticks = step > 0 && span > 0 ? Math.round(span / step) + 1 : 0;
-  return { lo, hi, ticks: ticks >= 2 && ticks <= 12 ? ticks : 0, step, unit };
+  return { lo, hi, ticks: ticks >= 2 && ticks <= 12 ? ticks : 0, step, unit, hasRange: Boolean(range) };
+}
+
+function decimalsOf(n: number): number {
+  return String(n).split(".")[1]?.length ?? 0;
+}
+
+/** Slider opacity readouts are real percentages, whatever range the desc declares. */
+function opacityPercent(o: Opt, pct: number): number {
+  const { unit, hasRange } = sliderScale(o);
+  if (!hasRange) return pct;
+  const v = sliderValue(o, pct);
+  return unit === "%" ? v : v * 100;
+}
+
+function opacityPercentToSlider(o: Opt, percent: number): number {
+  const { lo, hi, unit, hasRange } = sliderScale(o);
+  if (!hasRange || hi === lo) return Math.max(0, Math.min(100, percent));
+  const real = unit === "%" ? percent : percent / 100;
+  return ((Math.max(lo, Math.min(hi, real)) - lo) / (hi - lo)) * 100;
 }
 
 function sliderValue(o: Opt, pct: number): number {
@@ -574,8 +611,15 @@ function sliderValue(o: Opt, pct: number): number {
 function sliderDisplay(o: Opt, pct: number) {
   const { lo, hi, ticks, step, unit } = sliderScale(o);
   const val = sliderValue(o, pct);
-  const stepDecimals = step > 0 && step < 1 ? Math.min(2, String(step).split(".")[1]?.length ?? 0) : 0;
-  const decimals = hi <= 1 ? 2 : stepDecimals || (ticks && (hi - lo) / (ticks - 1) < 1 ? 1 : 0);
+  const def = (o.desc ?? "").match(/Default\s+(-?\d*\.?\d+)/i);
+  const decimals =
+    step > 0
+      ? decimalsOf(step)
+      : Math.max(
+          def ? decimalsOf(parseFloat(def[1])) : 0,
+          hi <= 1 ? 2 : 0,
+          ticks && (hi - lo) / (ticks - 1) < 1 ? 1 : 0,
+        );
   const formatted = decimals === 0 ? String(Math.round(val)) : val.toFixed(decimals);
   if (!unit) return formatted;
   return unit === "°" || unit === "%" ? `${formatted}${unit}` : `${formatted} ${unit}`;
@@ -586,22 +630,36 @@ function Switch({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
   return (
     <span
       role="switch"
+      tabIndex={0}
       aria-checked={value}
       className={"ia-mini-switch" + (value ? " on" : "")}
       onClick={() => onChange(!value)}
+      onKeyDown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          onChange(!value);
+        }
+      }}
     />
   );
 }
 
 function Segmented({ values, value, onChange }: { values: string[]; value: string; onChange: (v: string) => void }) {
-  const vals = (values.length ? values : ["One", "Two", "Three"]).slice(0, 4);
+  const vals = values.length ? values : ["One", "Two", "Three"];
   const cur = vals.includes(value) ? value : vals[0];
   return (
-    <div className="ia-segmented">
+    <div className="ia-segmented" role="radiogroup">
       {vals.map((v) => (
-        <span key={v} className={v === cur ? "active" : ""} onClick={() => onChange(v)}>
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={v === cur}
+          className={v === cur ? "active" : ""}
+          onClick={() => onChange(v)}
+        >
           {v}
-        </span>
+        </button>
       ))}
     </div>
   );
@@ -1091,12 +1149,12 @@ function Control({
                 min={0}
                 max={100}
                 step={1}
-                value={Math.round(fillPct)}
+                value={Math.round(opacityPercent(o, fillPct))}
                 aria-label={`${o.name} percentage`}
                 onChange={(e) => {
                   const next = Number(e.target.value);
                   if (!Number.isFinite(next)) return;
-                  setVal(o, Math.max(0, Math.min(100, next)));
+                  setVal(o, opacityPercentToSlider(o, next));
                 }}
               />
               <span>%</span>
@@ -1110,9 +1168,9 @@ function Control({
               step={
                 discrete
                   ? (scale.hi - scale.lo) / max
-                  : Math.max((scale.hi - scale.lo) / 100, scale.hi <= 1 ? 0.01 : 1)
+                  : scale.step || Math.max((scale.hi - scale.lo) / 100, scale.hi <= 1 ? 0.01 : 1)
               }
-              value={Number(sliderValue(o, fillPct).toFixed(scale.hi <= 1 ? 2 : 0))}
+              value={Number(sliderValue(o, fillPct).toFixed(scale.step ? decimalsOf(scale.step) : scale.hi <= 1 ? 2 : 0))}
               aria-label={`${o.name} value`}
               onChange={(e) => {
                 const next = Number(e.target.value);
@@ -1167,8 +1225,12 @@ function Control({
         <div className="ia-surface ia-number">
           <input value={v} onChange={(e) => setVal(o, e.target.value)} />
           <div className="ia-stepper">
-            <span onClick={() => bump(-1)}>−</span>
-            <span onClick={() => bump(1)}>+</span>
+            <button type="button" aria-label={`Decrease ${o.name}`} onClick={() => bump(-1)}>
+              −
+            </button>
+            <button type="button" aria-label={`Increase ${o.name}`} onClick={() => bump(1)}>
+              +
+            </button>
           </div>
         </div>
       );
@@ -1221,14 +1283,10 @@ function Control({
       const pair = (getVal(o) as { stroke?: string; fill?: string }) ?? {};
       return (
         <div className="ia-color-pair">
-          <div className="ia-color-list__palette">
-            <span className="cp-label">Color palette</span>
-            <PaletteSelector />
-          </div>
           <label className="ia-color-pair__item">
             <span>Stroke</span>
             <ColorPalette
-              color={pair.stroke || "#2de8c8"}
+              color={pair.stroke || BRAND}
               setColor={(c) => setVal(o, { ...pair, stroke: c })}
               variant="swatch"
             />
@@ -1236,7 +1294,7 @@ function Control({
           <label className="ia-color-pair__item">
             <span>Fill</span>
             <ColorPalette
-              color={pair.fill || "#2de8c8"}
+              color={pair.fill || BRAND}
               setColor={(c) => setVal(o, { ...pair, fill: c })}
               variant="swatch"
             />
@@ -1250,10 +1308,6 @@ function Control({
       const entries = Object.keys(map).length ? Object.entries(map) : Object.entries(defaultColorList(o));
       return (
         <div className="ia-surface ia-color-list">
-          <div className="ia-color-list__palette">
-            <span className="cp-label">Color palette</span>
-            <PaletteSelector />
-          </div>
           {entries.map(([label, color]) => (
             <div key={label} className="ia-color-list__row">
               <span className="ia-color-list__label">{label}</span>
@@ -1300,7 +1354,7 @@ function Control({
           <ZoomScalingControl
             value={getVal(o)}
             onChange={(next) => setVal(o, next)}
-            dataRangeOnly={o.group === "Extrusion" && o.name === "Data range"}
+            dataRangeOnly={isDataRangeScalingField(o)}
           />
         );
       }
@@ -1362,13 +1416,14 @@ function Control({
                 setColor={(c) => update(rows.map((r, j) => (j === i ? { ...r, color: c } : r)))}
                 variant="swatch"
               />
-              <span
+              <button
+                type="button"
                 className="ia-rule-x"
-                role="button"
+                aria-label={`Remove ${row.label || `row ${i + 1}`}`}
                 onClick={() => update(rows.filter((_, j) => j !== i))}
               >
                 ×
-              </span>
+              </button>
             </div>
           ))}
           <button
@@ -1380,7 +1435,7 @@ function Control({
                 {
                   min: String(rows.length * 50),
                   max: String(rows.length * 50 + 50),
-                  color: ["#3FA7A0", "#73adf5", "#c6a7ff", "#f0888c"][rows.length % 4],
+                  color: PALETTE(BRAND)[rows.length % 6],
                   label: `Stop ${rows.length + 1}`,
                 },
               ])
@@ -1423,13 +1478,14 @@ function Control({
                 setColor={(c) => update(stops.map((s, j) => (j === i ? { ...s, color: c } : s)))}
                 variant="swatch"
               />
-              <span
+              <button
+                type="button"
                 className="ia-rule-x"
-                role="button"
+                aria-label={`Remove stop ${i + 1}`}
                 onClick={() => update(stops.filter((_, j) => j !== i))}
               >
                 ×
-              </span>
+              </button>
             </div>
           ))}
           <button
@@ -2983,6 +3039,9 @@ function GroupCard({
   return (
     <section className="ia-group">
       <div className="ia-card-fields">
+        {regular.length === 0 && !advancedOpen && advanced.length > 0 && (
+          <p className="ia-help">All settings here are advanced. Turn on Advanced to edit them.</p>
+        )}
         {fieldClusterNodes(regular, getVal, setVal, getValByKey, inlineTickLabelNodes)}
         {advancedOpen && remainingAdvanced.length > 0 && (
           <div className="ia-advanced">

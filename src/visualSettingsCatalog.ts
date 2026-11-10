@@ -441,8 +441,9 @@ const FIELDS: FieldDef[] = [
     },
   ),
   f("Y-axis values (ML only)", "segmented", "Mapping", ALL_CHARTS_KPIS.filter((type) => type !== "Sankey"), {
-    desc: "For ML-prediction sources: Predicted only / Actual only / Actual vs predicted.",
-    values: ["Predicted only", "Actual only", "Actual vs predicted"],
+    desc: "For ML-prediction sources: Off uses the mapped value field; otherwise Predicted only / Actual only / Actual vs predicted.",
+    values: ["Off", "Predicted only", "Actual only", "Actual vs predicted"],
+    defaultValue: "Off",
   }),
 
   /* ---- KPI Display ---- */
@@ -751,29 +752,48 @@ const FIELDS: FieldDef[] = [
     visibleWhen: { group: "Disc ring", name: "Show endpoint discs", is: "true" },
   }),
   f("Show ground disc", "toggle", "Ground disc", ["Points"]),
-  f("Fill style", "segmented", "Ground disc", ["Points"], { values: ["None", "Solid"] }),
+  f("Fill style", "segmented", "Ground disc", ["Points"], { values: ["None", "Solid"], defaultValue: "Solid" }),
   f("Disc color", "color", "Ground disc", ["Points"]),
   f("Disc radius multiplier", "slider", "Ground disc", ["Points"], { desc: "0.2–4. Default 1.2." }),
-  f("Disc fill opacity", "slider", "Ground disc", ["Points"], { desc: "0–1. Default 0.18." }),
-  f("Ground disc scaling", "repeatable", "Ground disc", ["Points"]),
-  f("Marker type", "segmented", "Marker Shape", ["Points"], { values: ["2D", "3D"] }),
-  f("2D shape", "dropdown", "Marker Shape", ["Points"], { values: ["Circle", "Square", "Diamond"] }),
-  f("3D shape", "dropdown", "Marker Shape", ["Points"], { values: ["Sphere", "Cube", "Cone"] }),
+  f("Disc fill opacity", "slider", "Ground disc", ["Points"], {
+    desc: "0–1. Default 0.18.",
+    visibleWhen: { group: "Ground disc", name: "Fill style", is: "Solid" },
+  }),
+  f("Ground disc scaling", "repeatable", "Ground disc", ["Points"], {
+    desc: "How the disc radius grows with zoom.",
+  }),
+  f("Marker type", "segmented", "Marker Shape", ["Points"], { values: ["2D", "3D"], defaultValue: "2D" }),
+  f("2D shape", "dropdown", "Marker Shape", ["Points"], {
+    values: ["Circle", "Square", "Diamond"],
+    visibleWhen: { group: "Marker Shape", name: "Marker type", is: "2D" },
+  }),
+  f("3D shape", "dropdown", "Marker Shape", ["Points"], {
+    values: ["Sphere", "Cube", "Cone"],
+    visibleWhen: { group: "Marker Shape", name: "Marker type", is: "3D" },
+  }),
   f("Empty filled shape (no icon)", "toggle", "Marker Shape", ["Points"], { def: false }),
   f("Icon mode", "segmented", "Marker Shape", ["Points"], {
     values: ["Static", "By category"],
-    visibleWhen: { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "true" },
+    visibleWhen: { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "false" },
   }),
   f("Icons", "dropdown", "Marker Shape", ["Points"], {
     values: ["MapPin", "Circle", "Warning", "Flag"],
     defaultValue: "MapPin",
-    visibleWhen: { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "true" },
+    visibleWhen: [
+      { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "false" },
+      { group: "Marker Shape", name: "Icon mode", isNot: "By category" },
+    ],
   }),
   f("Icon category field + mapping", "colorList", "Marker Shape", ["Points"], {
-    visibleWhen: { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "true" },
+    visibleWhen: [
+      { group: "Marker Shape", name: "Empty filled shape (no icon)", is: "false" },
+      { group: "Marker Shape", name: "Icon mode", is: "By category" },
+    ],
   }),
   f("Point Size", "slider", "Marker appearance", ["Points"], { desc: "0.2–8. Default 1.2." }),
-  f("Marker size by data", "repeatable", "Marker appearance", ["Points"]),
+  f("Marker size by data", "repeatable", "Marker appearance", ["Points"], {
+    desc: "Scales each marker by its value.",
+  }),
   /* ---- Heatmap ---- */
   f("Mode", "segmented", "Heatmap Style", ["Heatmap"], {
     desc: "Cells show each cell's exact value. Soft is a smoothed sheet. Particles is a drifting point field.",
@@ -985,13 +1005,12 @@ const FIELDS: FieldDef[] = [
   f("Data range", "repeatable", "Extrusion", ["Areas"], {
     visibleWhen: { group: "Extrusion", name: "Extrusion mode", is: "Data" },
   }),
-  f("Particle Density", "slider", "Animation", ["Wind"], { desc: "Default 16384." }),
-  f("Trail Length", "slider", "Animation", ["Wind"], { desc: "Default 0.996." }),
-  f("Animation Speed", "slider", "Animation", ["Wind"], { desc: "Default 0.20." }),
+  f("Particle Density", "slider", "Animation", ["Wind"], { desc: "2000–32000, step 1. Default 16384." }),
+  f("Trail Length", "slider", "Animation", ["Wind"], { desc: "0.9–1, step 0.001. Default 0.996." }),
+  f("Animation Speed", "slider", "Animation", ["Wind"], { desc: "0.05–0.6, step 0.01. Default 0.20." }),
   f("Highlight borders", "toggle", "Advanced", ["Areas"], { def: false }),
   f("Level of distance (zoom visibility)", "slider", "Advanced", ["Areas", "Points"], {
-    desc: "0 = off.",
-    def: false,
+    desc: "0–100. Default 0. 0 = off.",
   }),
   f("Zoom scaling", "repeatable", "Zoom Scaling", ["All Map Layers"]),
   f("Show legend in Map Data", "toggle", "Map Legend", ["All Map Layers"]),
@@ -1334,16 +1353,13 @@ const FIELDS: FieldDef[] = [
   }),
   f("Segment count", "number", "Bar", ["Availability"], {
     desc: "How many rounded segments the availability track is split into.",
-    advanced: true,
     defaultValue: "48",
   }),
   f("Corner radius", "slider", "Bar", ["Availability"], {
     desc: "0–40 px. Default 24.",
-    advanced: true,
   }),
   f("Segment gap", "slider", "Bar", ["Availability"], {
     desc: "0–12 px. Default 3.",
-    advanced: true,
   }),
   f("Segment width", "slider", "Bar", ["Availability"], {
     desc: "1–12 px. Default 3.",
@@ -1973,6 +1989,7 @@ export const FEATURE_TAB_MASTERS: Record<string, string> = {
   Tooltips: "Show tooltips",
   Annotations: "Show annotations",
   "Disc ring": "Show endpoint discs",
+  "Ground disc": "Show ground disc",
   "Map Legend": "Show legend in Map Data",
   Height: "Height Exaggeration",
   "3D height": "Extrude",

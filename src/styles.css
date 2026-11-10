@@ -4906,9 +4906,11 @@ button {
   border-radius: var(--radius-md);
   background: var(--lc-bg-neutral-subtle);
 }
-.ia-segmented span {
+.ia-segmented > button {
   height: 30px;
+  border: 0;
   border-radius: var(--radius-md);
+  background: transparent;
   display: grid;
   place-items: center;
   color: var(--lc-text-secondary);
@@ -4918,10 +4920,14 @@ button {
   text-align: center;
   transition: 0.14s;
 }
-.ia-segmented span:hover:not(.active) {
+.ia-segmented > button:hover:not(.active) {
   color: var(--lc-text-primary);
 }
-.ia-segmented span.active {
+.ia-segmented > button:focus-visible {
+  outline: 2px solid var(--lc-border-brand, #73adf5);
+  outline-offset: -2px;
+}
+.ia-segmented > button.active {
   background: var(--lc-bg-brand);
   color: var(--lc-text-on-brand);
 }
@@ -5459,20 +5465,24 @@ button {
   overflow: hidden;
   background: transparent;
 }
-.ia-stepper span {
+.ia-stepper > button {
   height: 100%;
   min-height: 34px;
   display: grid;
   place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
   color: var(--lc-text-tertiary);
   border-right: 1px solid var(--lc-border-control);
   cursor: pointer;
 }
-.ia-stepper span:hover {
+.ia-stepper > button:hover {
   color: var(--lc-text-primary);
   background: var(--lc-bg-neutral-subtle-hover);
 }
-.ia-stepper span:last-child {
+.ia-stepper > button:last-child {
   border-right: 0;
 }
 .ia-number .ia-help,
@@ -6831,7 +6841,16 @@ button {
   background: var(--lc-bg-brand);
 }
 .ia-rule-x {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--lc-text-tertiary);
   text-align: center;
+  cursor: pointer;
+}
+.ia-rule-x:hover {
+  color: var(--lc-text-primary);
 }
 
 /* zoom scaling (fence / map scale curve) */
@@ -14939,6 +14958,7 @@ html[data-theme="light"] .dd-component-menu {
   white-space: pre;
   overflow-wrap: normal;
   scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-600) transparent;
 }
 
 .ds-query-filter-menu {

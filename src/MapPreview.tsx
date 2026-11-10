@@ -9,8 +9,8 @@ import {
   PALETTE,
   asColorMode,
   asRecord,
-  asRepeatable,
   asZoomScaling,
+  parsedZoomStops,
   resolveColorMode,
   sampleZoomScale,
   sliderMapped,
@@ -36,9 +36,7 @@ function colorsByType(cfg: Cfg): boolean {
 
 function mapColor(cfg: Cfg, value: number, max: number, category: string, index: number): string {
   const mode = mapPalette(cfg);
-  const t = max ? value / max : 0;
-  const dist = str(cfg("Color", "Distribution", "Linear"), "Linear");
-  const stepped = dist === "Quantize" ? Math.round(t * 4) / 4 : dist === "Quantile" ? Math.ceil(t * 3) / 3 : t;
+  const stepped = max ? value / max : 0;
   if (mode.style !== "Single") {
     return resolveColorMode(
       mode,
@@ -96,12 +94,17 @@ function markHit(
   };
 }
 
+const FLOOR = <ellipse cx={W / 2} cy={H - 22} rx={92} ry={10} fill="rgba(255,255,255,.06)" />;
+
+/** Ground disc settings only exist on Points; other layers get the neutral floor. */
 function Ground({ cfg }: { cfg: Cfg }) {
   const show = bool(cfg("Ground disc", "Show ground disc", true), true);
-  if (!show) return <ellipse cx={W / 2} cy={H - 22} rx={92} ry={10} fill="rgba(255,255,255,.06)" />;
+  if (!show) return FLOOR;
   const fill = str(cfg("Ground disc", "Fill style", "Solid"), "Solid");
   const color = str(cfg("Ground disc", "Disc color", BRAND), BRAND);
-  const r = sliderMapped(cfg("Ground disc", "Disc radius multiplier", 30), 0.2, 4, 1.2);
+  const scaling = asZoomScaling(cfg("Ground disc", "Ground disc scaling", undefined));
+  const zoomGrowth = Math.max(0.3, Math.min(2, sampleZoomScale(scaling, 350) / 10));
+  const r = sliderMapped(cfg("Ground disc", "Disc radius multiplier", 30), 0.2, 4, 1.2) * zoomGrowth;
   const op = sliderMapped(cfg("Ground disc", "Disc fill opacity", 18), 0, 1, 0.18);
   return (
     <ellipse
@@ -134,15 +137,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
   const highlight = bool(cfg("Advanced", "Highlight borders", false), false);
   const hit = (index: number) => markHit(index, onMarkEnter, onMarkLeave);
   const orig = (p: (typeof points)[number]) => Math.max(0, points.findIndex((pt) => pt.id === p.id));
-  const legacyZoom =
-    visualId === "fences"
-      ? cfg("Zoom Scaling", "Fence zoom scaling", cfg("Advanced", "Fence zoom scaling", undefined))
-      : visualId === "pillars"
-        ? cfg("Size", "Zoom scaling", undefined)
-        : visualId === "discs"
-          ? cfg("Disc Scaling", "Disc scaling", undefined)
-          : undefined;
-  const zoomScaling = asZoomScaling(cfg("Zoom Scaling", "Zoom scaling", legacyZoom));
+  const zoomScaling = asZoomScaling(cfg("Zoom Scaling", "Zoom scaling", undefined));
   const zoomScale = sampleZoomScale(zoomScaling, 350);
   const zoomFactor = Math.max(0.5, Math.min(2, 1 + zoomScale * 0.025));
   const fade =
@@ -160,7 +155,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     const endR = 6 * endScale + zoomScale * 0.1;
     layer = (
       <>
-        <Ground cfg={cfg} />
+        {FLOOR}
         {arcs.map((a, i) => {
           const from = points.find((p) => p.label === a.from) ?? points[i];
           const to = points.find((p) => p.label === a.to) ?? points[(i + 1) % Math.max(points.length, 1)];
@@ -215,7 +210,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     );
     layer = (
       <>
-        <Ground cfg={cfg} />
+        {FLOOR}
         <path d={d} fill="none" stroke={fenceColor} strokeWidth={width} strokeLinecap="round" opacity={faded(0.85, visible.reduce((sum, point) => sum + point.value, 0) / Math.max(visible.length, 1))} />
         {visible.map((p) => (
           <circle
@@ -235,7 +230,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     const peak = normalize ? max : Math.max(max, 80);
     layer = (
       <>
-        <Ground cfg={cfg} />
+        {FLOOR}
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
           const bh = (p.value / peak) * (28 + maxH / 220 + zoomScale * 0.4);
@@ -246,14 +241,14 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     );
   } else if (visualId === "discs") {
     const mult = sliderMapped(
-      cfg("Disc Scaling", "Disc radius multiplier", cfg("Disc ring", "Disc radius multiplier", 30)),
+      cfg("Disc Scaling", "Disc radius multiplier", 30),
       0.2,
       4,
       1.2,
     );
     layer = (
       <>
-        <Ground cfg={cfg} />
+        {FLOOR}
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
           const y = P + p.y * (H - 2 * P);
@@ -339,7 +334,7 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
     const count = Math.max(8, Math.round(density / 1400));
     layer = (
       <>
-        <Ground cfg={cfg} />
+        {FLOOR}
         {Array.from({ length: count }).map((_, i) => {
           const p = visible[i % Math.max(visible.length, 1)];
           const x = P + (p?.x ?? 0.2 + (i % 5) * 0.15) * (W - 2 * P);
@@ -380,14 +375,20 @@ export default function MapPreview({ cfg, visualId, series, compact, onMarkEnter
       cfg("Marker Shape", "Icons", cfg("Marker Shape", "Static Phosphor icon", "MapPin")),
       "MapPin",
     );
-    const sizeRows = asRepeatable(cfg("Marker appearance", "Marker size by data", undefined));
+    const sizeScaling = asZoomScaling(cfg("Marker appearance", "Marker size by data", undefined));
+    const sizeStops = parsedZoomStops(sizeScaling);
+    const sizeLo = sizeStops[0]?.zoom ?? 0;
+    const sizeHi = sizeStops[sizeStops.length - 1]?.zoom ?? 1;
+    const sizePeak = Math.max(...sizeStops.map((s) => s.scale), 1);
+    const sizeByData = (value: number) =>
+      sampleZoomScale(sizeScaling, sizeLo + (max ? value / max : 0) * (sizeHi - sizeLo)) / sizePeak;
     layer = (
       <>
         <Ground cfg={cfg} />
         {visible.map((p, i) => {
           const x = P + p.x * (W - 2 * P);
           const y = P + p.y * (H - 2 * P);
-          const r = (4 + size * 2 + (p.value / max) * (2 + sizeRows.length) + zoomScale * 0.3);
+          const r = 4 + size * 2 + sizeByData(p.value) * 5 + zoomScale * 0.3;
           const color = catColor(cfg, p.category, mapColor(cfg, p.value, max, p.category, i), i);
           const shape = kind === "3D" ? shape3d : shape2d;
           return (

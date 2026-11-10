@@ -588,7 +588,7 @@ export function derivePreviewSeries({
       mapped(config, "Rain rate") ||
       mapped(config, "Value") ||
       mapped(config, "Intensity Value Field") ||
-      cfgStr(config, "Color", "Data Field") ||
+      cfgStr(config, "Color", "Color by") ||
       "value";
     const mapColorMode = asColorMode(config["Color::Palette"]);
     const autoCategoryCol =
