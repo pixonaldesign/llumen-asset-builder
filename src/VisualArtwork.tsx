@@ -4,11 +4,7 @@ import {
   getChartVisualSrc,
   isChartVisualAsset,
 } from "./chartVisualAssets";
-import {
-  getMapPickerIconSrc,
-  getMapVisualSrc,
-  isMapVisualAsset,
-} from "./mapVisualAssets";
+import { getMapVisualSrc, isMapVisualAsset } from "./mapVisualAssets";
 
 type Props = {
   visualId: string;
@@ -21,12 +17,12 @@ export default function VisualArtwork({ visualId, category, size = "card" }: Pro
     size === "bar"
       ? category === "chart"
         ? getChartPickerIconSrc(visualId)
-        : getMapPickerIconSrc(visualId)
+        : getMapVisualSrc(visualId)
       : undefined;
   const pickerIconSrc =
     category === "chart" && size === "card" ? getChartPickerIconSrc(visualId) : undefined;
   const mapPickerIconSrc =
-    category === "map-layer" && size === "map" ? getMapPickerIconSrc(visualId) : undefined;
+    category === "map-layer" && size === "map" ? getMapVisualSrc(visualId) : undefined;
   const enlargePickerIcon =
     visualId === "donut-chart" ||
     visualId === "gauge-linear" ||
@@ -34,7 +30,7 @@ export default function VisualArtwork({ visualId, category, size = "card" }: Pro
 
   if (size === "stack") {
     const src =
-      category === "chart" ? getChartPickerIconSrc(visualId) : getMapPickerIconSrc(visualId);
+      category === "chart" ? getChartPickerIconSrc(visualId) : getMapVisualSrc(visualId);
     if (src) {
       return (
         <img
